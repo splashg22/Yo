@@ -186,7 +186,7 @@
 <header class="nav">
   <a class="pill logo" href="#top" aria-label="Dacity Strategy"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
   <nav class="pill links">
-    <a href="#top" class="keep">Home</a><a href="#live" data-live>Live</a><a href="#how">How it works</a><a href="#wallet" data-live>Wallet</a><a href="#txs" data-live>Transactions</a>
+    <a href="#top" class="keep">Home</a><a href="./dashboard.html" class="keep">Dashboard</a><a href="#live" data-live>Live</a><a href="#how">How it works</a><a href="#wallet" data-live>Wallet</a><a href="#txs" data-live>Transactions</a>
     <a class="buy" id="buy-nav" href="#" rel="noopener" hidden>Buy</a>
   </nav>
 </header>
@@ -198,6 +198,7 @@
     <p><b id="title">Dacity Strategy</b> is a pump.fun coin paired with TTWO, tokenized Take-Two stock. Its creator fees never sit still: <b><span class="pct-burn">40%</span> buys DacityCoin and burns it, <span class="pct-buyback">20%</span> buys this coin back and burns it, <span class="pct-holders">40%</span> is sent to holders in TTWO.</b> Nothing to claim. Everything on-chain.</p>
     <div class="cta">
       <a class="btn text" href="#how" data-soon hidden>How it works</a>
+      <a class="btn" href="./dashboard.html" data-live>Open the dashboard <span class="ar">→</span></a>
       <a class="btn text" href="#txs" data-live>See every transaction</a>
       <a class="btn" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun <span class="ar">→</span></a>
       <a class="btn" href="#wallet" data-live>Check my wallet <span class="ar">→</span></a>
@@ -518,7 +519,6 @@
     }
     // Until the coin exists there is no holder balance to check, so the wallet box stays out of the way.
     if (!cfg.holderMint) for (const el of document.querySelectorAll('#wallet, a[href="#wallet"]')) el.hidden = true;
-    if (!cfg.strategyMint) document.querySelector('.cta a[href="#txs"]').classList.remove("text");
     $("minhold").textContent = `${String(cfg.minHold).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} ${cfg.holderSymbol || "of the strategy coin"}`;
     if (cfg.repoUrl) $("repo").innerHTML = `Source: <a href="${esc(cfg.repoUrl)}" rel="noopener">${esc(cfg.repoUrl.replace(/^https?:\/\//, ""))}</a> (the money rules are in src/split.ts).`;
     $("addresses").innerHTML = [

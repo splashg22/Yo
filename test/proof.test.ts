@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID, getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { ammCreatorVaultPda, creatorVaultPda } from "@pump-fun/pump-sdk";
 // @ts-expect-error plain JavaScript shared with the browser page
 import * as proof from "../web/proof.js";
 
@@ -167,6 +168,12 @@ describe("proof page: amounts and addresses", () => {
       const [pda] = PublicKey.findProgramAddressSync([key.toBytes()], new PublicKey(proof.ATA_PROGRAM));
       expect(proof.onCurve(pda.toBytes())).toBe(false);
     }
+  });
+  it("derives the two creator fee vaults exactly like the pump SDK", async () => {
+    const creator = Keypair.generate().publicKey;
+    const [curveVault, ammVault] = await proof.creatorVaults(creator.toBase58());
+    expect(curveVault).toBe(creatorVaultPda(creator).toBase58());
+    expect(ammVault).toBe(ammCreatorVaultPda(creator).toBase58());
   });
   it("derives associated token accounts exactly like @solana/spl-token", async () => {
     for (let i = 0; i < 12; i++) {
