@@ -180,9 +180,24 @@ web/            the public proof page (static)
 deploy/         pm2 + systemd configs, backup script
 ```
 
-## Not yet proven
+## What has been proven on mainnet
 
-The on-chain layer (`src/chain.ts`, `src/holders.ts`, `src/jupiter.ts`) is
-written against `@pump-fun/pump-sdk` 4.3.1 and Jupiter's Swap API v1, but it
-has **never been run against mainnet or the live Jupiter API**. The first dry run is the test. The tests cover the
-rules, the books and the cycle logic against a simulated chain.
+On 2026-11-19 the chain layer was run read-only against mainnet with
+DacityCoin standing in as the strategy coin (it is a live pump.fun coin paired
+with TTWO):
+
+- `npm run status` and the dry run complete: pair detection, stage, creator
+  check, Holder Rewards warning, books check.
+- Check (a): pump's own router resolves TTWO -> DCTY directly on the pump pool,
+  so `SWAP_VENUE=auto` never needs Jupiter. A 1 TTWO swap simulated
+  successfully. Jupiter's `swap/v1` still answers without a key as a fallback.
+- Check (b): a TTWO `transferChecked` to a brand-new wallet (with the
+  associated-account create) simulated successfully, alone and five per
+  transaction. TTWO is Token-2022 with no transfer fee, no active transfer
+  hook, new accounts unfrozen and the mint not paused.
+- Claim: the sweep and collect instructions build for a real creator.
+- Check (c) depends on the RPC: free public RPCs refuse `getProgramAccounts`.
+
+Still untested until the bot has its own fees: a real claim, a real swap, a
+real payout, and `verify`. The first live cycle, with a small
+`MAX_SWAP_TTWO_PER_CYCLE`, is that test.

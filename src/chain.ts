@@ -29,7 +29,11 @@ import {
 import {
   OnlinePumpSdk,
   PUMP_SDK,
+  ammCreatorVaultPda,
   canonicalPumpPoolPdaWithQuote,
+  creatorVaultPda,
+  normalizeQuoteMint,
+  quoteAta,
   type BondingCurve,
   type MultiHopHop,
 } from "@pump-fun/pump-sdk";
@@ -61,6 +65,39 @@ export function loadKeypair(file: string): Keypair {
     throw new Error("TREASURY_KEYPAIR_PATH is not a solana-keygen keypair file");
   }
   return Keypair.fromSecretKey(Uint8Array.from(bytes as number[]));
+}
+
+/** The part of the pump SDK `resolvePair` needs, so it can be tested without a network. */
+export interface PairSource {
+  fetchBondingCurve(mint: PublicKey): Promise<BondingCurve>;
+  fetchQuoteTokenProgram(quoteMint: PublicKey): Promise<PublicKey>;
+}
+
+/**
+ * Reads what a pump coin is paired with from its bonding curve. This works for
+ * any wallet: `fetchSellState` would need the treasury to already hold the
+ * coin, which a fresh creator wallet does not.
+ */
+export async function resolvePair(
+  source: PairSource,
+  mint: PublicKey,
+  expectedQuoteMint: string | null,
+): Promise<{ curve: BondingCurve; quoteMint: PublicKey; quoteProgram: PublicKey }> {
+  const curve = await source.fetchBondingCurve(mint);
+  const quoteMint = normalizeQuoteMint(curve.quoteMint);
+  if (quoteMint.equals(NATIVE_MINT)) {
+    throw new Error("STRATEGY_MINT is paired with SOL. This bot only handles a token pair such as TTWO.");
+  }
+  if (expectedQuoteMint && quoteMint.toBase58() !== expectedQuoteMint) {
+    throw new Error(`STRATEGY_MINT is paired with ${quoteMint.toBase58()}, not EXPECTED_QUOTE_MINT ${expectedQuoteMint}`);
+  }
+  return { curve, quoteMint, quoteProgram: await source.fetchQuoteTokenProgram(quoteMint) };
+}
+
+/** Token amount held by `account`, or 0 when it does not exist. Same layout for SPL Token and Token-2022. */
+export function tokenAmountOf(info: { data: Buffer } | null): bigint {
+  if (!info || info.data.length < 72) return 0n;
+  return info.data.readBigUInt64LE(64);
 }
 
 export interface CoinInfo {
@@ -109,31 +146,24 @@ export class SolanaChain implements Chain {
       return info.owner;
     }) as [PublicKey, PublicKey, PublicKey];
 
-    const sell = await this.sdk.fetchSellState(this.strategyMint, this.treasury, programs[0]);
-    if (sell.quoteMint.equals(NATIVE_MINT)) {
-      throw new Error("STRATEGY_MINT is paired with SOL. This bot only handles a token pair such as TTWO.");
-    }
-    if (this.config.expectedQuoteMint && sell.quoteMint.toBase58() !== this.config.expectedQuoteMint) {
-      throw new Error(
-        `STRATEGY_MINT is paired with ${sell.quoteMint.toBase58()}, not EXPECTED_QUOTE_MINT ${this.config.expectedQuoteMint}`,
-      );
-    }
+    const pair = await resolvePair(this.sdk, this.strategyMint, this.config.expectedQuoteMint);
     const [quote, burn, holder] = await Promise.all([
-      getMint(this.connection, sell.quoteMint, "confirmed", sell.quoteTokenProgram),
+      getMint(this.connection, pair.quoteMint, "confirmed", pair.quoteProgram),
       getMint(this.connection, this.burnMint, "confirmed", programs[1]),
       getMint(this.connection, this.holderMint, "confirmed", programs[2]),
     ]);
-    this.quoteHasHook = getTransferHook(quote) !== null && !getTransferHook(quote)!.programId.equals(PublicKey.default);
+    const hook = getTransferHook(quote);
+    this.quoteHasHook = hook !== null && !hook.programId.equals(PublicKey.default);
     this.cached = {
-      curve: sell.bondingCurve,
-      quoteMint: sell.quoteMint,
-      quoteProgram: sell.quoteTokenProgram,
+      curve: pair.curve,
+      quoteMint: pair.quoteMint,
+      quoteProgram: pair.quoteProgram,
       quoteDecimals: quote.decimals,
       burnProgram: programs[1],
       burnDecimals: burn.decimals,
       holderProgram: programs[2],
       holderDecimals: holder.decimals,
-      pool: canonicalPumpPoolPdaWithQuote(this.strategyMint, sell.quoteMint),
+      pool: canonicalPumpPoolPdaWithQuote(this.strategyMint, pair.quoteMint),
     };
     return this.cached;
   }
@@ -161,9 +191,7 @@ export class SolanaChain implements Chain {
   }
 
   private async tokenAmount(account: PublicKey): Promise<bigint> {
-    const info = await this.connection.getAccountInfo(account, "confirmed");
-    if (!info || info.data.length < 72) return 0n;
-    return info.data.readBigUInt64LE(64);
+    return tokenAmountOf(await this.connection.getAccountInfo(account, "confirmed"));
   }
 
   async balances() {
@@ -188,14 +216,23 @@ export class SolanaChain implements Chain {
     return this.sdk.fetchBondingCurve(this.strategyMint);
   }
 
+  /**
+   * TTWO already swept into the treasury's two creator vaults (bonding curve
+   * and pump-amm). Read directly: two accounts, so it works on RPCs that cap
+   * getMultipleAccounts, unlike the SDK's all-quote-mints lookup.
+   */
+  private async vaultBalances(): Promise<bigint> {
+    const { quoteMint, quoteProgram } = this.info;
+    const accounts = [creatorVaultPda(this.treasury), ammCreatorVaultPda(this.treasury)].map((vault) =>
+      quoteAta(vault, quoteMint, quoteProgram),
+    );
+    const infos = await this.connection.getMultipleAccountsInfo(accounts, "confirmed");
+    return infos.reduce((sum, info) => sum + tokenAmountOf(info), 0n);
+  }
+
   async pendingFees(): Promise<bigint> {
-    const [vaults, curve, bucket] = await Promise.all([
-      this.sdk.getCreatorVaultQuoteBalances(this.treasury, [this.info.quoteMint]),
-      this.freshCurve(),
-      this.poolBucket(),
-    ]);
-    const vault = vaults.find((v) => v.mint.equals(this.info.quoteMint));
-    let total = BigInt(vault?.total.toString() ?? "0");
+    const [vaulted, curve, bucket] = await Promise.all([this.vaultBalances(), this.freshCurve(), this.poolBucket()]);
+    let total = vaulted;
     if (curve.creator.equals(this.treasury)) total += BigInt(curve.creatorFee.toString());
     if (bucket?.coinCreator.equals(this.treasury)) total += bucket.amount;
     return total;
@@ -379,6 +416,10 @@ export class SolanaChain implements Chain {
       commitment: "confirmed",
     });
     if (!value.err) return { ok: true };
+    if (value.err === "AccountNotFound") {
+      // The fee payer (the treasury) has no lamports: nothing can be simulated until it is funded.
+      return { ok: false, error: "the treasury has no SOL yet, so nothing can be simulated; fund it first" };
+    }
     const logs = (value.logs ?? []).slice(-6).join(" | ");
     return { ok: false, error: `${JSON.stringify(value.err)}${logs ? ` — ${logs}` : ""}` };
   }
