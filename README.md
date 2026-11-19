@@ -131,6 +131,38 @@ are wrong; find out which before restarting.
 
 Back up `data/` regularly.
 
+## Public proof page
+
+`web/` is a one-page site, in DacityCoin's colours, that proves the strategy
+to holders. It runs entirely in the visitor's browser and reads the Solana
+blockchain directly through a key-free public RPC, so nothing on it has to be
+taken on trust:
+
+- live treasury balances and the current DCTY supply;
+- every transaction of the treasury, classified from its on-chain contents as
+  a claim, a DCTY buy, a burn or a holder payout, with a Solscan link each;
+- a **Check your wallet** box: balance, whether the wallet qualifies, and every
+  TTWO payout it has received;
+- a cross-check of the bot's published ledger against the chain, so visitors
+  can see the books are honest.
+
+Publish it:
+
+```bash
+npm run web            # writes web/config.json and copies the ledger next to the page
+```
+
+`config.json` holds public facts only (addresses, the minimum hold, a public
+RPC). `PUBLIC_RPC_URL` in `.env` must be a key-free endpoint; the default
+PublicNode one works from browsers. Set `REPO_URL` to show a source link in
+the footer and `HOLDER_SYMBOL` to name your coin.
+
+Host the `web/` folder anywhere static. The included GitHub Actions workflow
+(`.github/workflows/pages.yml`) publishes it to GitHub Pages on every push once
+you set **Settings → Pages → Source: GitHub Actions** on the repository. Run
+`npm run web` and commit after live cycles so the ledger cross-check stays
+current; the chain data on the page is always live regardless.
+
 ## Layout
 
 ```
@@ -143,7 +175,8 @@ src/holders.ts  holder snapshot
 src/notify.ts   Discord / Telegram alerts
 src/report.ts   public stats page
 src/cli.ts      status | cycle | loop | verify | holders | report
-scripts/        guided setup (wallet, .env)
+scripts/        guided setup (wallet, .env) and the proof-page publisher
+web/            the public proof page (static)
 deploy/         pm2 + systemd configs, backup script
 ```
 

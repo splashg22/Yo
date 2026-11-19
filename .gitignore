@@ -12,3 +12,4 @@ data/.lock
 data/report.html
 data/summary.json
 data/holders.csv
+.claude/

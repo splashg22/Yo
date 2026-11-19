@@ -13,7 +13,8 @@
     "report": "tsx src/cli.ts report",
     "holders": "tsx src/cli.ts holders",
     "setup:wallet": "tsx scripts/setup.ts wallet",
-    "setup:env": "tsx scripts/setup.ts env"
+    "setup:env": "tsx scripts/setup.ts env",
+    "web": "tsx scripts/web.ts"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "4.3.1",
