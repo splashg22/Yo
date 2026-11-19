@@ -88,3 +88,32 @@ Fill these from the dashboard only; never estimate.
 - Say "paid", "burned", "bought back". Avoid "guaranteed", "risk-free", "passive income".
 - Always: "Not financial advice" in the bio or the pinned post. Always: "Independent project, not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun" somewhere visible.
 - Link the dashboard, not a screenshot, whenever a number is the point.
+
+## Generated art (Higgsfield)
+
+The kit above is typographic on purpose; generated art goes *behind* it, never
+instead of it. Generate these in the Higgsfield app (the connector in this
+workspace cannot generate, only read history), then say so: the results can
+be pulled from your generation history and dropped in as backgrounds for the
+X header, the hero and the announcement card. Keep text out of the images;
+the type is laid over them from the sources in `src/`.
+
+Recommended models: **Nano Banana Pro** or **Cinema Studio Image 2.5** at 2k.
+Use the same seed or reference the first result for the other two so they
+match. Ask for no text, no logos, no watermarks every time.
+
+**1. X header background · 21:9** (crop to 1500 × 500 afterwards)
+> A vast dark wall of small rounded rectangular tiles, deep night plum (#0b0308) with a soft hot-pink glow (#ff1f8f) rising from the top centre and fading out, like a lit arcade wall at night. Low camera angle, slight perspective, cinematic lighting, film grain, shallow depth of field at the edges. Empty negative space in the left half and bottom-left for text. No text, no letters, no logos, no people.
+
+**2. Hero image for the site · 16:9**
+> Macro photograph of a single matte-black ticket stub with a perforated edge on a dark tiled surface, lit by a thin hot-pink neon line from above, pale sky-blue rim light from the left. A faint curl of smoke rising from one corner as if just burned. Moody, precise, premium. Night plum palette (#0b0308, #ff1f8f, #8fd3ff). No text, no numbers, no logos.
+
+**3. Announcement card background · 16:9**
+> Three tall translucent glass tickets standing in a shallow fan on a dark reflective floor, each lit edge-on: the left one hot pink, the middle one warm white, the right one pale sky blue. Dark tiled wall behind, soft glow at the top, long reflections, cinematic, 4k product photography. Empty space across the upper half for a headline. No text, no logos.
+
+**4. Avatar mark, optional · 1:1**
+> A minimal pink neon "A" made of two strokes with an inner arch, mounted on a dark tile wall, glowing softly, centred, lots of margin, photographic. No other text.
+
+After generating: tell Claude "the Higgsfield art is ready". It will read the
+URLs from the history, place the images under `brand/art/`, and re-render the
+kit with the type on top.
