@@ -10,6 +10,6 @@
   "burnMint": null,
   "notAffiliatedWith": "Anthropic, the issuers of tokenized Anthropic shares or pump.fun. Tokenized shares are issued by third parties, not by Anthropic, and may carry no shareholder rights",
   "logoPath": "M16 30 32 14l16 16M16 44l16-16 16 16M25 54h14",
-  "faviconBg": "#0a0a1c",
-  "accent": "#8b7bff"
+  "faviconBg": "#ffd21f",
+  "accent": "#12211b"
 }

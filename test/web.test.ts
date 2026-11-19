@@ -55,10 +55,12 @@ describe("a brand's own page", () => {
     expect(siteDir(llm, "web")).toBe(path.join("web", "llm"));
   });
   it("carries the brand in the HTML itself: theme, title, link preview, words", () => {
-    expect(page).toContain('<html lang="en" data-theme="llm">');
+    expect(page).toContain('<html lang="en" data-brand="llm">');
+    expect(page).toContain('href="../kit/kit.css"');
+    expect(page).toContain('from "../kit/kit.js"');
     expect(page).toContain("<title>LLM Launchpad</title>");
     expect(page).toContain('<meta property="og:title" content="LLM Launchpad">');
-    expect(page).toContain('<span class="blue" data-b="quote">ANT</span>');
+    expect(page).toContain('<span class="hl" data-b="quote">ANT</span>');
     expect(page).toContain('<span data-b="quoteName">tokenized Anthropic stock</span>');
     expect(page).toContain('from "../proof.js"');
     expect(page).toContain('let Q = "ANT", B = "LLM";');

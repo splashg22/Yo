@@ -94,12 +94,16 @@ export function renderSite(template: string, brand: Brand): string {
   const title = escapeHtml(brand.title);
   const burn = escapeHtml(brand.burnSymbol);
   const quote = escapeHtml(brand.quoteSymbol);
-  swap(/(<html lang="en")(>)/, ` data-theme="${escapeHtml(brand.theme)}"`, "its <html> tag");
+  // data-brand recolours the kit for this brand; data-theme is left for light and dark.
+  swap(/(<html lang="en")(>)/, ` data-brand="${escapeHtml(brand.theme)}"`, "its <html> tag");
   swap(/(<title>)[^<]*(<\/title>)/, title, "a <title>");
   swap(/(<meta name="description" content=")[^"]*(">)/, `${title}: a pump.fun coin whose creator fees buy and burn ${burn} and pay holders in ${quote}, ${escapeHtml(brand.quoteName)}. Every transaction, verified live on Solana.`, "a description");
   swap(/(<meta property="og:title" content=")[^"]*(">)/, title, "an og:title");
   swap(/(<meta property="og:description" content=")[^"]*(">)/, `Half of every fee buys and burns ${burn}. Half pays holders in ${quote}. Proven live on-chain.`, "an og:description");
   swap(/(from ")\.\/proof\.js(")/, "../proof.js", "the proof.js import");
+  // A brand's page lives one folder down, so the kit it shares with the default page is one folder up.
+  if (!/"\.\/kit\//.test(html)) throw new Error("web/index.html no longer has the kit; update renderSite in scripts/web.ts");
+  html = html.replace(/"\.\/kit\//g, '"../kit/');
   // The tickers the page's script starts with, before config.json is read.
   for (const ticker of [brand.quoteSymbol, brand.burnSymbol]) {
     if (!/^[A-Za-z0-9$._ -]{1,20}$/.test(ticker)) throw new Error(`brands/${brand.name}.json: "${ticker}" is not a ticker`);
@@ -109,7 +113,7 @@ export function renderSite(template: string, brand: Brand): string {
   if (brand.logoPath) {
     if (!/^[\dA-Za-z .,-]+$/.test(brand.logoPath)) throw new Error(`brands/${brand.name}.json: "logoPath" is not an SVG path`);
     swap(/(<path data-logo d=")[^"]*(")/, brand.logoPath, "the logo path");
-    const icon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='${brand.faviconBg ?? "#000"}'/><path d='${brand.logoPath}' fill='none' stroke='${brand.accent ?? "#fff"}' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/></svg>`;
+    const icon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='${brand.faviconBg ?? "#000"}'/><path d='${brand.logoPath}' fill='none' stroke='${brand.accent ?? "#fff"}' stroke-width='5' stroke-linecap='square'/></svg>`;
     swap(/(<link rel="icon" href=")[^"]*(">)/, `data:image/svg+xml,${icon.replace(/[<>#"]/g, (c) => encodeURIComponent(c))}`, "a favicon");
   }
   const words: Record<string, string> = {

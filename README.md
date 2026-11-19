@@ -218,6 +218,13 @@ template LLM Launchpad's is made from. After editing it, run
 `npm run web:sites` to rebuild `web/llm/index.html` (a test fails if you
 forget). A page's words, colours and logo come from its file in `brands/`.
 
+The pages are built from their own component kit in `web/kit/` (`kit.css` and
+`kit.js`): a split-flap board, a segmented control, a ledger table, stamps,
+icons, a light / dark switch. Nothing comes from a UI library or a template.
+Colours are tokens at the top of `kit.css`; a coin's highlighter colour is set
+by a `:root[data-brand="..."]` block in `web/index.html` (pink for DA City,
+yellow for LLM Launchpad).
+
 `deploy/publish-web.sh` copies only `web/` into a commit on the `gh-pages`
 branch and pushes it; nothing else in the repository (never `.env`, keys or
 `data/`) goes there. Turn the site on once with **Settings → Pages → Deploy

@@ -13,7 +13,7 @@ export interface Brand {
   /** Folder of the proof page under web/. Empty = web/ itself (the site root). */
   slug: string;
   title: string;
-  /** Colour theme of the proof page (a `data-theme` in web/index.html). */
+  /** The brand's colours on its pages: a `:root[data-brand="..."]` block that recolours the kit. */
   theme: string;
   /** Ticker of the strategy coin; empty when it has none yet. */
   coinSymbol: string;
