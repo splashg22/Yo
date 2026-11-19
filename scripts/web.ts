@@ -112,8 +112,10 @@ export function renderSite(template: string, brand: Brand): string {
   swap(/(, B = ")[^"]*(";)/, brand.burnSymbol, "the default burn ticker");
   if (brand.logoPath) {
     if (!/^[\dA-Za-z .,-]+$/.test(brand.logoPath)) throw new Error(`brands/${brand.name}.json: "logoPath" is not an SVG path`);
-    swap(/(<path data-logo d=")[^"]*(")/, brand.logoPath, "the logo path");
-    const icon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' fill='${brand.faviconBg ?? "#000"}'/><path d='${brand.logoPath}' fill='none' stroke='${brand.accent ?? "#fff"}' stroke-width='5' stroke-linecap='square'/></svg>`;
+    // The logo is drawn in the header and in the footer.
+    if (!/<path data-logo d="/.test(html)) throw new Error("web/index.html no longer has the logo path; update renderSite in scripts/web.ts");
+    html = html.replace(/(<path data-logo d=")[^"]*(")/g, `$1${brand.logoPath}$2`);
+    const icon = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='${brand.faviconBg ?? "#000"}'/><path d='${brand.logoPath}' fill='none' stroke='${brand.accent ?? "#fff"}' stroke-width='5' stroke-linecap='round' stroke-linejoin='round'/></svg>`;
     swap(/(<link rel="icon" href=")[^"]*(">)/, `data:image/svg+xml,${icon.replace(/[<>#"]/g, (c) => encodeURIComponent(c))}`, "a favicon");
   }
   const words: Record<string, string> = {

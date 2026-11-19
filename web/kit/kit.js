@@ -1,11 +1,10 @@
 /**
  * The kit's behaviour: the components the sites are built from, written here
- * rather than borrowed, so nothing looks or behaves like a stock widget.
+ * rather than taken from a UI library.
  *
- *   <kit-flap value tone>     split-flap letters that flip when the value changes
- *   <kit-seal seed text>      a rosette drawn from an address, with a monogram
+ *   <kit-avatar seed text>    initials on a colour picked from the seed
  *   <kit-select value label>  a listbox; options are its <option> children
- *   <kit-seg label>           a segmented control with a sliding thumb
+ *   <kit-seg label>           tabs with a sliding underline
  *   <kit-acc>                 <details> that open and close smoothly
  *   <kit-copy value label>    an address with a copy button
  *   <kit-drop hint>           a picture well around an <input type="file">
@@ -20,7 +19,7 @@
 
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
-// ---- Icons: one hand, square-ended strokes on a 24 grid -------------------------
+// ---- Icons: one hand, round strokes on a 24 grid -------------------------
 const ICONS = {
   right: "M4 12h15M13 6l6 6-6 6",
   out: "M7 17 17 7M9 7h8v8",
@@ -34,6 +33,9 @@ const ICONS = {
   flame: "M12 21c-3.9 0-6.5-2.6-6.5-6.1 0-2.6 1.6-4.3 3-5.9 1.3-1.5 2.4-3 2.2-6 3.6 1.7 7.8 5.6 7.8 11.4 0 3.9-2.6 6.6-6.5 6.6z",
   sun: "M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1",
   moon: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z",
+  info: "M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 11v6M12 7.5h.01",
+  alert: "M12 3 2.5 20h19L12 3zM12 10v5M12 17.5h.01",
+  wallet: "M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7zM4 7V6a2 2 0 0 1 2-2h10v3M16 13.5h.01",
 };
 
 /** An icon as an SVG string, for use inside markup. */
@@ -59,94 +61,30 @@ export function toast(text, ms = 2600) {
   setTimeout(() => { item.classList.add("out"); setTimeout(() => item.remove(), 300); }, ms);
 }
 
-// ---- Seal geometry ----------------------------------------------------------------
-
-/** A small, stable number from any text (FNV-1a), so the same address always draws the same seal. */
+/** A small, stable number from any text (FNV-1a), so the same name always gets the same colour. */
 export function seedOf(text) {
   let h = 2166136261;
   for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619); }
   return h >>> 0;
 }
 
-/** The rosette's rings for a seed: banknote-style wavy circles, as SVG path data. */
-export function rosette(seed) {
-  const petals = 5 + (seed % 9); // 5..13
-  const depth = 1.6 + ((seed >>> 4) % 5) * 0.55;
-  const twist = ((seed >>> 8) % 360) * (Math.PI / 180);
-  const rings = [];
-  for (let ring = 0; ring < 3; ring += 1) {
-    const radius = 27.5 - ring * 2.6;
-    const phase = twist + ring * (Math.PI / petals) * (1 + ((seed >>> 12) % 2));
-    let d = "";
-    for (let step = 0; step <= 120; step += 1) {
-      const angle = (step / 120) * Math.PI * 2;
-      const r = radius + depth * Math.sin(petals * angle + phase);
-      d += `${step ? "L" : "M"}${(32 + r * Math.cos(angle)).toFixed(1)} ${(32 + r * Math.sin(angle)).toFixed(1)}`;
-    }
-    rings.push(`${d}Z`);
-  }
-  return rings;
-}
-
-const FLAP_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+/** The hue of an avatar, from what it stands for. The greens are left out: green means "available" here. */
+export const hueOf = (seed) => { const h = seedOf(seed) % 260; return h < 70 ? h : h + 100; };
 
 if (typeof customElements !== "undefined") {
   const still = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
   const define = (name, element) => { if (!customElements.get(name)) customElements.define(name, element); };
 
-  // ---- <kit-flap> -------------------------------------------------------------------
-  define("kit-flap", class extends HTMLElement {
-    static observedAttributes = ["value"];
-    connectedCallback() {
-      if (this.cells) return;
-      this.cells = [];
-      this.timers = [];
-      this.show(this.getAttribute("value") || "", true);
-    }
-    disconnectedCallback() { for (const t of this.timers || []) clearTimeout(t); }
-    attributeChangedCallback(_name, before, now) { if (this.cells && before !== now) this.show(now || "", false); }
-    show(value, first) {
-      const text = value.toUpperCase();
-      this.setAttribute("aria-label", value.trim());
-      this.setAttribute("role", "img");
-      while (this.cells.length < text.length) {
-        const cell = document.createElement("span");
-        cell.className = "fl";
-        cell.setAttribute("aria-hidden", "true");
-        cell.textContent = " ";
-        this.append(cell);
-        this.cells.push(cell);
-      }
-      while (this.cells.length > text.length) this.cells.pop().remove();
-      [...text].forEach((ch, i) => {
-        const cell = this.cells[i];
-        const target = ch === " " ? " " : ch;
-        if (cell.textContent === target) return;
-        if (still()) { cell.textContent = target; return; }
-        // A flap passes a letter or two on its way, like the real thing.
-        const passes = target === " " ? [target] : [FLAP_ALPHABET[(i * 7 + text.length * 3) % FLAP_ALPHABET.length], target];
-        const start = (first ? 120 : 0) + i * 34;
-        passes.forEach((glyph, n) => {
-          this.timers.push(setTimeout(() => {
-            cell.classList.remove("go");
-            void cell.offsetWidth;
-            cell.classList.add("go");
-            this.timers.push(setTimeout(() => { cell.textContent = glyph; }, 85));
-          }, start + n * 170));
-        });
-      });
-    }
-  });
-
-  // ---- <kit-seal> -------------------------------------------------------------------
-  define("kit-seal", class extends HTMLElement {
+  // ---- <kit-avatar> -----------------------------------------------------------------
+  define("kit-avatar", class extends HTMLElement {
     static observedAttributes = ["seed", "text"];
     connectedCallback() { this.draw(); }
     attributeChangedCallback() { if (this.isConnected) this.draw(); }
     draw() {
-      const rings = rosette(seedOf(this.getAttribute("seed") || this.getAttribute("text") || ""));
+      const text = (this.getAttribute("text") || "").slice(0, 2).toUpperCase();
+      this.style.setProperty("--h", String(hueOf(this.getAttribute("seed") || text)));
       this.setAttribute("aria-hidden", "true");
-      this.innerHTML = `<svg viewBox="0 0 64 64">${rings.map((d, i) => `<path d="${d}" fill="none" stroke="currentColor" stroke-width="${i ? 0.6 : 0.9}" opacity="${i ? 0.5 : 0.85}"/>`).join("")}<text x="32" y="33" text-anchor="middle" dominant-baseline="central">${esc((this.getAttribute("text") || "").slice(0, 2).toUpperCase())}</text></svg>`;
+      this.innerHTML = `<span>${esc(text)}</span>`;
     }
   });
 
@@ -341,7 +279,7 @@ if (typeof customElements !== "undefined") {
       this.input = this.querySelector('input[type="file"]');
       if (!this.input) return;
       const hint = this.getAttribute("hint") || "";
-      this.insertAdjacentHTML("afterbegin", `<span class="th">${icon("image")}</span><span class="tx"><b>Drop a picture here, or tap to choose one</b><span>${esc(hint)}</span></span>`);
+      this.insertAdjacentHTML("afterbegin", `<span class="th">${icon("image")}</span><span class="tx"><b>Upload a picture</b><span>${esc(hint)}</span></span>`);
       this.insertAdjacentHTML("beforeend", `<button type="button" class="textbtn rm" hidden>Remove</button>`);
       this.thumb = this.querySelector(".th");
       this.heading = this.querySelector(".tx b");
@@ -363,8 +301,8 @@ if (typeof customElements !== "undefined") {
       if (this.url) URL.revokeObjectURL(this.url);
       this.url = file ? URL.createObjectURL(file) : "";
       this.thumb.innerHTML = file ? `<img alt="" src="${this.url}">` : icon("image");
-      this.heading.textContent = file ? file.name : "Drop a picture here, or tap to choose one";
-      this.note.textContent = file ? `${file.size >= 1e6 ? `${(file.size / 1e6).toFixed(2)} MB` : `${Math.max(1, Math.round(file.size / 1e3))} KB`} · tap to change` : this.getAttribute("hint") || "";
+      this.heading.textContent = file ? file.name : "Upload a picture";
+      this.note.textContent = file ? `${file.size >= 1e6 ? `${(file.size / 1e6).toFixed(2)} MB` : `${Math.max(1, Math.round(file.size / 1e3))} KB`} · click to change` : this.getAttribute("hint") || "";
       this.remove_.hidden = !file;
     }
   });
