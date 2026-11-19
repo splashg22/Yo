@@ -34,6 +34,7 @@ async function setup(config: Config) {
   const info = await chain.init();
   const limits: Limits = {
     dryRun: config.dryRun,
+    split: config.split,
     minHold: parseUnits(config.minHold, info.holderDecimals),
     minSol: parseUnits(config.minSolBalance, 9),
     maxSwapPerCycle: parseUnits(config.maxSwapPerCycle, info.quoteDecimals),
@@ -52,15 +53,16 @@ async function setup(config: Config) {
   };
   const ttwo = (amount: bigint) => `${formatUnits(amount, info.quoteDecimals)} TTWO`;
   const burnCoin = (amount: bigint) => `${formatUnits(amount, info.burnDecimals)} burn coin`;
-  return { chain, info, limits, deps, dataDir, ttwo, burnCoin };
+  const ownCoin = (amount: bigint) => `${formatUnits(amount, info.strategyDecimals)} of the coin`;
+  return { chain, info, limits, deps, dataDir, ttwo, burnCoin, ownCoin };
 }
 
 type Ctx = Awaited<ReturnType<typeof setup>>;
 
 function printBooks(ctx: Ctx, check: Reconciliation) {
-  const { ttwo, burnCoin } = ctx;
-  say(`  Treasury holds        ${ttwo(check.quoteHeld)}, ${burnCoin(check.coinHeld)}`);
-  say(`  Books account for     ${ttwo(check.quoteBooked)}, ${burnCoin(check.coinBooked)} awaiting burn`);
+  const { ttwo, burnCoin, ownCoin } = ctx;
+  say(`  Treasury holds        ${ttwo(check.quoteHeld)}, ${burnCoin(check.coinHeld)}, ${ownCoin(check.selfHeld)}`);
+  say(`  Books account for     ${ttwo(check.quoteBooked)}, ${burnCoin(check.coinBooked)} awaiting burn, ${ownCoin(check.selfBooked)} bought back awaiting burn`);
   if (check.ok) {
     say(`  Books check           OK` + (check.quoteDifference > 0n ? ` (${ttwo(check.quoteDifference)} extra in the wallet is not the bot's and is left alone)` : ""));
   } else {
@@ -71,7 +73,7 @@ function printBooks(ctx: Ctx, check: Reconciliation) {
 
 async function status(config: Config) {
   const ctx = await setup(config);
-  const { chain, info, deps, ttwo, burnCoin } = ctx;
+  const { chain, info, deps, ttwo, burnCoin, ownCoin } = ctx;
   const state = deps.store.load(chain.mints());
   const [held, fees] = await Promise.all([chain.balances(), chain.pendingFees()]);
   say(`Mode                    ${config.dryRun ? "DRY RUN (nothing is sent)" : "LIVE"}`);
@@ -84,22 +86,24 @@ async function status(config: Config) {
   say(`  Fees go to treasury   ${creatorOk ? "yes" : `NO — the coin's fee recipient is ${info.curve.creator.toBase58()}`}`);
   if (info.curve.isHolderReward) say(`  WARNING               this coin was created with Holder Rewards, not Creator Fee`);
   say(`Burn coin               ${config.burnMint}`);
+  say(`Split of every claim    ${config.split.burn}% buy+burn the burn coin, ${config.split.buyback}% buy back+burn the coin, ${config.split.holders}% to holders`);
   say(`Rewards go to holders of ${config.holderMint} with at least ${config.minHold}`);
   say(`Fees waiting to claim   ${ttwo(fees)}`);
   say(`Books (cycle ${state.cycle})`);
   say(`  Waiting to buy+burn   ${ttwo(BigInt(state.burnPool))}`);
+  say(`  Waiting to buy back   ${ttwo(BigInt(state.buybackPool))}`);
   say(`  Waiting for holders   ${ttwo(BigInt(state.payoutPool))}`);
-  say(`  Queued payouts        ${state.payoutQueue.length} (${ttwo(bookedQuote(state) - BigInt(state.burnPool) - BigInt(state.payoutPool))})`);
-  say(`  Bought, not burned    ${burnCoin(BigInt(state.coinToBurn))}`);
-  say(`  Lifetime              claimed ${ttwo(BigInt(state.totals.claimed))}, swapped ${ttwo(BigInt(state.totals.swapped))}, burned ${burnCoin(BigInt(state.totals.burned))}, paid ${ttwo(BigInt(state.totals.paid))}`);
+  say(`  Queued payouts        ${state.payoutQueue.length} (${ttwo(bookedQuote(state) - BigInt(state.burnPool) - BigInt(state.buybackPool) - BigInt(state.payoutPool))})`);
+  say(`  Bought, not burned    ${burnCoin(BigInt(state.coinToBurn))}, ${ownCoin(BigInt(state.selfToBurn))}`);
+  say(`  Lifetime              claimed ${ttwo(BigInt(state.totals.claimed))}, swapped ${ttwo(BigInt(state.totals.swapped))}, burned ${burnCoin(BigInt(state.totals.burned))}, bought back ${ttwo(BigInt(state.totals.boughtBack))}, burned ${ownCoin(BigInt(state.totals.selfBurned))}, paid ${ttwo(BigInt(state.totals.paid))}`);
   if (state.pending) say(`  In flight             ${state.pending.kind} ${state.pending.signature}`);
-  printBooks(ctx, reconcile(state, held.quote, held.coin));
+  printBooks(ctx, reconcile(state, held.quote, held.coin, held.self));
 }
 
 const mark = (check: Check) => ({ pass: "PASS", fail: "FAIL", not_tested: "NOT TESTED" })[check.result];
 
 async function cycleOnce(config: Config, ctx: Ctx): Promise<LiveReport | null> {
-  const { deps, ttwo, burnCoin, limits } = ctx;
+  const { deps, ttwo, burnCoin, ownCoin, limits } = ctx;
   if (config.dryRun) {
     const report = await runDryCycle(deps, Keypair.generate().publicKey.toBase58());
     say("DRY RUN — nothing was sent and no file was changed.");
@@ -110,15 +114,18 @@ async function cycleOnce(config: Config, ctx: Ctx): Promise<LiveReport | null> {
     say();
     say(`Fees waiting to claim: ${ttwo(report.fees)}`);
     say(`  Claim                 ${mark(report.claim)} — ${report.claim.detail}`);
-    say(`  Split                 ${ttwo(report.wouldSplit.burn)} to buy+burn, ${ttwo(report.wouldSplit.payout)} to holders`);
-    say(`  Would swap this cycle ${ttwo(report.wouldSwap)} (cap ${ttwo(limits.maxSwapPerCycle)})` + (report.expectedBurn !== null ? `, burning about ${burnCoin(report.expectedBurn)}` : ""));
+    say(`  Split                 ${ttwo(report.wouldSplit.burn)} to buy+burn the burn coin (${limits.split.burn}%), ${ttwo(report.wouldSplit.buyback)} to buy back the coin (${limits.split.buyback}%), ${ttwo(report.wouldSplit.payout)} to holders (${limits.split.holders}%)`);
+    say(`  Would swap this cycle ${ttwo(report.burn.amount)} for the burn coin (cap ${ttwo(limits.maxSwapPerCycle)})` + (report.burn.expectedOut !== null ? `, burning about ${burnCoin(report.burn.expectedOut)}` : ""));
+    say(`  Would buy back        ${ttwo(report.buyback.amount)} of the coin (cap ${ttwo(limits.maxSwapPerCycle)})` + (report.buyback.expectedOut !== null ? `, burning about ${ownCoin(report.buyback.expectedOut)}` : ""));
     say(`  Would pay             ${ttwo(report.wouldPay.reduce((a, p) => a + p.amount, 0n))} of ${ttwo(report.payoutPool)} to ${report.wouldPay.length} holders`);
     for (const p of report.wouldPay.slice(0, 10)) say(`    ${p.owner}  ${ttwo(p.amount)}`);
     if (report.wouldPay.length > 10) say(`    … and ${report.wouldPay.length - 10} more`);
     say();
     say("Checks");
-    say(`  (a) TTWO -> burn coin route   ${mark(report.route)} — ${report.route.detail}`);
-    say(`      swap simulation           ${mark(report.swap)} — ${report.swap.detail}`);
+    say(`  (a) TTWO -> burn coin route   ${mark(report.burn.route)} — ${report.burn.route.detail}`);
+    say(`      swap simulation           ${mark(report.burn.swap)} — ${report.burn.swap.detail}`);
+    say(`  (a2) TTWO -> own coin route   ${mark(report.buyback.route)} — ${report.buyback.route.detail}`);
+    say(`      buyback simulation        ${mark(report.buyback.swap)} — ${report.buyback.swap.detail}`);
     say(`  (b) TTWO payout to a wallet   ${mark(report.payout)} — ${report.payout.detail}`);
     say(`  (c) holder snapshot           ${mark(report.snapshot)} — ${report.snapshot.detail}`);
     return null;
@@ -134,8 +141,8 @@ async function cycleOnce(config: Config, ctx: Ctx): Promise<LiveReport | null> {
   try {
     const report = await runLiveCycle(deps);
     say(`LIVE cycle ${report.cycle}`);
-    say(`  Claimed ${ttwo(report.claimed)} · swapped ${ttwo(report.swapped)} · burned ${burnCoin(report.burned)} · paid ${ttwo(report.paid)} to ${report.recipients} holders`);
-    for (const tx of report.signatures) say(`  ${tx.kind.padEnd(7)} ${tx.outcome.padEnd(10)} https://solscan.io/tx/${tx.signature}`);
+    say(`  Claimed ${ttwo(report.claimed)} · swapped ${ttwo(report.swapped)} · burned ${burnCoin(report.burned)} · bought back ${ttwo(report.boughtBack)} · burned ${ownCoin(report.selfBurned)} · paid ${ttwo(report.paid)} to ${report.recipients} holders`);
+    for (const tx of report.signatures) say(`  ${tx.kind.padEnd(12)} ${tx.outcome.padEnd(10)} https://solscan.io/tx/${tx.signature}`);
     for (const s of report.skipped) say(`  skipped ${s.owner} (${ttwo(BigInt(s.amount))} returned to the pool): ${s.reason}`);
     for (const note of report.notes) say(`  note: ${note}`);
     return report;
@@ -174,20 +181,23 @@ async function verify(config: Config, cycleArg?: string) {
       verdict = `${status.confirmationStatus ?? "confirmed"}`;
       // Compare what the ledger says moved with what the chain says moved.
       const moved = await ctx.chain.deltas(signature);
-      const expected: Record<string, [bigint, bigint] | undefined> = {
-        claim: [BigInt(String(row.claimed ?? 0)), 0n],
-        swap: [-BigInt(String(row.spent ?? 0)), BigInt(String(row.bought ?? 0))],
-        burn: [0n, -BigInt(String(row.burned ?? 0))],
-        payout: [-(row.payouts as { amount: string }[] | undefined ?? []).reduce((a, p) => a + BigInt(p.amount), 0n), 0n],
+      // [TTWO, burn coin, strategy coin] the ledger says this transaction moved.
+      const expected: Record<string, [bigint, bigint, bigint] | undefined> = {
+        claim: [BigInt(String(row.claimed ?? 0)), 0n, 0n],
+        swap: [-BigInt(String(row.spent ?? 0)), BigInt(String(row.bought ?? 0)), 0n],
+        burn: [0n, -BigInt(String(row.burned ?? 0)), 0n],
+        buyback: [-BigInt(String(row.spent ?? 0)), 0n, BigInt(String(row.bought ?? 0))],
+        buyback_burn: [0n, 0n, -BigInt(String(row.burned ?? 0))],
+        payout: [-(row.payouts as { amount: string }[] | undefined ?? []).reduce((a, p) => a + BigInt(p.amount), 0n), 0n, 0n],
       };
       const want = expected[row.type];
-      if (want && (want[0] !== moved.quote || want[1] !== moved.coin)) {
+      if (want && (want[0] !== moved.quote || want[1] !== moved.coin || want[2] !== moved.self)) {
         bad = true;
-        verdict += ` BUT AMOUNTS DIFFER: ledger TTWO ${want[0]} / burn coin ${want[1]}, chain ${moved.quote} / ${moved.coin}`;
+        verdict += ` BUT AMOUNTS DIFFER: ledger TTWO ${want[0]} / burn coin ${want[1]} / own coin ${want[2]}, chain ${moved.quote} / ${moved.coin} / ${moved.self}`;
       } else if (want) verdict += ", amounts match the ledger";
     }
     if (bad) problems += 1;
-    say(`  ${row.type.padEnd(10)} ${verdict}`);
+    say(`  ${row.type.padEnd(13)} ${verdict}`);
     say(`             https://solscan.io/tx/${signature}`);
   }
   say(problems === 0 ? "All transactions check out." : `${problems} PROBLEM(S) — do not run another cycle until this is understood.`);
@@ -199,6 +209,7 @@ function writeReport(config: Config, ctx: Ctx): string | null {
   if (!fs.existsSync(file)) return null;
   const units: Units = {
     quoteDecimals: ctx.info.quoteDecimals, burnDecimals: ctx.info.burnDecimals, quoteSymbol: "TTWO", burnSymbol: "DCTY",
+    strategyDecimals: ctx.info.strategyDecimals, strategySymbol: process.env.HOLDER_SYMBOL?.trim() || "of the coin",
   };
   const summary = summarize(parseLedger(fs.readFileSync(file, "utf8")), units);
   const out = path.join(ctx.dataDir, "report.html");
@@ -225,7 +236,7 @@ async function holders(config: Config) {
   const state = deps.store.load(chain.mints());
   const [snapshot, fees] = await Promise.all([chain.snapshotHolders(), chain.pendingFees()]);
   const qualifying = eligibleHolders(snapshot.balances, limits.minHold, snapshot.excluded);
-  const pool = BigInt(state.payoutPool) + splitClaim(fees).payout;
+  const pool = BigInt(state.payoutPool) + splitClaim(fees, limits.split).payout;
   const { payouts } = allocate(pool, qualifying, limits.minPayout);
   const share = new Map(payouts.map((p) => [p.owner, p.amount]));
   const total = qualifying.reduce((a, h) => a + h.amount, 0n);

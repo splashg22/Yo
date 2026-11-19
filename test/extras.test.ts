@@ -2,13 +2,15 @@ import { describe, expect, it } from "vitest";
 import { Notifier, formatCycleMessage } from "../src/notify.js";
 import { displayAmount, parseLedger, renderHtml, summarize, type Units } from "../src/report.js";
 
-const units: Units = { quoteDecimals: 2, burnDecimals: 0, quoteSymbol: "TTWO", burnSymbol: "DCTY" };
+const units: Units = { quoteDecimals: 2, burnDecimals: 0, quoteSymbol: "TTWO", burnSymbol: "DCTY", strategyDecimals: 0, strategySymbol: "DSTRAT" };
 const ledger = [
-  { time: "2026-11-20T10:00:00.000Z", type: "claim", cycle: 1, signature: "s1", claimed: "1000", toBurn: "500", toHolders: "500" },
-  { time: "2026-11-20T10:00:05.000Z", type: "swap", cycle: 1, signature: "s2", spent: "500", bought: "5000" },
-  { time: "2026-11-20T10:00:09.000Z", type: "burn", cycle: 1, signature: "s3", burned: "5000" },
-  { time: "2026-11-20T10:00:12.000Z", type: "distribution", cycle: 1, pool: "500" },
-  { time: "2026-11-20T10:00:15.000Z", type: "payout", cycle: 1, signature: "s4", payouts: [{ owner: "alice", amount: "375" }, { owner: "bob", amount: "125" }] },
+  { time: "2026-11-20T10:00:00.000Z", type: "claim", cycle: 1, signature: "s1", claimed: "1000", toBurn: "400", toBuyback: "200", toHolders: "400" },
+  { time: "2026-11-20T10:00:05.000Z", type: "swap", cycle: 1, signature: "s2", spent: "400", bought: "4000" },
+  { time: "2026-11-20T10:00:09.000Z", type: "burn", cycle: 1, signature: "s3", burned: "4000" },
+  { time: "2026-11-20T10:00:10.000Z", type: "buyback", cycle: 1, signature: "s3b", spent: "200", bought: "20000" },
+  { time: "2026-11-20T10:00:11.000Z", type: "buyback_burn", cycle: 1, signature: "s3c", burned: "20000" },
+  { time: "2026-11-20T10:00:12.000Z", type: "distribution", cycle: 1, pool: "400" },
+  { time: "2026-11-20T10:00:15.000Z", type: "payout", cycle: 1, signature: "s4", payouts: [{ owner: "alice", amount: "300" }, { owner: "bob", amount: "100" }] },
   { time: "2026-11-20T11:00:15.000Z", type: "payout", cycle: 2, signature: "s5", payouts: [{ owner: "alice", amount: "100" }] },
   { time: "2026-11-20T11:00:20.000Z", type: "tx_expired", cycle: 2, signature: "s6", kind: "swap" },
 ].map((row) => JSON.stringify(row)).join("\n");
@@ -16,20 +18,22 @@ const ledger = [
 describe("public stats", () => {
   const summary = summarize(parseLedger(`${ledger}\n\n`), units);
   it("adds up the ledger", () => {
-    expect(summary).toMatchObject({ cycles: 2, claimed: 1000n, swapped: 500n, burned: 5000n, paid: 600n, payoutTransfers: 3, recipients: 2 });
-    expect(summary.topRecipients).toEqual([{ owner: "alice", amount: 475n }, { owner: "bob", amount: 125n }]);
+    expect(summary).toMatchObject({ cycles: 2, claimed: 1000n, swapped: 400n, burned: 4000n, boughtBack: 200n, selfBurned: 20000n, paid: 500n, payoutTransfers: 3, recipients: 2 });
+    expect(summary.topRecipients).toEqual([{ owner: "alice", amount: 400n }, { owner: "bob", amount: 100n }]);
     expect(summary.lastActivity).toBe("2026-11-20T11:00:15.000Z");
   });
   it("lists real transactions newest first and leaves out ones that never landed", () => {
-    expect(summary.recent.map((e) => e.signature)).toEqual(["s5", "s4", "s3", "s2", "s1"]);
-    expect(summary.recent[1]!.text).toBe("Paid 5 TTWO to 2 holders");
+    expect(summary.recent.map((e) => e.signature)).toEqual(["s5", "s4", "s3c", "s3b", "s3", "s2", "s1"]);
+    expect(summary.recent[1]!.text).toBe("Paid 4 TTWO to 2 holders");
+    expect(summary.recent[3]!.text).toBe("Bought back 20000 DSTRAT with 2 TTWO");
   });
   it("renders a page with totals and transaction links, escaping anything unsafe", () => {
     const html = renderHtml(summary, units, { title: "<script>x</script>", treasury: "TREASURY", generated: "2026-11-20T12:00:00.000Z" });
     expect(html).toContain("&lt;script&gt;x&lt;/script&gt;");
     expect(html).not.toContain("<script>x");
     expect(html).toContain("https://solscan.io/tx/s5");
-    expect(html).toContain(">5,000<");
+    expect(html).toContain(">4,000<");
+    expect(html).toContain(">20,000<");
   });
   it("formats headline numbers with separators and without rounding up", () => {
     expect(displayAmount(170592592569252n, 6)).toBe("170,592,592.56");
@@ -44,14 +48,14 @@ describe("public stats", () => {
 });
 
 describe("alerts", () => {
-  const quiet = { cycle: 3, claimed: 0n, swapped: 0n, burned: 0n, paid: 0n, recipients: 0, skipped: [], notes: ["no fees to claim"] };
-  const decimals = { quoteDecimals: 2, burnDecimals: 0 };
+  const quiet = { cycle: 3, claimed: 0n, swapped: 0n, burned: 0n, boughtBack: 0n, selfBurned: 0n, paid: 0n, recipients: 0, skipped: [], notes: ["no fees to claim"] };
+  const decimals = { quoteDecimals: 2, burnDecimals: 0, strategyDecimals: 0 };
   it("stays silent after a cycle that did nothing", () => {
     expect(formatCycleMessage(quiet, decimals)).toBeNull();
   });
   it("summarises a cycle that moved money", () => {
-    const text = formatCycleMessage({ ...quiet, claimed: 1000n, swapped: 500n, burned: 5000n, paid: 500n, recipients: 2 }, decimals);
-    expect(text).toBe("Cycle 3\nClaimed 10 TTWO\nBurned 5000 DCTY (spent 5 TTWO)\nPaid 5 TTWO to 2 holders");
+    const text = formatCycleMessage({ ...quiet, claimed: 1000n, swapped: 400n, burned: 4000n, boughtBack: 200n, selfBurned: 20000n, paid: 400n, recipients: 2 }, decimals);
+    expect(text).toBe("Cycle 3\nClaimed 10 TTWO\nBurned 4000 DCTY (spent 4 TTWO)\nBought back and burned 20000 of the coin (spent 2 TTWO)\nPaid 4 TTWO to 2 holders");
   });
   it("mentions undelivered payouts", () => {
     const text = formatCycleMessage({ ...quiet, skipped: [{ owner: "bob", amount: "1", reason: "frozen" }] }, decimals);

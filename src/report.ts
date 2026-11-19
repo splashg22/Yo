@@ -14,6 +14,8 @@ export interface Summary {
   claimed: bigint;
   swapped: bigint;
   burned: bigint;
+  boughtBack: bigint;
+  selfBurned: bigint;
   paid: bigint;
   payoutTransfers: number;
   recipients: number;
@@ -27,6 +29,9 @@ export interface Units {
   burnDecimals: number;
   quoteSymbol: string;
   burnSymbol: string;
+  /** The strategy coin that is bought back and burned. Defaults to the burn coin's units. */
+  strategyDecimals?: number;
+  strategySymbol?: string;
 }
 
 const big = (value: unknown) => BigInt(typeof value === "string" || typeof value === "number" ? value : 0);
@@ -41,9 +46,10 @@ export function parseLedger(text: string): LedgerRow[] {
 export function summarize(rows: readonly LedgerRow[], units: Units): Summary {
   const q = (amount: bigint) => `${formatUnits(amount, units.quoteDecimals)} ${units.quoteSymbol}`;
   const b = (amount: bigint) => `${formatUnits(amount, units.burnDecimals)} ${units.burnSymbol}`;
+  const s = (amount: bigint) => `${formatUnits(amount, units.strategyDecimals ?? units.burnDecimals)} ${units.strategySymbol ?? "of the coin"}`;
   const perOwner = new Map<string, bigint>();
   const summary: Summary = {
-    cycles: 0, claimed: 0n, swapped: 0n, burned: 0n, paid: 0n, payoutTransfers: 0, recipients: 0,
+    cycles: 0, claimed: 0n, swapped: 0n, burned: 0n, boughtBack: 0n, selfBurned: 0n, paid: 0n, payoutTransfers: 0, recipients: 0,
     lastActivity: null, topRecipients: [], recent: [],
   };
   for (const row of rows) {
@@ -58,6 +64,12 @@ export function summarize(rows: readonly LedgerRow[], units: Units): Summary {
     } else if (row.type === "burn") {
       summary.burned += big(row.burned);
       text = `Burned ${b(big(row.burned))}`;
+    } else if (row.type === "buyback") {
+      summary.boughtBack += big(row.spent);
+      text = `Bought back ${s(big(row.bought))} with ${q(big(row.spent))}`;
+    } else if (row.type === "buyback_burn") {
+      summary.selfBurned += big(row.burned);
+      text = `Burned ${s(big(row.burned))} (buyback)`;
     } else if (row.type === "payout") {
       const payouts = (row.payouts as { owner: string; amount: string }[] | undefined) ?? [];
       let total = 0n;
@@ -139,6 +151,7 @@ export function renderHtml(summary: Summary, units: Units, meta: { title: string
 <p class="muted">Every entry below links to its on-chain transaction. Treasury <a href="https://solscan.io/account/${escape(meta.treasury)}" rel="noopener">${escape(meta.treasury)}</a> · updated ${escape(meta.generated.replace("T", " ").slice(0, 16))} UTC</p>
 <div class="tiles">
 ${tile("Burned", displayAmount(summary.burned, units.burnDecimals, 0), units.burnSymbol)}
+${tile("Bought back and burned", displayAmount(summary.selfBurned, units.strategyDecimals ?? units.burnDecimals, 0), units.strategySymbol ?? "of the coin")}
 ${tile("Paid to holders", displayAmount(summary.paid, units.quoteDecimals, 4), units.quoteSymbol)}
 ${tile("Fees claimed", displayAmount(summary.claimed, units.quoteDecimals, 4), units.quoteSymbol)}
 ${tile("Holders rewarded", String(summary.recipients), `${summary.payoutTransfers} transfers · ${summary.cycles} cycles`)}

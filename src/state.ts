@@ -2,10 +2,12 @@
  * The books (data/state.json). Amounts are base units stored as strings.
  *
  * TTWO the bot is holding for a purpose is always in exactly one place:
- *   burnPool     waiting to be swapped into the burn coin
+ *   burnPool     waiting to be swapped into the burn coin (DCTY)
+ *   buybackPool  waiting to be swapped into the strategy coin itself
  *   payoutPool   waiting for the next holder distribution
  *   payoutQueue  already allotted to a named holder, transfer not yet confirmed
- * coinToBurn is burn coin bought by the bot and not yet burned.
+ * coinToBurn is burn coin bought by the bot and not yet burned; selfToBurn is
+ * the same for the strategy coin.
  *
  * `pending` is written BEFORE a transaction is broadcast, so a crash can never
  * lose track of money in flight: the next run looks the signature up first.
@@ -13,14 +15,17 @@
 import fs from "node:fs";
 import path from "node:path";
 import { sum } from "./amounts.js";
-import { splitClaim, type Payout } from "./split.js";
+import { DEFAULT_SPLIT, splitClaim, type Payout, type Split } from "./split.js";
 
 export interface QueueItem {
   owner: string;
   amount: string;
 }
 
-export type PendingKind = "claim" | "swap" | "burn" | "payout";
+/** Which coin a swap buys or a burn destroys: the burn coin (DCTY) or the strategy coin itself. */
+export type Target = "burn" | "self";
+
+export type PendingKind = "claim" | "swap" | "burn" | "buyback" | "buyback_burn" | "payout";
 
 export interface Pending {
   kind: PendingKind;
@@ -28,23 +33,34 @@ export interface Pending {
   lastValidBlockHeight: number;
   /** payout: the queue entries this transaction pays. */
   items?: QueueItem[];
-  /** burn: amount burned. swap: amount of TTWO sent in. */
+  /** burn / buyback_burn: amount burned. swap / buyback: amount of TTWO sent in. */
   amount?: string;
 }
 
 export interface State {
-  version: 1;
+  version: 2;
   strategyMint: string;
   burnMint: string;
   holderMint: string;
   quoteMint: string;
   cycle: number;
   burnPool: string;
+  buybackPool: string;
   payoutPool: string;
   coinToBurn: string;
+  selfToBurn: string;
   payoutQueue: QueueItem[];
   pending: Pending | null;
-  totals: { claimed: string; swapped: string; burned: string; paid: string };
+  totals: {
+    claimed: string;
+    /** TTWO spent on the burn coin. */
+    swapped: string;
+    burned: string;
+    /** TTWO spent on the strategy coin. */
+    boughtBack: string;
+    selfBurned: string;
+    paid: string;
+  };
 }
 
 export interface Mints {
@@ -56,15 +72,39 @@ export interface Mints {
 
 export function emptyState(mints: Mints): State {
   return {
-    version: 1,
+    version: 2,
     ...mints,
     cycle: 0,
     burnPool: "0",
+    buybackPool: "0",
     payoutPool: "0",
     coinToBurn: "0",
+    selfToBurn: "0",
     payoutQueue: [],
     pending: null,
-    totals: { claimed: "0", swapped: "0", burned: "0", paid: "0" },
+    totals: { claimed: "0", swapped: "0", burned: "0", boughtBack: "0", selfBurned: "0", paid: "0" },
+  };
+}
+
+/** Books written by an earlier version (no buyback yet) are upgraded in place. */
+export function upgradeState(raw: unknown): State {
+  const state = raw as Partial<State> & { version: number };
+  if (state.version === 2) return state as State;
+  if (state.version !== 1) throw new Error(`unknown state.json version ${String(state.version)}`);
+  const totals = (state.totals ?? {}) as Partial<State["totals"]>;
+  return {
+    ...(state as Omit<State, "version">),
+    version: 2,
+    buybackPool: state.buybackPool ?? "0",
+    selfToBurn: state.selfToBurn ?? "0",
+    totals: {
+      claimed: totals.claimed ?? "0",
+      swapped: totals.swapped ?? "0",
+      burned: totals.burned ?? "0",
+      boughtBack: totals.boughtBack ?? "0",
+      selfBurned: totals.selfBurned ?? "0",
+      paid: totals.paid ?? "0",
+    },
   };
 }
 
@@ -82,22 +122,31 @@ export function queueTotal(items: readonly QueueItem[]): bigint {
 
 /** TTWO the books say the treasury must be holding. */
 export function bookedQuote(state: State): bigint {
-  return BigInt(state.burnPool) + BigInt(state.payoutPool) + queueTotal(state.payoutQueue);
+  return BigInt(state.burnPool) + BigInt(state.buybackPool) + BigInt(state.payoutPool) + queueTotal(state.payoutQueue);
 }
 
-export function applyClaim(state: State, received: bigint): State {
+export function applyClaim(state: State, received: bigint, split: Split = DEFAULT_SPLIT): State {
   if (received < 0n) throw new Error("a claim cannot reduce the treasury balance");
-  const { burn, payout } = splitClaim(received);
+  const { burn, buyback, payout } = splitClaim(received, split);
   return {
     ...state,
     burnPool: add(state.burnPool, burn),
+    buybackPool: add(state.buybackPool, buyback),
     payoutPool: add(state.payoutPool, payout),
     totals: { ...state.totals, claimed: add(state.totals.claimed, received) },
   };
 }
 
-export function applySwap(state: State, spent: bigint, received: bigint): State {
+export function applySwap(state: State, spent: bigint, received: bigint, target: Target = "burn"): State {
   if (spent < 0n || received < 0n) throw new Error("swap amounts cannot be negative");
+  if (target === "self") {
+    return {
+      ...state,
+      buybackPool: sub(state.buybackPool, spent, "buyback spent more than the buyback pool"),
+      selfToBurn: add(state.selfToBurn, received),
+      totals: { ...state.totals, boughtBack: add(state.totals.boughtBack, spent) },
+    };
+  }
   return {
     ...state,
     burnPool: sub(state.burnPool, spent, "swap spent more than the burn pool"),
@@ -106,7 +155,14 @@ export function applySwap(state: State, spent: bigint, received: bigint): State 
   };
 }
 
-export function applyBurn(state: State, amount: bigint): State {
+export function applyBurn(state: State, amount: bigint, target: Target = "burn"): State {
+  if (target === "self") {
+    return {
+      ...state,
+      selfToBurn: sub(state.selfToBurn, amount, "burned more strategy coin than was bought back"),
+      totals: { ...state.totals, selfBurned: add(state.totals.selfBurned, amount) },
+    };
+  }
   return {
     ...state,
     coinToBurn: sub(state.coinToBurn, amount, "burned more than was bought"),
@@ -161,6 +217,9 @@ export interface Reconciliation {
   coinBooked: bigint;
   coinHeld: bigint;
   coinDifference: bigint;
+  selfBooked: bigint;
+  selfHeld: bigint;
+  selfDifference: bigint;
   problems: string[];
 }
 
@@ -169,9 +228,10 @@ export interface Reconciliation {
  * someone sent it): the extra is never touched. Holding LESS means the books
  * are wrong or funds left another way, and the bot must stop.
  */
-export function reconcile(state: State, quoteHeld: bigint, coinHeld: bigint): Reconciliation {
+export function reconcile(state: State, quoteHeld: bigint, coinHeld: bigint, selfHeld = 0n): Reconciliation {
   const quoteBooked = bookedQuote(state);
   const coinBooked = BigInt(state.coinToBurn);
+  const selfBooked = BigInt(state.selfToBurn);
   const problems: string[] = [];
   if (quoteHeld < quoteBooked) {
     problems.push(
@@ -183,6 +243,11 @@ export function reconcile(state: State, quoteHeld: bigint, coinHeld: bigint): Re
       `treasury holds ${coinHeld} burn-coin base units but the books say ${coinBooked} await burning`,
     );
   }
+  if (selfHeld < selfBooked) {
+    problems.push(
+      `treasury holds ${selfHeld} strategy-coin base units but the books say ${selfBooked} were bought back and await burning`,
+    );
+  }
   return {
     ok: problems.length === 0,
     quoteBooked,
@@ -191,6 +256,9 @@ export function reconcile(state: State, quoteHeld: bigint, coinHeld: bigint): Re
     coinBooked,
     coinHeld,
     coinDifference: coinHeld - coinBooked,
+    selfBooked,
+    selfHeld,
+    selfDifference: selfHeld - selfBooked,
     problems,
   };
 }
@@ -209,8 +277,7 @@ export class FileStateStore implements StateStore {
 
   load(mints: Mints): State {
     if (!fs.existsSync(this.file)) return emptyState(mints);
-    const state = JSON.parse(fs.readFileSync(this.file, "utf8")) as State;
-    if (state.version !== 1) throw new Error(`unknown state.json version ${String(state.version)}`);
+    const state = upgradeState(JSON.parse(fs.readFileSync(this.file, "utf8")));
     for (const key of ["strategyMint", "burnMint", "holderMint", "quoteMint"] as const) {
       if (state[key] !== mints[key]) {
         throw new Error(

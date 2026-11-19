@@ -1,6 +1,6 @@
 import type { Built, Chain, HolderSnapshot, SimResult, TxStatus } from "../src/cycle.js";
 import type { Ledger, LedgerEntry } from "../src/ledger.js";
-import { emptyState, type Mints, type QueueItem, type State, type StateStore } from "../src/state.js";
+import { emptyState, type Mints, type QueueItem, type State, type StateStore, type Target } from "../src/state.js";
 
 export const MINTS: Mints = { strategyMint: "STRAT", burnMint: "DCTY", holderMint: "STRAT", quoteMint: "TTWO" };
 
@@ -29,21 +29,28 @@ export class MemoryLedger implements Ledger {
   }
 }
 
-type Effect = { quote: bigint; coin: bigint; apply: () => void };
+type Effect = { quote: bigint; coin: bigint; self: bigint; apply: () => void };
 
-/** A pretend chain: a treasury, a fee vault, a fixed swap price and holders. */
+/** A pretend chain: a treasury, a fee vault, fixed swap prices and holders. */
 export class FakeChain implements Chain {
   sol = 1_000_000_000n;
   quote = 0n;
+  /** burn coin (DCTY) held by the treasury */
   coin = 0n;
+  /** strategy coin held by the treasury */
+  self = 0n;
   vault = 0n;
   /** burn coin received per TTWO base unit */
   price = 10n;
+  /** strategy coin received per TTWO base unit */
+  selfPrice = 100n;
   holders = new Map<string, bigint>();
   excluded = new Set<string>();
   received = new Map<string, bigint>();
   burned = 0n;
+  selfBurned = 0n;
   hasRoute = true;
+  hasSelfRoute = true;
   snapshotWorks = true;
   /** wallets whose transfer fails in simulation */
   rejects = new Set<string>();
@@ -62,14 +69,14 @@ export class FakeChain implements Chain {
     return MINTS;
   }
   async balances() {
-    return { sol: this.sol, quote: this.quote, coin: this.coin };
+    return { sol: this.sol, quote: this.quote, coin: this.coin, self: this.self };
   }
   async pendingFees() {
     return this.vault;
   }
-  private make(kind: string, effect: Effect, failure?: string): Built {
+  private make(kind: string, effect: Omit<Effect, "self"> & { self?: bigint }, failure?: string): Built {
     const signature = `sig${++this.counter}-${kind}`;
-    this.effects.set(signature, effect);
+    this.effects.set(signature, { self: 0n, ...effect });
     this.kinds.set(signature, kind);
     if (failure) this.fails.set(signature, failure);
     return { signature, lastValidBlockHeight: 100, raw: new Uint8Array() };
@@ -78,19 +85,26 @@ export class FakeChain implements Chain {
     const amount = this.vault;
     return this.make("claim", { quote: amount, coin: 0n, apply: () => { this.vault -= amount; this.quote += amount; } });
   }
-  async describeRoute() {
-    if (!this.hasRoute) throw new Error("no curve or pool for TTWO -> DCTY");
-    return "TTWO -> DCTY on the bonding curve";
+  private routeOk(target: Target) {
+    return target === "self" ? this.hasSelfRoute : this.hasRoute;
   }
-  async buildSwap(amountIn: bigint) {
-    if (!this.hasRoute) throw new Error("no curve or pool for TTWO -> DCTY");
+  async describeRoute(target: Target) {
+    if (!this.routeOk(target)) throw new Error(`no curve or pool for TTWO -> ${target === "self" ? "STRAT" : "DCTY"}`);
+    return `TTWO -> ${target === "self" ? "STRAT" : "DCTY"} on the bonding curve`;
+  }
+  async buildSwap(amountIn: bigint, target: Target) {
+    if (!this.routeOk(target)) throw new Error(`no curve or pool for TTWO -> ${target === "self" ? "STRAT" : "DCTY"}`);
     if (amountIn > this.quote) throw new Error("simulation failed: insufficient funds");
-    const out = amountIn * this.price;
-    const built = this.make("swap", { quote: -amountIn, coin: out, apply: () => { this.quote -= amountIn; this.coin += out; } });
+    const out = amountIn * (target === "self" ? this.selfPrice : this.price);
+    const built = target === "self"
+      ? this.make("buyback", { quote: -amountIn, coin: 0n, self: out, apply: () => { this.quote -= amountIn; this.self += out; } })
+      : this.make("swap", { quote: -amountIn, coin: out, apply: () => { this.quote -= amountIn; this.coin += out; } });
     return { ...built, expectedOut: out, minOut: (out * 97n) / 100n };
   }
-  async buildBurn(amount: bigint) {
-    return this.make("burn", { quote: 0n, coin: -amount, apply: () => { this.coin -= amount; this.burned += amount; } });
+  async buildBurn(amount: bigint, target: Target) {
+    return target === "self"
+      ? this.make("buyback_burn", { quote: 0n, coin: 0n, self: -amount, apply: () => { this.self -= amount; this.selfBurned += amount; } })
+      : this.make("burn", { quote: 0n, coin: -amount, apply: () => { this.coin -= amount; this.burned += amount; } });
   }
   async buildPayout(items: readonly QueueItem[], options: { withClaim?: boolean } = {}) {
     const total = items.reduce((a, i) => a + BigInt(i.amount), 0n);
@@ -133,7 +147,7 @@ export class FakeChain implements Chain {
   }
   async deltas(signature: string) {
     const effect = this.landed.get(signature)!;
-    return { quote: effect.quote, coin: effect.coin };
+    return { quote: effect.quote, coin: effect.coin, self: effect.self };
   }
   async snapshotHolders(): Promise<HolderSnapshot> {
     if (!this.snapshotWorks) throw new Error("getProgramAccounts is disabled on this RPC");

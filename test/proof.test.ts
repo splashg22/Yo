@@ -7,9 +7,10 @@ import * as proof from "../web/proof.js";
 const TREASURY = "7ZGiZyFjBEKNS5qGhtfonJdKmhvechrHK1HW3P4uRjqP";
 const TTWO = "XsDoVfqeBukxuZHWhdvWHBhgEHjGNst4MLodqsJHzoB";
 const DCTY = "9hjBLBrc7WZW2H8UQvBAvG5WiTZotXUv2Bdcn4f4pump";
+const STRAT = Keypair.generate().publicKey.toBase58();
 const ALICE = Keypair.generate().publicKey.toBase58();
 const BOB = Keypair.generate().publicKey.toBase58();
-const cfg = { treasury: TREASURY, burnMint: DCTY, quoteMint: TTWO };
+const cfg = { treasury: TREASURY, burnMint: DCTY, strategyMint: STRAT, strategySymbol: "DSTRAT", quoteMint: TTWO };
 
 interface Bal { i: number; mint: string; owner: string; amount: string; decimals: number }
 const bal = (i: number, mint: string, owner: string, amount: string, decimals = 6): Bal => ({ i, mint, owner, amount, decimals });
@@ -35,9 +36,9 @@ const transfer = (destination: string, amount: string, mint = TTWO) => ({
   programId: TOKEN_2022_PROGRAM_ID.toBase58(), program: "spl-token",
   parsed: { type: "transferChecked", info: { authority: TREASURY, source: "SRC", destination, mint, tokenAmount: { amount, decimals: 6 } } },
 });
-const burn = (amount: string) => ({
+const burn = (amount: string, mint = DCTY) => ({
   programId: TOKEN_PROGRAM_ID.toBase58(), program: "spl-token",
-  parsed: { type: "burnChecked", info: { authority: TREASURY, account: "ATA", mint: DCTY, tokenAmount: { amount, decimals: 6 } } },
+  parsed: { type: "burnChecked", info: { authority: TREASURY, account: "ATA", mint, tokenAmount: { amount, decimals: 6 } } },
 });
 
 describe("proof page: classifying the treasury's transactions", () => {
@@ -63,7 +64,33 @@ describe("proof page: classifying the treasury's transactions", () => {
       keys: [TREASURY, "B"], ixs: [burn("42000000")],
       pre: [bal(1, DCTY, TREASURY, "42000000")], post: [bal(1, DCTY, TREASURY, "0")],
     }));
-    expect(r).toMatchObject({ kind: "burn", burned: 42000000n, amount: "42 DCTY", sign: -1 });
+    expect(r).toMatchObject({ kind: "burn", coin: "burn", burned: 42000000n, amount: "42 DCTY", sign: -1 });
+  });
+  it("tells a buyback of the strategy coin from a DCTY buy", () => {
+    const r = proof.classify(cfg, "bb", 2, tx({
+      keys: [TREASURY, "Q", "S", proof.PUMP_PROGRAM], ixs: [program(proof.PUMP_PROGRAM)],
+      pre: [bal(1, TTWO, TREASURY, "1000000"), bal(2, STRAT, TREASURY, "0")],
+      post: [bal(1, TTWO, TREASURY, "800000"), bal(2, STRAT, TREASURY, "5000000000")],
+    }));
+    expect(r).toMatchObject({ kind: "buy", coin: "self", selfDelta: 5000000000n, amount: "0.2 TTWO → 5,000 DSTRAT" });
+    expect(r.text).toContain("Bought DSTRAT back");
+  });
+  it("recognises a burn of the strategy coin and keeps it apart from DCTY burns", () => {
+    const r = proof.classify(cfg, "sb", 3, tx({
+      keys: [TREASURY, "S"], ixs: [burn("5000000000", STRAT)],
+      pre: [bal(1, STRAT, TREASURY, "5000000000")], post: [bal(1, STRAT, TREASURY, "0")],
+    }));
+    expect(r).toMatchObject({ kind: "burn", coin: "self", selfBurned: 5000000000n, burned: 0n, amount: "5,000 DSTRAT", sign: -1 });
+    const dcty = proof.classify(cfg, "db", 4, tx({ keys: [TREASURY, "B"], ixs: [burn("7000000")], pre: [bal(1, DCTY, TREASURY, "7000000")], post: [bal(1, DCTY, TREASURY, "0")] }));
+    expect(proof.summarize([r, dcty])).toMatchObject({ burned: 7000000n, burns: 1, selfBurned: 5000000000n, selfBurns: 1 });
+  });
+  it("never counts a transfer of the strategy coin as a holder payout", () => {
+    const r = proof.classify(cfg, "st", 5, tx({
+      keys: [TREASURY, "SRC", "X"], ixs: [transfer("X", "5", STRAT)],
+      pre: [bal(1, STRAT, TREASURY, "5")], post: [bal(2, STRAT, ALICE, "5")],
+    }));
+    expect(r.kind).not.toBe("payout");
+    expect(r.payouts).toEqual([]);
   });
   it("recognises a payout, with each recipient and amount", () => {
     const r = proof.classify(cfg, "s4", 4, tx({

@@ -50,7 +50,7 @@ import {
   getSwapTransaction,
   type JupiterOptions,
 } from "./jupiter.js";
-import type { Mints, QueueItem } from "./state.js";
+import type { Mints, QueueItem, Target } from "./state.js";
 import { tokenDelta } from "./txmeta.js";
 
 /** Reads a solana-keygen file. The secret never leaves this function's result. */
@@ -105,6 +105,8 @@ export interface CoinInfo {
   quoteMint: PublicKey;
   quoteProgram: PublicKey;
   quoteDecimals: number;
+  strategyProgram: PublicKey;
+  strategyDecimals: number;
   burnProgram: PublicKey;
   burnDecimals: number;
   holderProgram: PublicKey;
@@ -147,8 +149,9 @@ export class SolanaChain implements Chain {
     }) as [PublicKey, PublicKey, PublicKey];
 
     const pair = await resolvePair(this.sdk, this.strategyMint, this.config.expectedQuoteMint);
-    const [quote, burn, holder] = await Promise.all([
+    const [quote, strategy, burn, holder] = await Promise.all([
       getMint(this.connection, pair.quoteMint, "confirmed", pair.quoteProgram),
+      getMint(this.connection, this.strategyMint, "confirmed", programs[0]),
       getMint(this.connection, this.burnMint, "confirmed", programs[1]),
       getMint(this.connection, this.holderMint, "confirmed", programs[2]),
     ]);
@@ -159,6 +162,8 @@ export class SolanaChain implements Chain {
       quoteMint: pair.quoteMint,
       quoteProgram: pair.quoteProgram,
       quoteDecimals: quote.decimals,
+      strategyProgram: programs[0],
+      strategyDecimals: strategy.decimals,
       burnProgram: programs[1],
       burnDecimals: burn.decimals,
       holderProgram: programs[2],
@@ -186,8 +191,12 @@ export class SolanaChain implements Chain {
     return getAssociatedTokenAddressSync(this.info.quoteMint, owner, true, this.info.quoteProgram);
   }
 
-  private burnAta(): PublicKey {
-    return getAssociatedTokenAddressSync(this.burnMint, this.treasury, true, this.info.burnProgram);
+  /** The coin a swap buys or a burn destroys: DCTY ("burn") or the strategy coin itself ("self"). */
+  private target(target: Target): { mint: PublicKey; program: PublicKey; decimals: number; ata: PublicKey } {
+    const mint = target === "self" ? this.strategyMint : this.burnMint;
+    const program = target === "self" ? this.info.strategyProgram : this.info.burnProgram;
+    const decimals = target === "self" ? this.info.strategyDecimals : this.info.burnDecimals;
+    return { mint, program, decimals, ata: getAssociatedTokenAddressSync(mint, this.treasury, true, program) };
   }
 
   private async tokenAmount(account: PublicKey): Promise<bigint> {
@@ -195,12 +204,13 @@ export class SolanaChain implements Chain {
   }
 
   async balances() {
-    const [sol, quote, coin] = await Promise.all([
+    const [sol, quote, coin, self] = await Promise.all([
       this.connection.getBalance(this.treasury, "confirmed"),
       this.tokenAmount(this.quoteAta(this.treasury)),
-      this.tokenAmount(this.burnAta()),
+      this.tokenAmount(this.target("burn").ata),
+      this.tokenAmount(this.target("self").ata),
     ]);
-    return { sol: BigInt(sol), quote, coin };
+    return { sol: BigInt(sol), quote, coin, self };
   }
 
   /** Fees still sitting on the pool (after graduation), with who they belong to. */
@@ -283,49 +293,49 @@ export class SolanaChain implements Chain {
     return this.build(await this.claimInstructions(), 400_000);
   }
 
-  private async route(): Promise<MultiHopHop[]> {
-    return this.sdk.resolveMultiHopRoute([this.info.quoteMint, this.burnMint], "buy");
+  private async route(target: Target): Promise<MultiHopHop[]> {
+    return this.sdk.resolveMultiHopRoute([this.info.quoteMint, this.target(target).mint], "buy");
   }
 
   private get jupiter(): JupiterOptions {
     return { apiUrl: this.config.jupiterApiUrl, apiKey: this.config.jupiterApiKey };
   }
 
-  private jupiterQuote(amount: bigint) {
+  private jupiterQuote(amount: bigint, target: Target) {
     return getQuote(this.jupiter, {
       inputMint: this.info.quoteMint.toBase58(),
-      outputMint: this.burnMint.toBase58(),
+      outputMint: this.target(target).mint.toBase58(),
       amount,
       slippageBps: this.config.slippageBps,
     });
   }
 
   /** pump's own route when there is one, otherwise Jupiter (SWAP_VENUE=auto). */
-  private async venue(): Promise<{ kind: "pump"; hops: MultiHopHop[] } | { kind: "jupiter"; why: string }> {
+  private async venue(target: Target): Promise<{ kind: "pump"; hops: MultiHopHop[] } | { kind: "jupiter"; why: string }> {
     if (this.config.swapVenue === "jupiter") return { kind: "jupiter", why: "SWAP_VENUE=jupiter" };
     try {
-      return { kind: "pump", hops: await this.route() };
+      return { kind: "pump", hops: await this.route(target) };
     } catch (error) {
       if (this.config.swapVenue === "pump") throw error;
       return { kind: "jupiter", why: `pump has no direct route (${(error as Error).message})` };
     }
   }
 
-  async describeRoute(): Promise<string> {
-    const venue = await this.venue();
+  async describeRoute(target: Target): Promise<string> {
+    const venue = await this.venue(target);
     if (venue.kind === "pump") {
       return venue.hops
         .map((hop) => `${hop.quoteMint.toBase58()} -> ${hop.baseMint.toBase58()} on the ${hop.venue === "curve" ? "bonding curve" : "pump pool"}`)
         .join(", then ");
     }
     const cap = parseUnits(this.config.maxSwapPerCycle, this.info.quoteDecimals);
-    const quote = await this.jupiterQuote(cap > 0n ? cap : 10n ** BigInt(this.info.quoteDecimals));
+    const quote = await this.jupiterQuote(cap > 0n ? cap : 10n ** BigInt(this.info.quoteDecimals), target);
     return `${describeQuote(quote)}; ${quote.inAmount} TTWO base units would buy about ${quote.outAmount}. Used because ${venue.why}`;
   }
 
-  async buildSwap(amountIn: bigint) {
-    const venue = await this.venue();
-    if (venue.kind === "jupiter") return this.buildJupiterSwap(amountIn);
+  async buildSwap(amountIn: bigint, target: Target) {
+    const venue = await this.venue(target);
+    if (venue.kind === "jupiter") return this.buildJupiterSwap(amountIn, target);
     const hops = venue.hops;
     const amount = new BN(amountIn.toString());
     const out = await this.sdk.simulateMultiHopSwap({ user: this.treasury, hops, side: "buy", amountIn: amount });
@@ -339,8 +349,8 @@ export class SolanaChain implements Chain {
     return { ...built, expectedOut, minOut };
   }
 
-  private async buildJupiterSwap(amountIn: bigint) {
-    const quote = await this.jupiterQuote(amountIn);
+  private async buildJupiterSwap(amountIn: bigint, target: Target) {
+    const quote = await this.jupiterQuote(amountIn, target);
     const expectedOut = BigInt(quote.outAmount);
     const minOut = BigInt(quote.otherAmountThreshold);
     if (minOut <= 0n) throw new Error("the swap would buy nothing");
@@ -349,8 +359,9 @@ export class SolanaChain implements Chain {
 
     // Simulate the transaction Jupiter built and check what it would move
     // BEFORE signing it.
-    const addresses = [this.treasury, this.quoteAta(this.treasury), this.burnAta()];
-    const before = await this.balances();
+    const addresses = [this.treasury, this.quoteAta(this.treasury), this.target(target).ata];
+    const held = await this.balances();
+    const before = { sol: held.sol, quote: held.quote, coin: target === "self" ? held.self : held.coin };
     const { value } = await this.connection.simulateTransaction(transaction, {
       sigVerify: false,
       commitment: "confirmed",
@@ -380,11 +391,9 @@ export class SolanaChain implements Chain {
     };
   }
 
-  async buildBurn(amount: bigint): Promise<Built> {
-    return this.build(
-      [createBurnCheckedInstruction(this.burnAta(), this.burnMint, this.treasury, amount, this.info.burnDecimals, [], this.info.burnProgram)],
-      60_000,
-    );
+  async buildBurn(amount: bigint, target: Target): Promise<Built> {
+    const { mint, program, decimals, ata } = this.target(target);
+    return this.build([createBurnCheckedInstruction(ata, mint, this.treasury, amount, decimals, [], program)], 60_000);
   }
 
   async buildPayout(items: readonly QueueItem[], options: { withClaim?: boolean } = {}): Promise<Built> {
@@ -453,6 +462,7 @@ export class SolanaChain implements Chain {
         return {
           quote: tokenDelta(tx.meta, owner, this.info.quoteMint.toBase58()),
           coin: tokenDelta(tx.meta, owner, this.burnMint.toBase58()),
+          self: tokenDelta(tx.meta, owner, this.strategyMint.toBase58()),
         };
       }
       await new Promise((resolve) => setTimeout(resolve, 1500));

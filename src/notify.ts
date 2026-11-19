@@ -12,15 +12,16 @@ export interface NotifyConfig {
 }
 
 export function formatCycleMessage(
-  report: Pick<LiveReport, "cycle" | "claimed" | "swapped" | "burned" | "paid" | "recipients" | "skipped" | "notes">,
-  units: { quoteDecimals: number; burnDecimals: number },
+  report: Pick<LiveReport, "cycle" | "claimed" | "swapped" | "burned" | "boughtBack" | "selfBurned" | "paid" | "recipients" | "skipped" | "notes">,
+  units: { quoteDecimals: number; burnDecimals: number; strategyDecimals?: number },
 ): string | null {
-  const active = report.claimed > 0n || report.swapped > 0n || report.burned > 0n || report.paid > 0n;
+  const active = report.claimed > 0n || report.swapped > 0n || report.burned > 0n || report.boughtBack > 0n || report.selfBurned > 0n || report.paid > 0n;
   const trouble = report.skipped.length > 0 || report.notes.some((n) => /failed|expired|queued/.test(n));
   if (!active && !trouble) return null; // quiet cycles send nothing
   const lines = [`Cycle ${report.cycle}`];
   if (report.claimed > 0n) lines.push(`Claimed ${formatUnits(report.claimed, units.quoteDecimals)} TTWO`);
   if (report.burned > 0n) lines.push(`Burned ${formatUnits(report.burned, units.burnDecimals)} DCTY (spent ${formatUnits(report.swapped, units.quoteDecimals)} TTWO)`);
+  if (report.selfBurned > 0n) lines.push(`Bought back and burned ${formatUnits(report.selfBurned, units.strategyDecimals ?? 6)} of the coin (spent ${formatUnits(report.boughtBack, units.quoteDecimals)} TTWO)`);
   if (report.paid > 0n) lines.push(`Paid ${formatUnits(report.paid, units.quoteDecimals)} TTWO to ${report.recipients} holders`);
   if (report.skipped.length > 0) lines.push(`${report.skipped.length} payout(s) could not be delivered and went back to the pool`);
   for (const note of report.notes.filter((n) => /failed|expired|queued/.test(n))) lines.push(`Note: ${note}`);

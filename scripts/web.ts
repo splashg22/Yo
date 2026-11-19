@@ -15,6 +15,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
 import { loadKeypair } from "../src/chain.js";
 import { parseConfig, type Config } from "../src/config.js";
+import { DEFAULT_SPLIT, type Split } from "../src/split.js";
 
 export const DEFAULT_PUBLIC_RPC = "https://solana-rpc.publicnode.com";
 
@@ -22,9 +23,12 @@ export interface WebConfig {
   title: string;
   treasury: string;
   strategyMint: string;
+  /** Short name of the strategy coin, shown next to buyback amounts. */
+  strategySymbol: string;
   burnMint: string;
   holderMint: string;
   quoteMint: string | null;
+  split: Split;
   minHold: string;
   holderSymbol: string;
   rpcUrl: string;
@@ -33,21 +37,24 @@ export interface WebConfig {
 
 /** Only public facts go in here: the page is served to everyone. */
 export function webConfig(
-  config: Pick<Config, "strategyMint" | "burnMint" | "holderMint" | "minHold" | "expectedQuoteMint" | "reportTitle">,
+  config: Pick<Config, "strategyMint" | "burnMint" | "holderMint" | "minHold" | "expectedQuoteMint" | "reportTitle"> & { split?: Split },
   treasury: string,
   extra: { quoteMint?: string | null; publicRpcUrl?: string; holderSymbol?: string; repoUrl?: string | null } = {},
 ): WebConfig {
   const publicRpcUrl = extra.publicRpcUrl?.trim() || DEFAULT_PUBLIC_RPC;
   if (!/^https:\/\//.test(publicRpcUrl)) throw new Error("PUBLIC_RPC_URL must start with https://");
+  const holderSymbol = extra.holderSymbol?.trim() || "";
   return {
     title: config.reportTitle,
     treasury,
     strategyMint: config.strategyMint,
+    strategySymbol: (config.holderMint === config.strategyMint && holderSymbol) || config.reportTitle,
     burnMint: config.burnMint,
     holderMint: config.holderMint,
     quoteMint: extra.quoteMint ?? config.expectedQuoteMint ?? null,
+    split: config.split ?? DEFAULT_SPLIT,
     minHold: config.minHold,
-    holderSymbol: extra.holderSymbol?.trim() || (config.holderMint === config.strategyMint ? "strategy coin" : "coins"),
+    holderSymbol: holderSymbol || (config.holderMint === config.strategyMint ? "strategy coin" : "coins"),
     rpcUrl: publicRpcUrl,
     repoUrl: extra.repoUrl?.trim() || null,
   };

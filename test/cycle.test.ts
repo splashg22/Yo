@@ -8,11 +8,12 @@ import {
   type Deps,
   type Limits,
 } from "../src/cycle.js";
+import { DEFAULT_SPLIT } from "../src/split.js";
 import { bookedQuote } from "../src/state.js";
 import { CrashError, FakeChain, MemoryLedger, MemoryStore, MINTS } from "./fakes.js";
 
 const LIMITS: Limits = {
-  dryRun: false, minHold: 1000n, minSol: 0n, maxSwapPerCycle: 1_000_000n, minClaim: 0n, minSwap: 0n,
+  dryRun: false, split: DEFAULT_SPLIT, minHold: 1000n, minSol: 0n, maxSwapPerCycle: 1_000_000n, minClaim: 0n, minSwap: 0n,
   minDistribute: 0n, minPayout: 0n, payoutsPerTx: 2,
 };
 
@@ -30,45 +31,67 @@ function world(limits: Partial<Limits> = {}) {
 }
 
 describe("a live cycle", () => {
-  it("claims, splits 50/50, swaps and burns half, pays the other half to qualifying holders", async () => {
+  it("claims, splits 40/20/40, buys and burns DCTY, buys back and burns the coin, pays holders the rest", async () => {
     const { chain, store, ledger, deps } = world();
     chain.vault = 1000n;
     const report = await runLiveCycle(deps);
 
     expect(report.claimed).toBe(1000n);
-    expect(report.swapped).toBe(500n);
-    expect(chain.burned).toBe(5000n); // 500 TTWO at 10 per unit
-    expect(report.burned).toBe(5000n);
-    expect(chain.received.get("alice")).toBe(375n); // 3000 / 4000 of 500
-    expect(chain.received.get("bob")).toBe(125n);
+    expect(report.swapped).toBe(400n);
+    expect(chain.burned).toBe(4000n); // 400 TTWO at 10 per unit
+    expect(report.burned).toBe(4000n);
+    expect(report.boughtBack).toBe(200n);
+    expect(chain.selfBurned).toBe(20_000n); // 200 TTWO at 100 per unit
+    expect(report.selfBurned).toBe(20_000n);
+    expect(chain.received.get("alice")).toBe(300n); // 3000 / 4000 of 400
+    expect(chain.received.get("bob")).toBe(100n);
     expect(chain.received.has("carol")).toBe(false); // below the minimum
     expect(chain.received.has("curve")).toBe(false); // excluded
     expect(chain.quote).toBe(0n);
     expect(chain.coin).toBe(0n);
+    expect(chain.self).toBe(0n);
     expect(bookedQuote(store.saved!)).toBe(0n);
     expect(store.saved!.pending).toBeNull();
-    expect(ledger.entries.map((e) => e.type)).toEqual(["claim", "swap", "burn", "distribution", "payout"]);
+    expect(ledger.entries.map((e) => e.type)).toEqual(["claim", "swap", "burn", "buyback", "buyback_burn", "distribution", "payout"]);
+    expect(ledger.of("claim")[0]).toMatchObject({ claimed: "1000", toBurn: "400", toBuyback: "200", toHolders: "400" });
     expect(report.signatures.every((s) => s.outcome === "confirmed")).toBe(true);
   });
 
-  it("caps the swap and carries the rest of the burn half to later cycles", async () => {
-    const { chain, store, deps } = world({ maxSwapPerCycle: 200n });
+  it("follows whatever split it is given", async () => {
+    const { chain, store, deps } = world({ split: { burn: 50, buyback: 0, holders: 50 } });
+    chain.vault = 1000n;
+    const report = await runLiveCycle(deps);
+    expect(report.swapped).toBe(500n);
+    expect(report.boughtBack).toBe(0n);
+    expect(report.paid).toBe(500n);
+    expect(store.saved!.buybackPool).toBe("0");
+    expect(chain.sent.some((s) => s.includes("buyback"))).toBe(false);
+  });
+
+  it("caps each swap and carries the rest to later cycles", async () => {
+    const { chain, store, deps } = world({ maxSwapPerCycle: 150n });
     chain.vault = 1000n;
     await runLiveCycle(deps);
-    expect(store.saved!.burnPool).toBe("300");
+    expect(store.saved!.burnPool).toBe("250");
+    expect(store.saved!.buybackPool).toBe("50");
     expect(chain.quote).toBe(300n);
     await runLiveCycle(deps);
     expect(store.saved!.burnPool).toBe("100");
-    expect(chain.burned).toBe(4000n);
+    expect(store.saved!.buybackPool).toBe("0");
+    expect(chain.burned).toBe(3000n);
+    expect(chain.selfBurned).toBe(20_000n);
   });
 
-  it("never burns burn-coin the treasury already owned", async () => {
+  it("never burns coins the treasury already owned", async () => {
     const { chain, deps } = world();
-    chain.coin = 777_777n; // e.g. the owner's own bag
+    chain.coin = 777_777n; // e.g. the owner's own bag of DCTY
+    chain.self = 555_555n; // and of the strategy coin
     chain.vault = 1000n;
     await runLiveCycle(deps);
-    expect(chain.burned).toBe(5000n);
+    expect(chain.burned).toBe(4000n);
     expect(chain.coin).toBe(777_777n);
+    expect(chain.selfBurned).toBe(20_000n);
+    expect(chain.self).toBe(555_555n);
   });
 
   it("never spends TTWO that is in the wallet but not in the books", async () => {
@@ -86,18 +109,18 @@ describe("a live cycle", () => {
     expect(report.notes).toContain("no fees to claim");
   });
 
-  it("keeps the holder half in the books when nobody qualifies yet", async () => {
+  it("keeps the holder share in the books when nobody qualifies yet", async () => {
     const { chain, store, deps } = world({ minHold: 10_000_000n });
     chain.vault = 1000n;
     await runLiveCycle(deps);
-    expect(store.saved!.payoutPool).toBe("500");
+    expect(store.saved!.payoutPool).toBe("400");
     expect(chain.received.size).toBe(0);
   });
 
   it("stops without sending anything when the treasury holds less than the books say", async () => {
     const { chain, store, deps } = world({ maxSwapPerCycle: 0n, minHold: 10_000_000n });
     chain.vault = 1000n;
-    await runLiveCycle(deps); // 500 + 500 now booked and held
+    await runLiveCycle(deps); // 400 + 200 + 400 now booked and held
     chain.quote -= 300n; // funds left some other way
     chain.vault = 1000n;
     const sentBefore = chain.sent.length;
@@ -105,6 +128,16 @@ describe("a live cycle", () => {
     await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(BooksMismatchError);
     expect(chain.sent.length).toBe(sentBefore);
     expect(JSON.stringify(store.saved)).toBe(savedBefore);
+  });
+
+  it("stops when bought-back coin the books count has left the wallet", async () => {
+    const { chain, deps } = world();
+    chain.vault = 1000n;
+    chain.onSend = (kind) => (kind === "buyback_burn" ? "drop" : "land"); // bought back, burn never landed
+    await runLiveCycle(deps);
+    expect(chain.self).toBe(20_000n);
+    chain.self = 0n; // moved out by hand
+    await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(BooksMismatchError);
   });
 
   it("skips the cycle without sending anything when the treasury is low on SOL", async () => {
@@ -121,9 +154,9 @@ describe("a live cycle", () => {
     chain.vault = 1000n;
     chain.rejects.add("bob");
     const report = await runLiveCycle(deps);
-    expect(chain.received.get("alice")).toBe(375n);
+    expect(chain.received.get("alice")).toBe(300n);
     expect(chain.received.has("bob")).toBe(false);
-    expect(store.saved!.payoutPool).toBe("125");
+    expect(store.saved!.payoutPool).toBe("100");
     expect(store.saved!.payoutQueue).toEqual([]);
     expect(report.skipped.map((s) => s.owner)).toEqual(["bob"]);
     expect(ledger.of("payout_skipped")).toHaveLength(1);
@@ -148,6 +181,22 @@ describe("crash safety", () => {
     expect(chain.quote).toBe(bookedQuote(store.saved!));
   });
 
+  it("books a buyback that landed just before a crash, then burns what it bought", async () => {
+    const { chain, store, ledger, deps } = world({ minHold: 10_000_000n });
+    chain.vault = 1000n;
+    chain.onSend = (kind) => (kind === "buyback" ? "crash" : "land");
+    await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(CrashError);
+    expect(store.saved!.pending?.kind).toBe("buyback");
+    chain.onSend = () => "land";
+    await runLiveCycle(deps);
+    expect(ledger.of("buyback")).toHaveLength(1);
+    expect(ledger.of("buyback_burn")).toHaveLength(1);
+    expect(store.saved!.totals.boughtBack).toBe("200");
+    expect(store.saved!.totals.selfBurned).toBe("20000");
+    expect(store.saved!.selfToBurn).toBe("0");
+    expect(chain.self).toBe(0n);
+  });
+
   it("does not pay a holder twice when a payout landed before a crash", async () => {
     const { chain, store, deps } = world({ maxSwapPerCycle: 0n });
     chain.vault = 1000n;
@@ -155,9 +204,9 @@ describe("crash safety", () => {
     await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(CrashError);
     chain.onSend = () => "land";
     await runLiveCycle(deps);
-    expect(chain.received.get("alice")).toBe(375n);
-    expect(chain.received.get("bob")).toBe(125n);
-    expect(store.saved!.totals.paid).toBe("500");
+    expect(chain.received.get("alice")).toBe(300n);
+    expect(chain.received.get("bob")).toBe(100n);
+    expect(store.saved!.totals.paid).toBe("400");
   });
 
   it("retries a transaction that expired without landing", async () => {
@@ -193,23 +242,39 @@ describe("a dry run", () => {
     expect(store.saves).toBe(0);
     expect(ledger.entries).toEqual([]);
     expect(report.fees).toBe(1000n);
-    expect(report.wouldSplit).toEqual({ burn: 500n, payout: 500n });
+    expect(report.wouldSplit).toEqual({ burn: 400n, buyback: 200n, payout: 400n });
     expect(report.claim.result).toBe("pass");
-    expect(report.route.result).toBe("pass");
+    expect(report.burn.route.result).toBe("pass");
+    expect(report.burn.amount).toBe(400n);
+    expect(report.buyback.route.result).toBe("pass");
+    expect(report.buyback.amount).toBe(200n);
     expect(report.snapshot.result).toBe("pass");
     expect(report.qualifying).toBe(2);
-    expect(report.wouldPay.map((p) => p.amount)).toEqual([375n, 125n]);
+    expect(report.wouldPay.map((p) => p.amount)).toEqual([300n, 100n]);
     expect(report.payout.result).toBe("pass"); // simulated together with the claim
-    expect(report.swap.result).toBe("not_tested"); // no TTWO in the wallet yet
+    expect(report.burn.swap.result).toBe("not_tested"); // no TTWO in the wallet yet
+    expect(report.buyback.swap.result).toBe("not_tested");
+  });
+
+  it("simulates both swaps once the treasury holds TTWO", async () => {
+    const { chain, deps } = world({ dryRun: true });
+    chain.vault = 1000n;
+    chain.quote = 50n;
+    const report = await runDryCycle(deps, "probe-wallet");
+    expect(report.burn.swap.result).toBe("pass");
+    expect(report.buyback.swap.result).toBe("pass");
+    expect(report.burn.expectedOut).toBeNull(); // the probe was smaller than the real swap would be
   });
 
   it("reports a missing swap route and a blocked snapshot as failures", async () => {
     const { chain, deps } = world({ dryRun: true });
     chain.hasRoute = false;
+    chain.hasSelfRoute = false;
     chain.snapshotWorks = false;
     const report = await runDryCycle(deps, "probe-wallet");
-    expect(report.route.result).toBe("fail");
-    expect(report.swap.result).toBe("fail");
+    expect(report.burn.route.result).toBe("fail");
+    expect(report.burn.swap.result).toBe("fail");
+    expect(report.buyback.route.result).toBe("fail");
     expect(report.snapshot.result).toBe("fail");
     expect(report.payout.result).toBe("not_tested");
   });

@@ -1,4 +1,5 @@
 import { PublicKey } from "@solana/web3.js";
+import { DEFAULT_SPLIT, checkSplit, type Split } from "./split.js";
 
 export interface Config {
   rpcUrl: string;
@@ -7,6 +8,8 @@ export interface Config {
   burnMint: string;
   holderMint: string;
   expectedQuoteMint: string | null;
+  /** How every claim is divided, in whole percentages adding up to 100. */
+  split: Split;
   /** Whole tokens, as typed. Converted to base units once decimals are known. */
   minHold: string;
   excludeWallets: string[];
@@ -90,6 +93,11 @@ export function parseConfig(env: Env): Config {
     burnMint: address(env, "BURN_MINT"),
     holderMint: env.HOLDER_MINT?.trim() ? address(env, "HOLDER_MINT") : address(env, "STRATEGY_MINT"),
     expectedQuoteMint: expected ? address(env, "EXPECTED_QUOTE_MINT") : null,
+    split: checkSplit({
+      burn: integer(env, "BURN_SHARE_PERCENT", DEFAULT_SPLIT.burn, 0, 100),
+      buyback: integer(env, "BUYBACK_SHARE_PERCENT", DEFAULT_SPLIT.buyback, 0, 100),
+      holders: integer(env, "HOLDER_SHARE_PERCENT", DEFAULT_SPLIT.holders, 0, 100),
+    }),
     minHold: amount(env, "MIN_HOLD"),
     excludeWallets: (env.EXCLUDE_WALLETS ?? "")
       .split(",")

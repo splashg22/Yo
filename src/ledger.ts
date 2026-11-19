@@ -7,6 +7,8 @@ export interface LedgerEntry {
     | "claim"
     | "swap"
     | "burn"
+    | "buyback"
+    | "buyback_burn"
     | "distribution"
     | "payout"
     | "payout_skipped"

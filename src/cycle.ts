@@ -1,5 +1,6 @@
 /**
- * One cycle: claim fees -> split 50/50 -> swap + burn -> pay holders.
+ * One cycle: claim fees -> split (default 40/20/40) -> buy + burn DCTY ->
+ * buy back + burn the strategy coin -> pay holders in TTWO.
  *
  * This file decides WHAT happens and keeps the books. It never talks to
  * Solana directly: everything on-chain goes through the `Chain` interface
@@ -7,7 +8,7 @@
  */
 import { min, sum } from "./amounts.js";
 import type { Ledger } from "./ledger.js";
-import { allocate, eligibleHolders, splitClaim } from "./split.js";
+import { allocate, eligibleHolders, splitClaim, type Split } from "./split.js";
 import {
   applyBurn,
   applyClaim,
@@ -23,6 +24,7 @@ import {
   type Reconciliation,
   type State,
   type StateStore,
+  type Target,
 } from "./state.js";
 
 export interface Built {
@@ -45,31 +47,41 @@ export interface HolderSnapshot {
   source: string;
 }
 
+/** The treasury's holdings: SOL (lamports), TTWO, the burn coin, the strategy coin. */
+export interface Holdings {
+  sol: bigint;
+  quote: bigint;
+  coin: bigint;
+  self: bigint;
+}
+
 export interface Chain {
   mints(): Mints;
-  balances(): Promise<{ sol: bigint; quote: bigint; coin: bigint }>;
+  balances(): Promise<Holdings>;
   /** Creator fees waiting to be claimed, in TTWO base units. */
   pendingFees(): Promise<bigint>;
   buildClaim(): Promise<Built>;
-  /** Human description of the TTWO -> burn coin route. Throws when there is none. */
-  describeRoute(): Promise<string>;
-  buildSwap(amountIn: bigint): Promise<Built & { expectedOut: bigint; minOut: bigint }>;
-  buildBurn(amount: bigint): Promise<Built>;
+  /** Human description of the TTWO -> target coin route. Throws when there is none. */
+  describeRoute(target: Target): Promise<string>;
+  buildSwap(amountIn: bigint, target: Target): Promise<Built & { expectedOut: bigint; minOut: bigint }>;
+  buildBurn(amount: bigint, target: Target): Promise<Built>;
   buildPayout(items: readonly QueueItem[], options?: { withClaim?: boolean }): Promise<Built>;
   simulate(built: Built): Promise<SimResult>;
   send(built: Built): Promise<void>;
   status(signature: string, lastValidBlockHeight: number): Promise<TxStatus>;
   /** Change in the treasury's own token balances caused by a confirmed transaction. */
-  deltas(signature: string): Promise<{ quote: bigint; coin: bigint }>;
+  deltas(signature: string): Promise<{ quote: bigint; coin: bigint; self: bigint }>;
   snapshotHolders(): Promise<HolderSnapshot>;
 }
 
 /** All amounts in base units. */
 export interface Limits {
   dryRun: boolean;
+  split: Split;
   minHold: bigint;
   /** Lamports. A live cycle is skipped below this. */
   minSol: bigint;
+  /** Applies to each swap (DCTY and buyback) separately. */
   maxSwapPerCycle: bigint;
   minClaim: bigint;
   minSwap: bigint;
@@ -126,12 +138,17 @@ export interface LiveReport {
   claimed: bigint;
   swapped: bigint;
   burned: bigint;
+  boughtBack: bigint;
+  selfBurned: bigint;
   paid: bigint;
   recipients: number;
   skipped: { owner: string; amount: string; reason: string }[];
   notes: string[];
   state: State;
 }
+
+const SWAP_KIND: Record<Target, PendingKind> = { burn: "swap", self: "buyback" };
+const BURN_KIND: Record<Target, PendingKind> = { burn: "burn", self: "buyback_burn" };
 
 async function waitFor(deps: Deps, built: { signature: string; lastValidBlockHeight: number }) {
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -148,28 +165,33 @@ async function waitFor(deps: Deps, built: { signature: string; lastValidBlockHei
 async function settle(deps: Deps, state: State, status: Exclude<TxStatus, "unknown">): Promise<State> {
   const pending = state.pending;
   if (!pending) return state;
-  const { chain, ledger, store } = deps;
+  const { chain, ledger, store, limits } = deps;
   let next = state;
   if (status === "confirmed") {
     const base = { cycle: state.cycle, signature: pending.signature };
     if (pending.kind === "claim") {
       const { quote } = await chain.deltas(pending.signature);
-      next = applyClaim(state, quote);
-      const { burn, payout } = splitClaim(quote);
+      next = applyClaim(state, quote, limits.split);
+      const { burn, buyback, payout } = splitClaim(quote, limits.split);
       if (!ledger.has("claim", pending.signature)) {
-        ledger.append({ type: "claim", ...base, claimed: quote.toString(), toBurn: burn.toString(), toHolders: payout.toString() });
+        ledger.append({
+          type: "claim", ...base, claimed: quote.toString(),
+          toBurn: burn.toString(), toBuyback: buyback.toString(), toHolders: payout.toString(),
+        });
       }
-    } else if (pending.kind === "swap") {
-      const { quote, coin } = await chain.deltas(pending.signature);
-      next = applySwap(state, -quote, coin);
-      if (!ledger.has("swap", pending.signature)) {
-        ledger.append({ type: "swap", ...base, spent: (-quote).toString(), bought: coin.toString() });
+    } else if (pending.kind === "swap" || pending.kind === "buyback") {
+      const target: Target = pending.kind === "swap" ? "burn" : "self";
+      const { quote, coin, self } = await chain.deltas(pending.signature);
+      const received = target === "burn" ? coin : self;
+      next = applySwap(state, -quote, received, target);
+      if (!ledger.has(pending.kind, pending.signature)) {
+        ledger.append({ type: pending.kind, ...base, spent: (-quote).toString(), bought: received.toString() });
       }
-    } else if (pending.kind === "burn") {
+    } else if (pending.kind === "burn" || pending.kind === "buyback_burn") {
       const amount = BigInt(pending.amount ?? "0");
-      next = applyBurn(state, amount);
-      if (!ledger.has("burn", pending.signature)) {
-        ledger.append({ type: "burn", ...base, burned: amount.toString() });
+      next = applyBurn(state, amount, pending.kind === "burn" ? "burn" : "self");
+      if (!ledger.has(pending.kind, pending.signature)) {
+        ledger.append({ type: pending.kind, ...base, burned: amount.toString() });
       }
     } else {
       const items = pending.items ?? [];
@@ -226,7 +248,7 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
 
   let state = store.load(chain.mints());
   const report: LiveReport = {
-    mode: "live", cycle: 0, signatures: [], claimed: 0n, swapped: 0n, burned: 0n, paid: 0n,
+    mode: "live", cycle: 0, signatures: [], claimed: 0n, swapped: 0n, burned: 0n, boughtBack: 0n, selfBurned: 0n, paid: 0n,
     recipients: 0, skipped: [], notes: [], state,
   };
   const before = state.totals;
@@ -243,7 +265,7 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
 
   // 2. The books must be covered by what the treasury really holds.
   const held = await chain.balances();
-  const check = reconcile(state, held.quote, held.coin);
+  const check = reconcile(state, held.quote, held.coin, held.self);
   if (!check.ok) throw new BooksMismatchError(check);
   if (held.sol < limits.minSol) throw new LowSolError(held.sol, limits.minSol);
 
@@ -269,16 +291,20 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
     report.notes.push(fees === 0n ? "no fees to claim" : "fees below MIN_CLAIM_TTWO, left for later");
   }
 
-  // 4. Burn anything bought earlier but not yet burned, then swap and burn.
-  const burnAll = async () => {
-    const amount = BigInt(state.coinToBurn);
-    if (amount > 0n) await run("burn", () => chain.buildBurn(amount), { amount: amount.toString() });
+  // 4. For each target coin: burn anything bought earlier but not yet burned,
+  //    then swap (up to the cap) and burn what arrived.
+  const burnAll = async (target: Target) => {
+    const amount = BigInt(target === "burn" ? state.coinToBurn : state.selfToBurn);
+    if (amount > 0n) await run(BURN_KIND[target], () => chain.buildBurn(amount, target), { amount: amount.toString() });
   };
-  await burnAll();
-  const swapAmount = min(BigInt(state.burnPool), limits.maxSwapPerCycle);
-  if (swapAmount > 0n && swapAmount >= limits.minSwap) {
-    const swap = await run("swap", () => chain.buildSwap(swapAmount), { amount: swapAmount.toString() });
-    if (swap.outcome === "confirmed") await burnAll();
+  for (const target of ["burn", "self"] as const) {
+    await burnAll(target);
+    const pool = BigInt(target === "burn" ? state.burnPool : state.buybackPool);
+    const swapAmount = min(pool, limits.maxSwapPerCycle);
+    if (swapAmount > 0n && swapAmount >= limits.minSwap) {
+      const swap = await run(SWAP_KIND[target], () => chain.buildSwap(swapAmount, target), { amount: swapAmount.toString() });
+      if (swap.outcome === "confirmed") await burnAll(target);
+    }
   }
 
   // 5. Pay holders.
@@ -340,6 +366,8 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
   report.claimed = BigInt(state.totals.claimed) - BigInt(before.claimed);
   report.swapped = BigInt(state.totals.swapped) - BigInt(before.swapped);
   report.burned = BigInt(state.totals.burned) - BigInt(before.burned);
+  report.boughtBack = BigInt(state.totals.boughtBack) - BigInt(before.boughtBack);
+  report.selfBurned = BigInt(state.totals.selfBurned) - BigInt(before.selfBurned);
   report.paid = BigInt(state.totals.paid) - BigInt(before.paid);
   report.state = state;
   return report;
@@ -350,20 +378,28 @@ export interface Check {
   detail: string;
 }
 
+/** What a dry run found out about one swap target. */
+export interface SwapPreview {
+  /** TTWO that would be swapped this cycle (pool plus this claim's share, capped). */
+  amount: bigint;
+  /** Coin the swap would deliver, when the simulation covered the full amount. */
+  expectedOut: bigint | null;
+  route: Check;
+  swap: Check;
+}
+
 export interface DryReport {
   mode: "dry";
   state: State;
   pendingStatus: TxStatus | null;
-  held: { sol: bigint; quote: bigint; coin: bigint };
+  held: Holdings;
   reconciliation: Reconciliation;
   lowSol: boolean;
   fees: bigint;
   claim: Check;
-  wouldSplit: { burn: bigint; payout: bigint };
-  wouldSwap: bigint;
-  expectedBurn: bigint | null;
-  route: Check;
-  swap: Check;
+  wouldSplit: { burn: bigint; buyback: bigint; payout: bigint };
+  burn: SwapPreview;
+  buyback: SwapPreview;
   snapshot: Check;
   holdersSeen: number;
   qualifying: number;
@@ -374,6 +410,38 @@ export interface DryReport {
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
+async function previewSwap(deps: Deps, target: Target, pool: bigint, heldQuote: bigint): Promise<SwapPreview> {
+  const { chain, limits } = deps;
+  const amount = min(pool, limits.maxSwapPerCycle);
+  let route: Check;
+  try {
+    route = { result: "pass", detail: await chain.describeRoute(target) };
+  } catch (error) {
+    route = { result: "fail", detail: message(error) };
+  }
+  // A swap can only be simulated with TTWO the treasury already holds.
+  let swap: Check = { result: "not_tested", detail: "the treasury holds no TTWO yet, so a swap cannot be simulated" };
+  let expectedOut: bigint | null = null;
+  const probe = min(amount > 0n ? amount : heldQuote, heldQuote);
+  if (route.result === "fail") {
+    swap = { result: "fail", detail: "no route" };
+  } else if (probe > 0n) {
+    try {
+      const built = await chain.buildSwap(probe, target);
+      const sim = await chain.simulate(built);
+      if (sim.ok) {
+        if (probe === amount) expectedOut = built.expectedOut;
+        swap = { result: "pass", detail: `swapping ${probe} base units of TTWO would buy about ${built.expectedOut} base units` };
+      } else {
+        swap = { result: "fail", detail: sim.error ?? "simulation failed" };
+      }
+    } catch (error) {
+      swap = { result: "fail", detail: message(error) };
+    }
+  }
+  return { amount, expectedOut, route, swap };
+}
+
 /** Reads and simulates only. Sends nothing and writes nothing. */
 export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryReport> {
   const { chain, store, limits } = deps;
@@ -382,7 +450,7 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
     ? await chain.status(state.pending.signature, state.pending.lastValidBlockHeight)
     : null;
   const held = await chain.balances();
-  const reconciliation = reconcile(state, held.quote, held.coin);
+  const reconciliation = reconcile(state, held.quote, held.coin, held.self);
   const fees = await chain.pendingFees();
 
   let claim: Check = { result: "not_tested", detail: "there are no fees to claim yet" };
@@ -395,38 +463,10 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
     }
   }
 
-  const wouldSplit = splitClaim(fees);
-  const burnPool = BigInt(state.burnPool) + wouldSplit.burn;
+  const wouldSplit = splitClaim(fees, limits.split);
   const payoutPool = BigInt(state.payoutPool) + wouldSplit.payout;
-  const wouldSwap = min(burnPool, limits.maxSwapPerCycle);
-
-  let route: Check;
-  try {
-    route = { result: "pass", detail: await chain.describeRoute() };
-  } catch (error) {
-    route = { result: "fail", detail: message(error) };
-  }
-
-  // A swap can only be simulated with TTWO the treasury already holds.
-  let swap: Check = { result: "not_tested", detail: "the treasury holds no TTWO yet, so a swap cannot be simulated" };
-  let expectedBurn: bigint | null = null;
-  const swapProbe = min(wouldSwap > 0n ? wouldSwap : held.quote, held.quote);
-  if (route.result === "fail") {
-    swap = { result: "fail", detail: "no route" };
-  } else if (swapProbe > 0n) {
-    try {
-      const built = await chain.buildSwap(swapProbe);
-      const sim = await chain.simulate(built);
-      if (sim.ok) {
-        if (swapProbe === wouldSwap) expectedBurn = built.expectedOut;
-        swap = { result: "pass", detail: `swapping ${swapProbe} base units of TTWO would buy about ${built.expectedOut} base units` };
-      } else {
-        swap = { result: "fail", detail: sim.error ?? "simulation failed" };
-      }
-    } catch (error) {
-      swap = { result: "fail", detail: message(error) };
-    }
-  }
+  const burn = await previewSwap(deps, "burn", BigInt(state.burnPool) + wouldSplit.burn, held.quote);
+  const buyback = await previewSwap(deps, "self", BigInt(state.buybackPool) + wouldSplit.buyback, held.quote);
 
   let snapshot: Check;
   let holdersSeen = 0;
@@ -466,7 +506,7 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
   }
 
   return {
-    mode: "dry", state, pendingStatus, held, reconciliation, lowSol: held.sol < limits.minSol, fees, claim, wouldSplit, wouldSwap,
-    expectedBurn, route, swap, snapshot, holdersSeen, qualifying, wouldPay, payoutPool, payout,
+    mode: "dry", state, pendingStatus, held, reconciliation, lowSol: held.sol < limits.minSol, fees, claim, wouldSplit,
+    burn, buyback, snapshot, holdersSeen, qualifying, wouldPay, payoutPool, payout,
   };
 }

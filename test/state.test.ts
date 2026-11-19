@@ -4,32 +4,57 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { FileLedger } from "../src/ledger.js";
 import {
-  FileStateStore, applyClaim, applySwap, bookedQuote, emptyState, reconcile, returnToPool, startPayout,
+  FileStateStore, applyBurn, applyClaim, applySwap, bookedQuote, emptyState, reconcile, returnToPool, startPayout, upgradeState,
 } from "../src/state.js";
 import { MINTS } from "./fakes.js";
 
 describe("the books", () => {
   it("refuse to go negative", () => {
     const state = applyClaim(emptyState(MINTS), 100n);
-    expect(() => applySwap(state, 51n, 1n)).toThrow(/negative/);
-    expect(() => startPayout(state, [{ owner: "a", amount: 51n }])).toThrow(/negative/);
+    expect(() => applySwap(state, 41n, 1n)).toThrow(/negative/);
+    expect(() => applySwap(state, 21n, 1n, "self")).toThrow(/negative/);
+    expect(() => applyBurn(state, 1n, "self")).toThrow(/negative/);
+    expect(() => startPayout(state, [{ owner: "a", amount: 41n }])).toThrow(/negative/);
+  });
+  it("put each share of a claim in its own pool", () => {
+    const state = applyClaim(emptyState(MINTS), 1000n);
+    expect(state).toMatchObject({ burnPool: "400", buybackPool: "200", payoutPool: "400" });
+    expect(bookedQuote(state)).toBe(1000n);
+    const bought = applySwap(state, 200n, 20_000n, "self");
+    expect(bought).toMatchObject({ buybackPool: "0", selfToBurn: "20000", totals: { boughtBack: "200" } });
+    expect(bookedQuote(bought)).toBe(800n);
+    const burned = applyBurn(bought, 20_000n, "self");
+    expect(burned).toMatchObject({ selfToBurn: "0", totals: { selfBurned: "20000" } });
   });
   it("keep every unit in exactly one place through a distribution", () => {
     let state = applyClaim(emptyState(MINTS), 1001n);
     expect(bookedQuote(state)).toBe(1001n);
-    state = startPayout(state, [{ owner: "a", amount: 300n }, { owner: "b", amount: 200n }]);
+    state = startPayout(state, [{ owner: "a", amount: 300n }, { owner: "b", amount: 100n }]);
     expect(bookedQuote(state)).toBe(1001n);
-    state = returnToPool(state, [{ owner: "b", amount: "200" }]);
-    expect(state.payoutPool).toBe("200");
+    state = returnToPool(state, [{ owner: "b", amount: "100" }]);
+    expect(state.payoutPool).toBe("100");
     expect(bookedQuote(state)).toBe(1001n);
   });
   it("flag a shortfall but tolerate extra tokens in the wallet", () => {
     const state = applyClaim(emptyState(MINTS), 100n);
-    expect(reconcile(state, 100n, 0n).ok).toBe(true);
-    expect(reconcile(state, 150n, 5n).ok).toBe(true);
-    const short = reconcile(state, 99n, 0n);
+    expect(reconcile(state, 100n, 0n, 0n).ok).toBe(true);
+    expect(reconcile(state, 150n, 5n, 7n).ok).toBe(true);
+    const short = reconcile(state, 99n, 0n, 0n);
     expect(short.ok).toBe(false);
     expect(short.quoteDifference).toBe(-1n);
+    const missingSelf = reconcile(applySwap(state, 20n, 2000n, "self"), 80n, 0n, 1999n);
+    expect(missingSelf.ok).toBe(false);
+    expect(missingSelf.selfDifference).toBe(-1n);
+  });
+  it("upgrade books written before the buyback existed", () => {
+    const old = {
+      version: 1, ...MINTS, cycle: 3, burnPool: "5", payoutPool: "6", coinToBurn: "7", payoutQueue: [], pending: null,
+      totals: { claimed: "100", swapped: "40", burned: "400", paid: "30" },
+    };
+    const state = upgradeState(old);
+    expect(state).toMatchObject({ version: 2, cycle: 3, burnPool: "5", buybackPool: "0", selfToBurn: "0", totals: { boughtBack: "0", selfBurned: "0", paid: "30" } });
+    expect(bookedQuote(state)).toBe(11n);
+    expect(() => upgradeState({ version: 9 })).toThrow(/version/);
   });
 });
 

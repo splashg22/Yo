@@ -4,18 +4,22 @@ A small Node/TypeScript bot for a pump.fun coin paired with TTWO (tokenized
 Take-Two stock). The coin earns creator fees in TTWO. Each cycle the bot:
 
 1. **Claims** the creator fees (TTWO) into the treasury wallet.
-2. **Splits** them 50/50.
-3. **Buys and burns DCTY** with one half.
-4. **Pays the other half in TTWO** to holders above a minimum balance, in
+2. **Splits** them three ways: 40% / 20% / 40% by default.
+3. **Buys and burns DCTY** with the first share.
+4. **Buys back and burns the coin itself** with the second share.
+5. **Pays the third share in TTWO** to holders above a minimum balance, in
    proportion to what they hold.
 
 Three tokens are involved, set in `.env`:
 
 | Setting         | What it is                                               |
 | --------------- | -------------------------------------------------------- |
-| `STRATEGY_MINT` | Your pump.fun coin. Its creator fees fund everything.    |
+| `STRATEGY_MINT` | Your pump.fun coin. Its creator fees fund everything; it is also what gets bought back. |
 | `BURN_MINT`     | The coin that is bought and burned (DCTY).               |
 | `HOLDER_MINT`   | Whose holders get the TTWO. Empty = holders of your coin. |
+
+The split is `BURN_SHARE_PERCENT`, `BUYBACK_SHARE_PERCENT` and
+`HOLDER_SHARE_PERCENT` (whole numbers adding up to 100; default 40/20/40).
 
 TTWO itself is read from the chain (it is whatever `STRATEGY_MINT` is paired
 with); set `EXPECTED_QUOTE_MINT` to have the bot refuse anything else.
@@ -26,7 +30,7 @@ Do this on the always-on machine that will run the bot.
 
 ```bash
 npm install
-npm test                # 62 tests
+npm test                # 98 tests
 npm run typecheck
 npm run setup:wallet    # creates the treasury wallet OUTSIDE this folder, prints its address
 ```
@@ -56,9 +60,10 @@ with `DRY_RUN=true` and is ignored by git.
 | `npm run report`         | Builds a public stats page (`data/report.html`) and `data/summary.json` from the ledger. |
 
 A dry run sends nothing and writes nothing. It reports what a live cycle
-would do and three checks: (a) a TTWO → DCTY swap route exists, (b) a TTWO
-payout to a wallet simulates, (c) the holder snapshot works on your RPC.
-The swap can only be simulated once the treasury holds some TTWO.
+would do and four checks: (a) a TTWO → DCTY swap route exists, (a2) a TTWO →
+your coin route exists for the buyback, (b) a TTWO payout to a wallet
+simulates, (c) the holder snapshot works on your RPC. The swaps can only be
+simulated once the treasury holds some TTWO.
 
 The bot is live only when `DRY_RUN` is exactly `false`.
 
@@ -78,16 +83,22 @@ code 2, which means the books and the treasury disagree and a person must look.
 
 ## The rules
 
-- **Split:** half to buy+burn, half to holders. An odd base unit goes to the burn.
+- **Split:** `BURN_SHARE_PERCENT` to buy+burn DCTY, `BUYBACK_SHARE_PERCENT` to
+  buy back+burn your coin, `HOLDER_SHARE_PERCENT` to holders (default
+  40/20/40). Rounding dust, at most two base units, goes to the DCTY burn.
+- **Buyback:** your coin is bought on its own bonding curve or pump pool with
+  TTWO and burned in the next transaction. A buyback is itself a trade, so it
+  earns the treasury a small creator fee back, which the next claim picks up.
 - **Who qualifies:** wallets holding at least `MIN_HOLD` of `HOLDER_MINT`.
   Never paid: the treasury itself, `EXCLUDE_WALLETS`, and (by default)
   program-owned addresses such as the bonding curve and pools.
 - **How much:** proportional to balance, rounded down. Rounding dust stays in
   the pool for the next cycle.
-- **Swap cap:** at most `MAX_SWAP_TTWO_PER_CYCLE` is swapped per cycle; the
-  rest of the burn half waits.
+- **Swap cap:** at most `MAX_SWAP_TTWO_PER_CYCLE` goes into each swap (the
+  DCTY buy and the buyback separately) per cycle; the rest waits.
 - **Only its own money:** the bot spends only TTWO it claimed and burns only
-  DCTY it bought. Anything else in the treasury is left alone.
+  the DCTY and the coin it bought. Anything else in the treasury, including
+  any of your coin you hold there yourself, is left alone.
 
 These live in `src/split.ts`. Paying a holder who has never held TTWO costs
 the treasury about 0.002 SOL of account rent, once per holder;
@@ -107,8 +118,9 @@ the treasury about 0.002 SOL of account rent, once per holder;
 
 ## The swap
 
-`SWAP_VENUE=auto` uses pump's own router when DCTY can be bought directly with
-TTWO, and otherwise Jupiter (which can go TTWO → SOL → DCTY). Jupiter builds
+`SWAP_VENUE=auto` uses pump's own router when the target coin can be bought
+directly with TTWO, and otherwise Jupiter (which can go TTWO → SOL → DCTY).
+Your own coin is always a direct pump route, since TTWO is its pair. Jupiter builds
 the transaction, so before signing it the bot checks that the treasury is the
 only payer and signer, and simulates it to confirm it takes no more than the
 intended TTWO, delivers at least the quoted minimum of DCTY, and costs no more
@@ -121,8 +133,8 @@ burned, in a separate transaction right after.
   edit it by hand.** It is written before every transaction is broadcast, so a
   crash or restart picks up exactly where it stopped and nothing is claimed,
   burned or paid twice. The previous version is kept as `state.json.bak`.
-- `data/ledger.jsonl` — public, append-only record: every claim, swap, burn
-  and payout with its transaction signature.
+- `data/ledger.jsonl` — public, append-only record: every claim, swap, burn,
+  buyback and payout with its transaction signature.
 
 At the start of every live cycle the books are compared with the treasury. If
 the treasury holds **less** than the books account for, the bot stops and
@@ -140,7 +152,8 @@ taken on trust:
 
 - live treasury balances and the current DCTY supply;
 - every transaction of the treasury, classified from its on-chain contents as
-  a claim, a DCTY buy, a burn or a holder payout, with a Solscan link each;
+  a claim, a DCTY buy, a buyback of the coin, a burn of either, or a holder
+  payout, with a Solscan link each;
 - a **Check your wallet** box: balance, whether the wallet qualifies, and every
   TTWO payout it has received;
 - a cross-check of the bot's published ledger against the chain, so visitors

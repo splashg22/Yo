@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { formatUnits, parseUnits } from "../src/amounts.js";
 import { parseConfig } from "../src/config.js";
 import { aggregateByOwner, decodeOwnerAmount } from "../src/holders.js";
-import { allocate, chunk, eligibleHolders, splitClaim } from "../src/split.js";
+import { allocate, checkSplit, chunk, eligibleHolders, splitClaim } from "../src/split.js";
 import { tokenDelta } from "../src/txmeta.js";
 import { PublicKey } from "@solana/web3.js";
 
@@ -22,14 +22,28 @@ describe("amounts", () => {
   });
 });
 
-describe("the 50/50 split", () => {
-  it("halves an even claim", () => {
-    expect(splitClaim(100n)).toEqual({ burn: 50n, payout: 50n });
+describe("the split", () => {
+  it("is 40% burn, 20% buyback, 40% holders by default", () => {
+    expect(splitClaim(1000n)).toEqual({ burn: 400n, buyback: 200n, payout: 400n });
   });
-  it("gives the odd unit to the burn and never loses any", () => {
-    const { burn, payout } = splitClaim(101n);
-    expect(burn).toBe(51n);
-    expect(burn + payout).toBe(101n);
+  it("gives rounding dust to the burn and never loses a unit", () => {
+    for (const claimed of [1n, 7n, 101n, 999n, 123_456_789n]) {
+      const { burn, buyback, payout } = splitClaim(claimed);
+      expect(burn + buyback + payout).toBe(claimed);
+      expect(payout).toBe((claimed * 40n) / 100n);
+      expect(buyback).toBe((claimed * 20n) / 100n);
+    }
+    expect(splitClaim(7n)).toEqual({ burn: 4n, buyback: 1n, payout: 2n });
+  });
+  it("follows any split that adds up to 100", () => {
+    expect(splitClaim(100n, { burn: 50, buyback: 0, holders: 50 })).toEqual({ burn: 50n, buyback: 0n, payout: 50n });
+    expect(splitClaim(300n, { burn: 0, buyback: 100, holders: 0 })).toEqual({ burn: 0n, buyback: 300n, payout: 0n });
+  });
+  it("refuses shares that do not add up to 100 or are not whole percentages", () => {
+    expect(() => checkSplit({ burn: 50, buyback: 30, holders: 30 })).toThrow(/add up to 100/);
+    expect(() => checkSplit({ burn: 40.5, buyback: 19.5, holders: 40 })).toThrow(/whole number/);
+    expect(() => checkSplit({ burn: -10, buyback: 70, holders: 40 })).toThrow(/whole number/);
+    expect(() => splitClaim(100n, { burn: 1, buyback: 1, holders: 1 })).toThrow();
   });
 });
 
@@ -116,5 +130,11 @@ describe("config", () => {
     expect(() => parseConfig({ ...env, RPC_URL: "" })).toThrow(/RPC_URL/);
     expect(() => parseConfig({ ...env, STRATEGY_MINT: "not-an-address" })).toThrow(/STRATEGY_MINT/);
     expect(() => parseConfig({ ...env, MIN_HOLD: "lots" })).toThrow(/MIN_HOLD/);
+  });
+  it("reads the split and insists it adds up to 100", () => {
+    expect(parseConfig(env).split).toEqual({ burn: 40, buyback: 20, holders: 40 });
+    expect(parseConfig({ ...env, BURN_SHARE_PERCENT: "50", BUYBACK_SHARE_PERCENT: "0", HOLDER_SHARE_PERCENT: "50" }).split).toEqual({ burn: 50, buyback: 0, holders: 50 });
+    expect(() => parseConfig({ ...env, BURN_SHARE_PERCENT: "50" })).toThrow(/add up to 100/);
+    expect(() => parseConfig({ ...env, BUYBACK_SHARE_PERCENT: "abc" })).toThrow(/BUYBACK_SHARE_PERCENT/);
   });
 });

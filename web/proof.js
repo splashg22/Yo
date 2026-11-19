@@ -111,14 +111,19 @@ const amountOf = (info) => BigInt(info.tokenAmount ? info.tokenAmount.amount : i
 
 /**
  * Classifies one of the treasury's transactions from its on-chain record.
- * `cfg` needs treasury, burnMint and (ideally) quoteMint; `t` is the
- * `getTransaction` result with `jsonParsed` encoding.
+ * `cfg` needs treasury, burnMint, strategyMint and (ideally) quoteMint; `t`
+ * is the `getTransaction` result with `jsonParsed` encoding.
+ *
+ * Two coins get bought and burned: the burn coin (DCTY) and the strategy coin
+ * itself (a buyback). A row's `coin` says which: "burn" or "self".
  */
 export function classify(cfg, sig, blockTime, t) {
   const meta = t.meta || {};
   const msg = t.transaction.message;
   const keys = msg.accountKeys.map((k) => (typeof k === "string" ? k : k.pubkey));
   const treasury = cfg.treasury;
+  const selfMint = cfg.strategyMint || null;
+  const selfName = cfg.strategySymbol || "the coin";
   const balances = rows(meta.postTokenBalances).concat(rows(meta.preTokenBalances));
   const owned = (list, mint) => rows(list).filter((r) => r.owner === treasury && r.mint === mint).reduce((a, r) => a + BigInt(r.uiTokenAmount.amount), 0n);
   const decimalsOf = (mint) => balances.find((x) => x.mint === mint)?.uiTokenAmount.decimals ?? null;
@@ -130,7 +135,7 @@ export function classify(cfg, sig, blockTime, t) {
   const programs = new Set(instructions.map((ix) => ix.programId).filter(Boolean));
   const venues = [...programs].map((p) => VENUES[p]).filter(Boolean);
 
-  let burned = 0n;
+  let burned = 0n, selfBurned = 0n;
   const payouts = new Map();
   let payoutMint = null;
   for (const ix of instructions) {
@@ -138,13 +143,15 @@ export function classify(cfg, sig, blockTime, t) {
     if (!p || !p.info) continue;
     const info = p.info;
     const authority = info.authority || info.multisigAuthority;
-    if ((p.type === "burn" || p.type === "burnChecked") && authority === treasury && (info.mint === undefined || info.mint === cfg.burnMint)) {
-      burned += amountOf(info);
+    if ((p.type === "burn" || p.type === "burnChecked") && authority === treasury) {
+      const mint = info.mint || mintOfIndex(keys.indexOf(info.account));
+      if (selfMint && mint === selfMint) selfBurned += amountOf(info);
+      else if (!mint || mint === cfg.burnMint) burned += amountOf(info);
     }
     if ((p.type === "transfer" || p.type === "transferChecked") && authority === treasury && info.destination) {
       const index = keys.indexOf(info.destination);
       const mint = info.mint || mintOfIndex(index);
-      if (mint === cfg.burnMint) continue;
+      if (mint === cfg.burnMint || (selfMint && mint === selfMint)) continue;
       const to = ownerOfIndex(index);
       if (!to || to === treasury) continue;
       payoutMint = mint;
@@ -155,27 +162,35 @@ export function classify(cfg, sig, blockTime, t) {
   const quoteMint = cfg.quoteMint || payoutMint || null;
   const quoteDelta = quoteMint ? owned(meta.postTokenBalances, quoteMint) - owned(meta.preTokenBalances, quoteMint) : 0n;
   const burnDelta = owned(meta.postTokenBalances, cfg.burnMint) - owned(meta.preTokenBalances, cfg.burnMint);
+  const selfDelta = selfMint ? owned(meta.postTokenBalances, selfMint) - owned(meta.preTokenBalances, selfMint) : 0n;
   const lamports = meta.postBalances && meta.preBalances ? BigInt(meta.postBalances[0]) - BigInt(meta.preBalances[0]) : 0n;
   const paid = [...payouts.values()].reduce((a, b) => a + b, 0n);
   const qd = quoteMint ? decimalsOf(quoteMint) : null;
   const bd = decimalsOf(cfg.burnMint);
+  const sd = selfMint ? decimalsOf(selfMint) : null;
   const touchesPump = programs.has(PUMP_PROGRAM) || programs.has(PUMP_AMM_PROGRAM);
+  const signed = (delta, decimals, places, unit) => (delta ? `${delta > 0n ? "+" : "-"}${fmt(delta < 0n ? -delta : delta, decimals, places)} ${unit}` : "");
 
-  let kind = "other", text = "", amount = "", sign = 0;
-  if (burned > 0n) {
-    kind = "burn"; text = "DCTY destroyed for good"; amount = `${fmt(burned, bd ?? 6, 2)} DCTY`; sign = -1;
+  let kind = "other", coin = null, text = "", amount = "", sign = 0;
+  if (selfBurned > 0n) {
+    kind = "burn"; coin = "self"; text = `${selfName} bought back and destroyed for good`; amount = `${fmt(selfBurned, sd ?? 6, 2)} ${selfName}`; sign = -1;
+  } else if (burned > 0n) {
+    kind = "burn"; coin = "burn"; text = "DCTY destroyed for good"; amount = `${fmt(burned, bd ?? 6, 2)} DCTY`; sign = -1;
   } else if (burnDelta > 0n && quoteDelta < 0n) {
-    kind = "buy"; text = `Bought DCTY with TTWO${venues.length ? ` on ${venues.join(" + ")}` : ""}`;
+    kind = "buy"; coin = "burn"; text = `Bought DCTY with TTWO${venues.length ? ` on ${venues.join(" + ")}` : ""}`;
     amount = `${fmt(-quoteDelta, qd ?? 0)} TTWO → ${fmt(burnDelta, bd ?? 6, 2)} DCTY`; sign = 0;
+  } else if (selfDelta > 0n && quoteDelta < 0n) {
+    kind = "buy"; coin = "self"; text = `Bought ${selfName} back with TTWO${venues.length ? ` on ${venues.join(" + ")}` : ""}`;
+    amount = `${fmt(-quoteDelta, qd ?? 0)} TTWO → ${fmt(selfDelta, sd ?? 6, 2)} ${selfName}`; sign = 0;
   } else if (payouts.size > 0) {
     kind = "payout";
     text = `${payouts.size} holder${payouts.size === 1 ? "" : "s"} paid${touchesPump ? ", fees claimed in the same transaction" : ""}`;
     amount = `${fmt(paid, qd ?? 0)} TTWO`; sign = -1;
   } else if (quoteDelta > 0n && touchesPump) {
     kind = "claim"; text = "Creator fees claimed into the treasury"; amount = `${fmt(quoteDelta, qd ?? 0)} TTWO`; sign = 1;
-  } else if (quoteDelta !== 0n || burnDelta !== 0n) {
+  } else if (quoteDelta !== 0n || burnDelta !== 0n || selfDelta !== 0n) {
     text = "Token movement";
-    amount = [quoteDelta ? `${quoteDelta > 0n ? "+" : "-"}${fmt(quoteDelta < 0n ? -quoteDelta : quoteDelta, qd ?? 0)} TTWO` : "", burnDelta ? `${burnDelta > 0n ? "+" : "-"}${fmt(burnDelta < 0n ? -burnDelta : burnDelta, bd ?? 6, 2)} DCTY` : ""].filter(Boolean).join(", ");
+    amount = [signed(quoteDelta, qd ?? 0, 4, "TTWO"), signed(burnDelta, bd ?? 6, 2, "DCTY"), signed(selfDelta, sd ?? 6, 2, selfName)].filter(Boolean).join(", ");
   } else {
     text = venues.length ? `Interaction with ${venues.join(", ")}` : "SOL or account housekeeping";
     const sol = fmt(lamports < 0n ? -lamports : lamports, 9);
@@ -183,26 +198,30 @@ export function classify(cfg, sig, blockTime, t) {
   }
 
   return {
-    sig, time: blockTime ?? null, kind, text, amount, sign, err: Boolean(meta.err),
-    quoteMint, quoteDelta, burnDelta, burned, paid, payouts: [...payouts.entries()], qd, bd,
+    sig, time: blockTime ?? null, kind, coin, text, amount, sign, err: Boolean(meta.err),
+    quoteMint, quoteDelta, burnDelta, selfDelta, burned, selfBurned, paid, payouts: [...payouts.entries()], qd, bd, sd,
   };
 }
 
 /** Totals over classified rows (failed transactions are left out). */
 export function summarize(all) {
   const ok = all.filter((x) => !x.err);
-  const of = (kind) => ok.filter((x) => x.kind === kind);
+  const of = (kind, coin) => ok.filter((x) => x.kind === kind && (coin === undefined || (x.coin || "burn") === coin));
   const recipients = new Set(of("payout").flatMap((x) => x.payouts.map((p) => p[0])));
   return {
-    burned: of("burn").reduce((a, x) => a + x.burned, 0n),
-    burns: of("burn").length,
+    burned: of("burn", "burn").reduce((a, x) => a + x.burned, 0n),
+    burns: of("burn", "burn").length,
+    selfBurned: of("burn", "self").reduce((a, x) => a + x.selfBurned, 0n),
+    selfBurns: of("burn", "self").length,
     paid: of("payout").reduce((a, x) => a + x.paid, 0n),
     payouts: of("payout").length,
     recipients: recipients.size,
     claimed: of("claim").reduce((a, x) => a + x.quoteDelta, 0n),
     claims: of("claim").length,
-    spent: of("buy").reduce((a, x) => a - x.quoteDelta, 0n),
-    buys: of("buy").length,
+    spent: of("buy", "burn").reduce((a, x) => a - x.quoteDelta, 0n),
+    buys: of("buy", "burn").length,
+    selfSpent: of("buy", "self").reduce((a, x) => a - x.quoteDelta, 0n),
+    buybacks: of("buy", "self").length,
   };
 }
 
