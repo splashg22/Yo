@@ -16,73 +16,79 @@
 <meta name="twitter:title" content="Dacity Strategy · Dashboard">
 <meta name="twitter:description" content="Every number read from Solana in your browser.">
 <meta name="twitter:image" content="https://splashg22.github.io/Yo/og.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0307'/%3E%3Cpath d='M5 10a2 2 0 0 1 2-2h18a2 2 0 0 1 2 2v2.6a3.4 3.4 0 0 0 0 6.8V22a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2.6a3.4 3.4 0 0 0 0-6.8z' fill='%23ff1f8f'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0509'/%3E%3Crect x='5' y='8' width='7' height='18' rx='3.5' fill='%23ff2d95'/%3E%3Crect x='14' y='5' width='4' height='16' rx='2' fill='%23ffd1e8'/%3E%3Crect x='20' y='8' width='7' height='18' rx='3.5' fill='%23ff6ab8'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  .head { position: relative; margin: 0 -32px; padding-left: 32px; padding-right: 32px; }
-  .head .sub { max-width: 720px; }
-  .head .actions { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
-  .chart { height: 170px; position: relative; }
-  .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .chart .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font-size: 15px; text-align: center; padding: 0 20px; border: 1px dashed var(--line-strong); border-radius: 12px; }
-  .axis { font-size: 11px; fill: var(--faint); font-family: var(--font); }
-  .block { margin-top: 20px; }
-  main { padding-bottom: 40px; }
+  .page-head { padding: 48px 0 24px; display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; flex-wrap: wrap; }
+  .page-head h1 { font-size: clamp(1.8rem, 3vw, 2.4rem); }
+  .page-head .lead { margin: 6px 0 0; font-size: 15px; }
+  .block { margin-top: var(--gap); }
+  .wide-2 { grid-template-columns: 2fr 1fr; }
 </style>
 </head>
 <body>
+<div class="ambient" aria-hidden="true"></div>
 <header class="site-header">
   <div class="container">
-    <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg><span id="brand-title">Dacity Strategy</span></a>
+    <a class="brand" href="./"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="8" height="20" rx="4" fill="#ff2d95"/><rect x="14" y="3" width="4" height="18" rx="2" fill="#ffd1e8"/><rect x="21" y="7" width="8" height="20" rx="4" fill="#ff6ab8"/></svg><span id="brand-title">Dacity Strategy</span></a>
     <nav class="site-nav">
       <a href="./">Home</a><a href="./#how">How it works</a>
-      <a class="pill sm keep" id="buy" href="#" rel="noopener" hidden>Buy</a>
+      <a class="btn btn-primary btn-sm keep" id="buy" href="#" rel="noopener" hidden>Buy</a>
     </nav>
   </div>
 </header>
 
 <main class="container">
-  <div class="head screen photo-wall" style="padding-top:140px;padding-bottom:70px;background-position:center 100%">
-    <h1 style="font-size:clamp(2rem,3.6vw,3rem)">Dashboard.</h1>
-    <p class="sub">Read from the Solana blockchain in your browser.</p>
-    <div class="actions"><button class="pill ghost sm" id="refresh" type="button">Refresh</button><a class="text-link" id="treasury-link" href="#" rel="noopener">View the treasury on Solscan →</a></div>
+  <div class="page-head">
+    <div>
+      <h1>Dashboard</h1>
+      <p class="lead">Live view of the treasury, read from Solana in your browser.</p>
+    </div>
+    <div class="actions"><button class="btn btn-sm" id="refresh" type="button">Refresh</button><a id="treasury-link" href="#" rel="noopener">Treasury on Solscan →</a></div>
   </div>
 
-  <div class="figures four" id="kpis" style="margin-top:0"></div>
+  <div class="grid cols-4" id="kpis"></div>
 
-  <div class="grid grid-3 block" style="margin-top:56px;grid-template-columns:1fr 1fr 1.25fr">
-    <div class="panel"><h3>Treasury now<small id="sol-note"></small></h3><dl class="rows" id="holdings"></dl></div>
-    <div class="panel"><h3>Supply</h3><dl class="rows" id="supply"></dl></div>
-    <div class="panel"><h3>The split<small>where fees went</small></h3><div class="bar" id="bar"></div><dl class="rows" id="legend"></dl><dl class="rows" id="next" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line-strong)"></dl></div>
+  <div class="card block">
+    <div class="card-head"><h3>Treasury and supply</h3><span class="caption" id="sol-note"></span></div>
+    <div class="items" id="overview"></div>
   </div>
 
-  <div class="grid grid-2 block">
-    <div class="panel"><h3>TTWO paid to holders<small>cumulative</small></h3><div class="chart" id="chart-paid"></div></div>
-    <div class="panel"><h3>DCTY burned<small>cumulative</small></h3><div class="chart" id="chart-burned"></div></div>
+  <div class="card block">
+    <div class="card-head"><h3>Fee split</h3><span class="caption" id="split-caption"></span></div>
+    <div class="bar" id="bar"></div>
+    <div class="split-cols" id="split"></div>
+    <p class="caption" id="next" style="margin:14px 0 0"></p>
   </div>
 
-  <div class="panel block">
-    <h3>Treasury history<small id="activity-note"></small></h3>
-    <div class="filters" id="filters" role="group" aria-label="Filter transactions"></div>
-    <div class="table-wrap"><table><thead><tr><th class="hide-sm">When</th><th>Type</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
-    <p style="margin:18px 0 0"><button class="pill ghost sm" id="more" hidden>Show more</button></p>
+  <div class="grid cols-2 block">
+    <div class="card"><div class="card-head"><h3>TTWO paid to holders</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-paid"></div></div>
+    <div class="card"><div class="card-head"><h3>DCTY burned</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-burned"></div></div>
   </div>
 
-  <div class="panel block"><h3>Most paid wallets<small>TTWO received</small></h3><dl class="rows" id="top"></dl></div>
+  <div class="grid wide-2 block">
+    <div class="card">
+      <div class="card-head"><h3>Treasury history</h3><span class="caption" id="activity-note"></span></div>
+      <div class="filters" id="filters" role="group" aria-label="Filter transactions"></div>
+      <div class="table-wrap"><table><thead><tr><th class="hide-sm">When</th><th>Type</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
+      <p style="margin:14px 0 0"><button class="btn btn-sm" id="more" hidden>Show more</button></p>
+    </div>
+    <div class="card"><div class="card-head"><h3>Most paid wallets</h3><span class="caption">TTWO received</span></div><dl class="rows" id="top"></dl></div>
+  </div>
   <div class="notice" id="error" hidden></div>
 </main>
 
 <footer class="site-footer">
   <div class="container">
     <div class="top">
-      <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg>Dacity Strategy</a>
+      <a class="brand" href="./"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="8" height="20" rx="4" fill="#ff2d95"/><rect x="14" y="3" width="4" height="18" rx="2" fill="#ffd1e8"/><rect x="21" y="7" width="8" height="20" rx="4" fill="#ff6ab8"/></svg>Dacity Strategy</a>
       <nav><a href="./">Home</a><a href="./#how">How it works</a><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></nav>
     </div>
     <div class="legal">
       <p id="addresses"></p>
-      <p>Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
+      <p>Refreshes every minute. Data comes from a public Solana RPC and can lag by a few seconds. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
     </div>
   </div>
 </footer>
@@ -131,7 +137,8 @@
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const figure = (value, label, note, c = "white") => `<div class="figure ${c}"><div class="value">${value}</div><div class="name">${esc(label)}</div><div class="note">${note}</div></div>`;
+  const stat = (label, value, sub, glow) => `<div class="card stat${glow ? " glow" : ""}"><div class="label">${esc(label)}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  const item = (label, value, sub) => `<div class="item"><div class="label">${esc(label)}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`;
   const rows = (pairs) => pairs.map(([k, v]) => `<div class="row"><dt>${k}</dt><dd>${v}</dd></div>`).join("");
   const sk = `<span class="skeleton"></span>`;
 
@@ -146,7 +153,7 @@
       const payees = x.kind === "payout" && x.payouts.length ? `<div class="detail mono">${x.payouts.slice(0, 4).map(([o, a]) => `<a href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a> ${fmt(a, x.qd ?? 0)}`).join(" · ")}${x.payouts.length > 4 ? ` · +${x.payouts.length - 4} more` : ""}</div>` : "";
       const prefix = x.kind === "burn" ? "" : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
       return `<tr><td class="nowrap muted hide-sm">${esc(when(x.time))}</td><td class="type">${typeOf(x)}</td><td>${esc(x.text)}${payees}</td><td class="num">${x.amount ? prefix + esc(x.amount) : ""}</td><td class="nowrap"><a class="mono" href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a>${x.err ? ' <span class="red">failed</span>' : ""}</td></tr>`;
-    }).join("") || `<tr><td colspan="5" class="muted" style="padding:18px 0">${state.scanning ? "Reading the chain…" : "No strategy activity yet. The first claim, buy, burn, buyback and payout will appear here the moment they land."}</td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="muted" style="padding:16px 0">${state.scanning ? "Reading the chain…" : "No activity yet. The first claim, buy, burn, buyback and payout will appear here."}</td></tr>`;
     $("more").hidden = list.length <= state.shown;
     const kinds = [["strategy", "Strategy"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"], ["all", "All"]];
     $("filters").innerHTML = kinds.map(([k, label]) => `<button type="button" data-k="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
@@ -160,60 +167,55 @@
     const s = summarize(state.rows);
     const live = state.live;
     $("kpis").innerHTML = [
-      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "DCTY burned", `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`, "pink"),
-      figure(`${fmt(s.selfBurned, sd, 0)}<small>${esc(name)}</small>`, "Bought back and burned", cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "Starts with the first fee"),
-      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`, "blue"),
-      figure(`${fmt(s.claimed, q)}<small>TTWO</small>`, "Fees claimed", `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`),
+      stat("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`, true),
+      stat("Bought back and burned", `${fmt(s.selfBurned, sd, 0)}<small>${esc(name)}</small>`, cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "Starts with the first fee"),
+      stat("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
+      stat("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`),
     ].join("");
 
-    $("holdings").innerHTML = live ? rows([
-      ["SOL for network fees", `${fmt(live.sol, 9, 4)}<small>SOL</small>`],
-      ["TTWO waiting for the next cycle", `${fmt(live.quote.amount, q)}<small>TTWO</small>`],
-      ["Unclaimed fees in pump's vaults", `${fmt(live.vaulted, q)}<small>TTWO</small>`],
-      ["DCTY bought, not yet burned", `${fmt(live.coin.amount, b, 2)}<small>DCTY</small>`],
-      ...(cfg.strategyMint ? [[`${esc(name)} bought back, not yet burned`, `${fmt(live.self.amount, sd, 2)}<small>${esc(name)}</small>`]] : []),
-    ]) : rows([["Reading balances…", sk]]);
-    $("sol-note").textContent = live ? (live.sol < 50_000_000n ? "low on SOL" : "") : "";
-
-    $("supply").innerHTML = live ? rows([
-      ["DCTY supply now", `${fmt(live.supply, b, 0)}`],
-      ["DCTY destroyed by this treasury", `${fmt(s.burned, b, 0)}<small>${pct(s.burned, live.supply + s.burned)}</small>`],
-      ...(cfg.strategyMint && live.selfSupply != null ? [
-        [`${esc(name)} supply now`, `${fmt(live.selfSupply, sd, 0)}`],
-        [`${esc(name)} bought back and destroyed`, `${fmt(s.selfBurned, sd, 0)}<small>${pct(s.selfBurned, live.selfSupply + s.selfBurned)}</small>`],
-      ] : [[`${esc(name)} supply`, `<span class="faint">after launch</span>`]]),
-    ]) : rows([["Reading supply…", sk]]);
+    $("overview").innerHTML = live ? [
+      item("SOL for fees", `${fmt(live.sol, 9, 3)}<small>SOL</small>`),
+      item("TTWO waiting", `${fmt(live.quote.amount, q)}<small>TTWO</small>`, "for the next cycle"),
+      item("Unclaimed fees", `${fmt(live.vaulted, q)}<small>TTWO</small>`, "in pump.fun's vaults"),
+      item("DCTY to burn", `${fmt(live.coin.amount, b, 2)}<small>DCTY</small>`, "bought, not yet burned"),
+      ...(cfg.strategyMint ? [item(`${name} to burn`, `${fmt(live.self.amount, sd, 2)}`, "bought back, not yet burned")] : []),
+      item("DCTY supply", `${fmt(live.supply, b, 0)}`, `${pct(s.burned, live.supply + s.burned)} destroyed by this treasury`),
+      ...(cfg.strategyMint && live.selfSupply != null ? [item(`${name} supply`, `${fmt(live.selfSupply, sd, 0)}`, `${pct(s.selfBurned, live.selfSupply + s.selfBurned)} bought back and destroyed`)] : [item(`${name} supply`, `<span class="faint">—</span>`, "after launch")]),
+    ].join("") : [item("SOL for fees", sk), item("TTWO waiting", sk), item("Unclaimed fees", sk), item("DCTY to burn", sk), item("DCTY supply", sk)].join("");
+    $("sol-note").textContent = live && live.sol < 50_000_000n ? "Low on SOL" : "";
 
     const split = cfg.split || { burn: 40, buyback: 20, holders: 40 };
+    $("split-caption").textContent = `${split.burn} / ${split.buyback} / ${split.holders}`;
     $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
-    $("legend").innerHTML = rows([
-      [`<span class="swatch" style="background:var(--pink)"></span>${split.burn}% buys and burns DCTY`, `${fmt(s.spent, q)}<small>TTWO</small>`],
-      [`<span class="swatch" style="background:var(--pink-soft)"></span>${split.buyback}% buys ${esc(name)} back and burns it`, `${fmt(s.selfSpent, q)}<small>TTWO</small>`],
-      [`<span class="swatch" style="background:var(--blue)"></span>${split.holders}% paid to holders in TTWO`, `${fmt(s.paid, q)}<small>TTWO</small>`],
-      [`Minimum to be paid`, `${esc(group(cfg.minHold))}<small>${esc(cfg.holderSymbol || name)}</small>`],
-    ]);
+    const col = (sw, p, what, amt) => `<div><div class="pct"><span class="swatch" style="background:${sw}"></span>${p}%</div><div class="what">${what}</div><div class="amt">${amt} <span class="faint" style="font-weight:500">TTWO so far</span></div></div>`;
+    $("split").innerHTML = [
+      col("var(--pink)", split.burn, "buys and burns DCTY", fmt(s.spent, q)),
+      col("var(--pink-2)", split.buyback, `buys ${esc(name)} back and burns it`, fmt(s.selfSpent, q)),
+      col("var(--pink-soft)", split.holders, "paid to holders in TTWO", fmt(s.paid, q)),
+    ].join("");
     if (live) {
       const waiting = live.vaulted + live.quote.amount;
       const p = splitPreview(waiting, split);
-      $("next").innerHTML = waiting > 0n
-        ? rows([[`If a cycle ran now`, `${fmt(waiting, q)}<small>TTWO waiting</small>`], ["To burn DCTY", `${fmt(p.burn, q)}<small>TTWO</small>`], [`To buy ${esc(name)} back`, `${fmt(p.buyback, q)}<small>TTWO</small>`], ["To holders", `${fmt(p.payout, q)}<small>TTWO</small>`]])
-        : rows([[`If a cycle ran now`, `<span class="faint">nothing is waiting yet</span>`]]);
+      const min = `Minimum ${group(cfg.minHold)} ${cfg.holderSymbol || name} to be paid.`;
+      $("next").textContent = (waiting > 0n
+        ? `If a cycle ran now: ${fmt(waiting, q)} TTWO waiting → ${fmt(p.burn, q)} to burn DCTY, ${fmt(p.buyback, q)} to buy back, ${fmt(p.payout, q)} to holders. `
+        : "Nothing is waiting for the next cycle yet. ") + min;
     }
 
-    chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO", "#8fd3ff");
-    chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY", "#ff1f8f");
+    chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO");
+    chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY");
     renderTable();
 
     const per = new Map();
     for (const x of state.rows) if (x.kind === "payout" && !x.err) for (const [o, a] of x.payouts) per.set(o, (per.get(o) || 0n) + a);
     const top = [...per].sort((a, b) => (a[1] === b[1] ? 0 : a[1] > b[1] ? -1 : 1)).slice(0, 10);
-    $("top").innerHTML = top.length ? rows(top.map(([o, a]) => [`<a class="mono" href="${acctUrl(o)}" rel="noopener" style="color:var(--pink-soft)">${esc(short(o))}</a>`, `${fmt(a, q)}<small>TTWO</small>`])) : rows([["Nobody has been paid yet", `<span class="faint">—</span>`]]);
+    $("top").innerHTML = top.length ? rows(top.map(([o, a]) => [`<a class="mono" href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a>`, `${fmt(a, q)}<small>TTWO</small>`])) : rows([["Nobody has been paid yet", `<span class="faint">—</span>`]]);
   }
 
-  function chart(el, events, pick, decimals, unit, color) {
+  function chart(el, events, pick, decimals, unit) {
     const series = cumulative(events, pick);
     if (!series.length) { el.innerHTML = `<div class="empty">Draws itself after the first ${unit === "TTWO" ? "payout" : "burn"}</div>`; return; }
-    const W = 600, H = 170, L = 6, R = 6, T = 10, B = 22;
+    const W = 600, H = 150, L = 6, R = 6, T = 10, B = 22, color = "#ff2d95";
     const t0 = series[0].t, t1 = series[series.length - 1].t, span = Math.max(t1 - t0, 1);
     const max = Number(series[series.length - 1].v) || 1;
     const X = (t) => L + ((t - t0) / span) * (W - L - R);
@@ -225,14 +227,12 @@
     const label = (t) => new Date(t * 1000).toISOString().slice(5, 10);
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${esc(unit)} cumulative">
       <defs><linearGradient id="g-${unit}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".3"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-      <line x1="${L}" x2="${W - R}" y1="${Y(0n)}" y2="${Y(0n)}" stroke="rgba(255,255,255,.2)"/>
+      <line x1="${L}" x2="${W - R}" y1="${Y(0n)}" y2="${Y(0n)}" stroke="rgba(255,255,255,.18)"/>
       <path d="${area}" fill="url(#g-${unit})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
       <text class="axis" x="${L}" y="${H - 6}">${label(t0)}</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${label(t1)}</text>
       <text class="axis" x="${W - R}" y="${T + 10}" text-anchor="end" fill="${color}">${fmt(series[series.length - 1].v, decimals, 2)} ${esc(unit)}</text>
     </svg>`;
   }
-
-  const status = () => {};
 
   async function loadBalances() {
     const none = { amount: 0n, decimals: null };
@@ -265,7 +265,6 @@
       const chunk = need.slice(i, i + 4);
       const got = await Promise.all(chunk.map((s) => rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "confirmed" }]).catch(() => null)));
       got.forEach((t, j) => { if (!t) return; const s = chunk[j]; const row = classify(cfg, s.signature, s.blockTime || t.blockTime, t); writeCache(s.signature, row); all.push(row); });
-      status(`Reading history · ${all.length} of ${sigs.length}`);
       commit();
       if (i + 4 < need.length) await sleep(250);
     }
@@ -289,14 +288,12 @@
   async function refresh() {
     $("refresh").disabled = true;
     $("error").hidden = true;
-    status("Reading the chain…");
     try {
       await loadBalances();
       await loadHistory();
       render();
       await checkBooks();
-      status(`Read directly from Solana · updated ${new Date().toISOString().slice(11, 16)} UTC${state.truncated ? ` · latest ${MAX_HISTORY} transactions` : ""}`);
-    } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`; status("Stopped"); }
+    } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`; }
     finally { $("refresh").disabled = false; }
   }
 
@@ -318,7 +315,7 @@
     setInterval(refresh, 60_000);
   }
   $("refresh").onclick = refresh;
-  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; status("Stopped"); });
+  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; });
 </script>
 </body>
 </html>
