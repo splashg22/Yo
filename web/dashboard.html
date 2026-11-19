@@ -7,6 +7,16 @@
 <meta name="description" content="Live dashboard for Dacity Strategy: DCTY burned, coin bought back, TTWO paid to holders and the treasury's balances, read straight from Solana in your browser.">
 <meta name="color-scheme" content="dark">
 <meta name="robots" content="index,follow">
+<meta property="og:title" content="Dacity Strategy · Live dashboard">
+<meta property="og:description" content="DCTY burned, coin bought back, TTWO paid to holders and the treasury's balances, read straight from Solana.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://splashg22.github.io/Yo/dashboard.html">
+<meta property="og:image" content="https://splashg22.github.io/Yo/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="675">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dacity Strategy · Live dashboard">
+<meta name="twitter:description" content="Every number read from Solana in your browser.">
+<meta name="twitter:image" content="https://splashg22.github.io/Yo/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150612'/%3E%3Cpath d='M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0' fill='none' stroke='%23ff1f8f' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -85,6 +95,7 @@
   footer p { margin: 6px auto; max-width: 760px; overflow-wrap: anywhere; } footer .addr { margin: 0 8px; white-space: nowrap; } footer a { color: var(--accent-2); }
   .skeleton { display: inline-block; width: 55%; height: 1em; border-radius: 6px; background: linear-gradient(90deg, rgba(255,225,243,.08) 25%, rgba(255,225,243,.16) 50%, rgba(255,225,243,.08) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
   @keyframes shimmer { to { background-position: -200% 0; } }
+  @media (prefers-reduced-motion: reduce) { .dot.busy, .skeleton { animation: none; } }
   @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, 1fr); } .row3 { grid-template-columns: 1fr; } .row2 { grid-template-columns: 1fr; } }
   @media (max-width: 560px) { .kpis { grid-template-columns: 1fr; } .hide-sm { display: none; } .top .pill span.long { display: none; } }
 </style>
@@ -110,7 +121,7 @@
   <div class="row3">
     <div class="card"><h3>Treasury now <span id="sol-note"></span></h3><dl class="kv" id="holdings"></dl></div>
     <div class="card"><h3>Supply <span>what burning does</span></h3><dl class="kv" id="supply"></dl></div>
-    <div class="card"><h3>The split <span>where fees went so far</span></h3><div class="bar" id="bar"></div><div class="legend" id="legend"></div></div>
+    <div class="card"><h3>The split <span>where fees went so far</span></h3><div class="bar" id="bar"></div><div class="legend" id="legend"></div><div class="legend" id="next" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--ring)"></div></div>
   </div>
 
   <div class="row2">
@@ -122,6 +133,7 @@
     <div class="card" style="overflow-x:auto"><h3>Latest activity <span id="activity-note"></span></h3>
       <table><thead><tr><th class="hide-sm">When</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table>
       <p style="margin:12px 0 0;font-size:.86rem"><a href="./#txs" style="color:var(--accent-2)">Open the full history and filters →</a></p>
+      <p class="faint" id="books" style="margin:8px 0 0;font-size:.82rem"></p>
     </div>
     <div class="card"><h3>Most paid wallets <span>TTWO received</span></h3><dl class="kv" id="top"></dl></div>
   </div>
@@ -134,7 +146,7 @@
 </main>
 
 <script type="module">
-  import { classify, fmt, makeRpc, summarize, ata, creatorVaults } from "./proof.js";
+  import { classify, fmt, makeRpc, summarize, ata, creatorVaults, cumulative, splitPreview, crossCheck } from "./proof.js";
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -163,7 +175,7 @@
     const r = await rpc("getAccountInfo", [await ata(owner, mint, m.program), { encoding: "jsonParsed", commitment: "confirmed" }]);
     return { amount: r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n, decimals: m.decimals };
   }
-  const cacheKey = (sig) => `dacity:tx:${sig}`;
+  const cacheKey = (sig) => `dacity:tx:v2:${sig}`; // bump when classify() changes shape
   const revive = (k, v) => (typeof v === "string" && /^-?\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v);
   const readCache = (sig) => { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } };
   const writeCache = (sig, row) => { try { localStorage.setItem(cacheKey(sig), JSON.stringify(row, (k, v) => (typeof v === "bigint" ? `${v}n` : v))); } catch {} };
@@ -215,6 +227,15 @@
       [`<span class="faint">Minimum to be paid</span>`, `${esc(String(cfg.minHold).replace(/\B(?=(\d{3})+(?!\d))/g, ","))} <small>${esc(cfg.holderSymbol || name)}</small>`],
     ].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("");
 
+    if (live) {
+      const waiting = live.vaulted + live.quote.amount;
+      const p = splitPreview(waiting, split);
+      $("next").innerHTML = waiting > 0n
+        ? [[`<span class="faint">If a cycle ran now</span>`, `${fmt(waiting, q)} TTWO waiting`], ["→ to burn DCTY", `${fmt(p.burn, q)} TTWO`], [`→ to buy ${esc(name)} back`, `${fmt(p.buyback, q)} TTWO`], ["→ to holders", `${fmt(p.payout, q)} TTWO`]]
+          .map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")
+        : `<div><span class="faint">If a cycle ran now</span><b>nothing is waiting yet</b></div>`;
+    }
+
     chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO", "var(--blue)");
     chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY", "var(--accent)");
 
@@ -236,9 +257,8 @@
   /** A cumulative step chart as inline SVG; shows an empty state until there is something to draw. */
   function chart(el, events, pick, decimals, unit, color) {
     if (!events.length) { el.innerHTML = `<div class="empty">Draws itself after the first ${unit === "TTWO" ? "payout" : "burn"}.</div>`; return; }
-    const pts = events.filter((e) => e.time).sort((a, b) => a.time - b.time);
-    let total = 0n;
-    const series = pts.map((e) => ({ t: e.time, v: (total += pick(e)) }));
+    const series = cumulative(events, pick);
+    if (!series.length) { el.innerHTML = `<div class="empty">Waiting for a confirmed time on the first ${unit === "TTWO" ? "payout" : "burn"}.</div>`; return; }
     const W = 600, H = 150, L = 6, R = 6, T = 10, B = 22;
     const t0 = series[0].t, t1 = series[series.length - 1].t, span = Math.max(t1 - t0, 1);
     const max = Number(series[series.length - 1].v) || 1;
@@ -298,6 +318,24 @@
     state.scanning = false;
   }
 
+  async function checkBooks() {
+    let text;
+    try { const r = await fetch("./ledger.jsonl", { cache: "no-store" }); if (!r.ok) throw 0; text = await r.text(); }
+    catch { $("books").textContent = "The bot has not published its own books yet; everything above comes from the chain alone."; return; }
+    const entries = text.split("\n").filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } });
+    const check = crossCheck(entries, state.rows);
+    let missing = check.missing;
+    if (missing.length) {
+      try {
+        const st = await rpc("getSignatureStatuses", [missing.map((e) => e.signature), { searchTransactionHistory: true }]);
+        missing = missing.filter((e, i) => !st.value[i] || st.value[i].err);
+      } catch {}
+    }
+    $("books").innerHTML = missing.length
+      ? `<span style="color:var(--bad)">${plural(missing.length, "entry")} in the bot's books ${missing.length === 1 ? "is" : "are"} not on the chain.</span> <a href="./ledger.jsonl" style="color:var(--accent-2)">Raw ledger</a>`
+      : `<span style="color:var(--ok)">✓</span> The bot's own books (${plural(check.withSig.length, "transaction")}, ${plural(check.cycles, "cycle")}) all check out against the chain. <a href="./ledger.jsonl" style="color:var(--accent-2)">Raw ledger</a>`;
+  }
+
   async function refresh() {
     $("refresh").disabled = true;
     $("error").hidden = true;
@@ -306,6 +344,7 @@
       await loadBalances();
       await loadHistory();
       render();
+      await checkBooks();
       status("live", `Updated ${new Date().toISOString().slice(11, 16)} UTC${state.truncated ? ` · latest ${MAX_HISTORY} transactions` : ""}`);
     } catch (err) {
       $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`;

@@ -147,6 +147,28 @@ describe("proof page: classifying the treasury's transactions", () => {
   });
 });
 
+describe("proof page: dashboard helpers", () => {
+  it("builds a running total in time order and skips rows without a time", () => {
+    const series = proof.cumulative([{ time: 30, paid: 5n }, { time: 10, paid: 1n }, { time: null, paid: 99n }, { time: 20, paid: 2n }], (x: { paid: bigint }) => x.paid);
+    expect(series).toEqual([{ t: 10, v: 1n }, { t: 20, v: 3n }, { t: 30, v: 8n }]);
+  });
+  it("previews the split the same way the bot divides a claim", () => {
+    expect(proof.splitPreview(1000n, { burn: 40, buyback: 20, holders: 40 })).toEqual({ burn: 400n, buyback: 200n, payout: 400n });
+    expect(proof.splitPreview(7n, { burn: 40, buyback: 20, holders: 40 })).toEqual({ burn: 4n, buyback: 1n, payout: 2n });
+  });
+  it("finds ledger entries the chain has not confirmed and ignores entries without a signature", () => {
+    const entries = [
+      { type: "claim", cycle: 1, signature: "a" }, { type: "distribution", cycle: 1 }, { type: "buyback", cycle: 2, signature: "b" },
+      { type: "payout", cycle: 2, signature: "c" }, null,
+    ];
+    const rows = [{ sig: "a", err: false }, { sig: "b", err: true }];
+    const check = proof.crossCheck(entries, rows);
+    expect(check.withSig.map((e: { signature: string }) => e.signature)).toEqual(["a", "b", "c"]);
+    expect(check.missing.map((e: { signature: string }) => e.signature)).toEqual(["b", "c"]);
+    expect(check.cycles).toBe(2);
+  });
+});
+
 describe("proof page: amounts and addresses", () => {
   it("formats base units without rounding up and never shows -0", () => {
     expect(proof.fmt(1234567890n, 6)).toBe("1,234.5678");

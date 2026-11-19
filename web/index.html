@@ -8,6 +8,14 @@
 <meta name="color-scheme" content="dark">
 <meta property="og:title" content="Dacity Strategy">
 <meta property="og:description" content="40% of every fee buys and burns DCTY. 20% buys the coin back and burns it. 40% pays holders in TTWO. Proven live on-chain.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://splashg22.github.io/Yo/">
+<meta property="og:image" content="https://splashg22.github.io/Yo/og.png">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="675">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Dacity Strategy">
+<meta name="twitter:description" content="Fees burn DCTY, buy back the coin and pay you in TTWO. Every transaction verified live on Solana.">
+<meta name="twitter:image" content="https://splashg22.github.io/Yo/og.png">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150612'/%3E%3Cpath d='M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0' fill='none' stroke='%23ff1f8f' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -164,6 +172,7 @@
   footer p { margin: 6px auto; max-width: 720px; overflow-wrap: anywhere; }
   footer .addr { margin: 0 8px; white-space: nowrap; }
 
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .fan .c, .words button, .btn { transition: none; } .badge .dot.busy, .skeleton { animation: none; } }
   @media (max-width: 900px) {
     .tiles { grid-template-columns: repeat(2, 1fr); }
     .how { grid-template-columns: 1fr; } .words { position: static; grid-auto-flow: column; justify-content: start; gap: 14px; overflow-x: auto; padding-bottom: 6px; } .words button { font-size: 1.4rem; filter: none; opacity: 0.4; } .words p { display: none; }
@@ -313,7 +322,7 @@
     const r = await rpc("getAccountInfo", [await ata(owner, mint, m.program), { encoding: "jsonParsed", commitment: "confirmed" }]);
     return { amount: r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n, decimals: m.decimals };
   }
-  const cacheKey = (sig) => `dacity:tx:${sig}`;
+  const cacheKey = (sig) => `dacity:tx:v2:${sig}`; // bump when classify() changes shape
   const revive = (k, v) => (typeof v === "string" && /^-?\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v);
   const readCache = (sig) => { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } };
   const writeCache = (sig, row) => { try { localStorage.setItem(cacheKey(sig), JSON.stringify(row, (k, v) => (typeof v === "bigint" ? `${v}n` : v))); } catch {} };

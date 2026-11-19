@@ -57,6 +57,11 @@ describe("alerts", () => {
     const text = formatCycleMessage({ ...quiet, claimed: 1000n, swapped: 400n, burned: 4000n, boughtBack: 200n, selfBurned: 20000n, paid: 400n, recipients: 2 }, decimals);
     expect(text).toBe("Cycle 3\nClaimed 10 TTWO\nBurned 4000 DCTY (spent 4 TTWO)\nBought back and burned 20000 of the coin (spent 2 TTWO)\nPaid 4 TTWO to 2 holders");
   });
+  it("links the dashboard when a site is configured, but not on a quiet or troubled-only cycle", () => {
+    const busy = { ...quiet, claimed: 1000n };
+    expect(formatCycleMessage(busy, decimals, "https://example.org/site/")).toContain("Dashboard: https://example.org/site/dashboard.html");
+    expect(formatCycleMessage({ ...quiet, skipped: [{ owner: "bob", amount: "1", reason: "frozen" }] }, decimals, "https://example.org")).not.toContain("Dashboard");
+  });
   it("mentions undelivered payouts", () => {
     const text = formatCycleMessage({ ...quiet, skipped: [{ owner: "bob", amount: "1", reason: "frozen" }] }, decimals);
     expect(text).toContain("1 payout(s) could not be delivered");

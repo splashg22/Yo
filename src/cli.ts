@@ -88,6 +88,7 @@ async function status(config: Config) {
   say(`Burn coin               ${config.burnMint}`);
   say(`Split of every claim    ${config.split.burn}% buy+burn the burn coin, ${config.split.buyback}% buy back+burn the coin, ${config.split.holders}% to holders`);
   say(`Rewards go to holders of ${config.holderMint} with at least ${config.minHold}`);
+  if (config.siteUrl) say(`Public site             ${config.siteUrl}`);
   say(`Fees waiting to claim   ${ttwo(fees)}`);
   say(`Books (cycle ${state.cycle})`);
   say(`  Waiting to buy+burn   ${ttwo(BigInt(state.burnPool))}`);
@@ -273,7 +274,7 @@ async function loop(config: Config) {
       notifier.clearError();
       if (result) {
         writeReport(config, ctx);
-        const message = formatCycleMessage(result, ctx.info);
+        const message = formatCycleMessage(result, ctx.info, config.siteUrl);
         if (message) await notifier.send(message);
       }
     } catch (error) {

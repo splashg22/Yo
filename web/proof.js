@@ -236,6 +236,36 @@ export function summarize(all) {
   };
 }
 
+/** Running total of `pick(event)` over events that have a time, oldest first: [{ t, v }]. */
+export function cumulative(events, pick) {
+  const sorted = events.filter((e) => e.time).sort((a, b) => a.time - b.time);
+  let total = 0n;
+  return sorted.map((e) => ({ t: e.time, v: (total += pick(e)) }));
+}
+
+/** How `amount` (base units) would be divided by a whole-percent split. Dust goes to the burn share, like the bot. */
+export function splitPreview(amount, split) {
+  const payout = (amount * BigInt(split.holders)) / 100n;
+  const buyback = (amount * BigInt(split.buyback)) / 100n;
+  return { burn: amount - payout - buyback, buyback, payout };
+}
+
+/**
+ * The bot's published ledger against the chain rows this page classified.
+ * `missing` are ledger transactions the page has not seen confirmed; the page
+ * may still look them up before calling them absent.
+ */
+export function crossCheck(entries, rows) {
+  const types = ["claim", "swap", "burn", "buyback", "buyback_burn", "payout"];
+  const withSig = entries.filter((e) => e && e.signature && types.includes(e.type));
+  const onChain = new Set(rows.filter((x) => !x.err).map((x) => x.sig));
+  return {
+    withSig,
+    missing: withSig.filter((e) => !onChain.has(e.signature)),
+    cycles: entries.reduce((a, e) => Math.max(a, (e && e.cycle) || 0), 0),
+  };
+}
+
 /** Everything a wallet has received from the treasury, newest first. */
 export function receivedBy(all, owner) {
   return all

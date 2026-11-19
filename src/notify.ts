@@ -14,6 +14,7 @@ export interface NotifyConfig {
 export function formatCycleMessage(
   report: Pick<LiveReport, "cycle" | "claimed" | "swapped" | "burned" | "boughtBack" | "selfBurned" | "paid" | "recipients" | "skipped" | "notes">,
   units: { quoteDecimals: number; burnDecimals: number; strategyDecimals?: number },
+  siteUrl: string | null = null,
 ): string | null {
   const active = report.claimed > 0n || report.swapped > 0n || report.burned > 0n || report.boughtBack > 0n || report.selfBurned > 0n || report.paid > 0n;
   const trouble = report.skipped.length > 0 || report.notes.some((n) => /failed|expired|queued/.test(n));
@@ -25,6 +26,7 @@ export function formatCycleMessage(
   if (report.paid > 0n) lines.push(`Paid ${formatUnits(report.paid, units.quoteDecimals)} TTWO to ${report.recipients} holders`);
   if (report.skipped.length > 0) lines.push(`${report.skipped.length} payout(s) could not be delivered and went back to the pool`);
   for (const note of report.notes.filter((n) => /failed|expired|queued/.test(n))) lines.push(`Note: ${note}`);
+  if (siteUrl && active) lines.push(`Dashboard: ${siteUrl.replace(/\/$/, "")}/dashboard.html`);
   return lines.join("\n");
 }
 

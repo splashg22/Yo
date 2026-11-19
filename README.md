@@ -166,11 +166,22 @@ npm run web            # writes web/config.json and copies the ledger next to th
 npm run web:publish    # pushes web/ to the gh-pages branch, which GitHub Pages serves
 ```
 
-`config.json` holds public facts only (addresses, the minimum hold, a public
-RPC). `PUBLIC_RPC_URL` in `.env` must be a key-free endpoint; the default
-PublicNode one works from browsers. Set `REPO_URL` to show a source link in
-the footer and `HOLDER_SYMBOL` to name your coin. Without `config.json` the
-page shows a "launching soon" state and no numbers.
+`config.json` holds public facts only (addresses, the split, the minimum
+hold, a public RPC). `PUBLIC_RPC_URL` in `.env` must be a key-free endpoint;
+the default PublicNode one works from browsers. Set `REPO_URL` to show a
+source link in the footer, `HOLDER_SYMBOL` to name your coin and
+`PUBLIC_SITE_URL` so alerts link to the dashboard. Before the coin exists,
+`web/config.json` is kept by hand with `strategyMint` and `holderMint` set to
+`null`: the page then runs as a live dashboard of the treasury (real zeros,
+live DCTY supply) and hides the buy and wallet-check parts. `npm run web`
+replaces it with the full version once `.env` has the coin.
+
+`web/dashboard.html` is the stand-alone dashboard: totals, the treasury's
+balances including fees still in pump's creator vaults, supply before and
+after burning, where the split has gone, cumulative charts, latest activity,
+the most paid wallets and a check of the published books against the chain.
+It refreshes itself every minute. `brand/` holds the Twitter kit (avatar,
+header, announcement card, copy sheet) and `brand/render.sh` to regenerate it.
 
 `deploy/publish-web.sh` copies only `web/` into a commit on the `gh-pages`
 branch and pushes it; nothing else in the repository (never `.env`, keys or

@@ -34,6 +34,8 @@ export interface Config {
   telegramBotToken: string | null;
   telegramChatId: string | null;
   reportTitle: string;
+  /** Public site, linked from alerts and status output. Optional. */
+  siteUrl: string | null;
 }
 
 type Env = Record<string, string | undefined>;
@@ -125,5 +127,6 @@ export function parseConfig(env: Env): Config {
     telegramBotToken: env.TELEGRAM_BOT_TOKEN?.trim() || null,
     telegramChatId: env.TELEGRAM_CHAT_ID?.trim() || null,
     reportTitle: env.REPORT_TITLE?.trim() || "DA City strategy",
+    siteUrl: env.PUBLIC_SITE_URL?.trim() || null,
   };
 }

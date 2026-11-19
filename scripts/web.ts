@@ -13,7 +13,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { OnlinePumpSdk } from "@pump-fun/pump-sdk";
-import { loadKeypair } from "../src/chain.js";
+import { loadKeypair, resolvePair } from "../src/chain.js";
 import { parseConfig, type Config } from "../src/config.js";
 import { DEFAULT_SPLIT, type Split } from "../src/split.js";
 
@@ -69,11 +69,8 @@ async function findQuoteMint(config: Config, treasury: string): Promise<string |
   }
   try {
     const connection = new Connection(config.rpcUrl, "confirmed");
-    const mint = new PublicKey(config.strategyMint);
-    const info = await connection.getAccountInfo(mint);
-    if (!info) throw new Error("STRATEGY_MINT does not exist on this network");
-    const sell = await new OnlinePumpSdk(connection).fetchSellState(mint, new PublicKey(treasury), info.owner);
-    return sell.quoteMint.toBase58();
+    const pair = await resolvePair(new OnlinePumpSdk(connection), new PublicKey(config.strategyMint), config.expectedQuoteMint);
+    return pair.quoteMint.toBase58();
   } catch (error) {
     console.warn(`Could not read the pair token from the chain (${(error as Error).message}); the page will work it out from payouts.`);
     return config.expectedQuoteMint;
