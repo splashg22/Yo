@@ -21,7 +21,6 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  .hero .photo { filter: drop-shadow(0 0 80px rgba(255, 31, 143, 0.35)); }
   .lines { list-style: none; margin: 44px 0 0; padding: 0; display: grid; gap: 14px; max-width: 560px; }
   .lines li { display: flex; align-items: baseline; gap: 18px; font-size: 20px; color: var(--muted); }
   .lines b { font-size: 34px; font-weight: 700; color: var(--text); letter-spacing: -0.03em; min-width: 3.2ch; }
@@ -46,10 +45,9 @@
 
 <main id="top">
   <section class="screen hero">
-    <div class="room" aria-hidden="true"><div class="wall"></div><div class="floor"></div><div class="glow"></div></div>
     <div class="container">
       <div class="copy">
-        <h1>Every Fee Works <span class="grey">for Holders.</span></h1>
+        <h1>Every Fee Works <span style="color:#f1cfe3">for Holders.</span></h1>
         <p class="sub"><span id="title">Dacity Strategy</span> turns its trading fees into DCTY burns, buybacks and TTWO payouts. Automatically, on-chain.</p>
         <div class="actions">
           <a class="pill" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun</a>
@@ -57,7 +55,6 @@
         </div>
       </div>
     </div>
-    <img class="photo" src="./art/card.jpg" alt="">
   </section>
 
   <section class="screen" id="how">
