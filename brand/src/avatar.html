@@ -1,0 +1,9 @@
+<!doctype html><html><head><meta charset="utf-8"><link rel="stylesheet" href="shared.css">
+<style>
+  .stage { width:400px; height:400px; display:grid; place-items:center; }
+  .stage::before { -webkit-mask-image:radial-gradient(60% 60% at 50% 40%, #000 10%, transparent 100%); mask-image:radial-gradient(60% 60% at 50% 40%, #000 10%, transparent 100%); opacity:.09; }
+  .stage::after { background:radial-gradient(70% 60% at 50% 30%, rgba(255,31,143,.42), transparent 70%), linear-gradient(rgba(11,3,8,.1), rgba(11,3,8,.5)); }
+  svg { width:250px; height:250px; filter:drop-shadow(0 0 28px rgba(255,31,143,.55)); }
+</style></head><body>
+<div class="stage"><svg viewBox="0 0 64 64"><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+</body></html>
