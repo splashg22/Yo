@@ -13,15 +13,17 @@ export interface NotifyConfig {
 
 export function formatCycleMessage(
   report: Pick<LiveReport, "cycle" | "claimed" | "swapped" | "burned" | "paid" | "recipients" | "skipped" | "notes">,
-  units: { quoteDecimals: number; burnDecimals: number },
+  units: { quoteDecimals: number; burnDecimals: number; quoteSymbol?: string; burnSymbol?: string; title?: string },
 ): string | null {
+  const quote = units.quoteSymbol ?? "TTWO";
+  const burn = units.burnSymbol ?? "DCTY";
   const active = report.claimed > 0n || report.swapped > 0n || report.burned > 0n || report.paid > 0n;
   const trouble = report.skipped.length > 0 || report.notes.some((n) => /failed|expired|queued/.test(n));
   if (!active && !trouble) return null; // quiet cycles send nothing
-  const lines = [`Cycle ${report.cycle}`];
-  if (report.claimed > 0n) lines.push(`Claimed ${formatUnits(report.claimed, units.quoteDecimals)} TTWO`);
-  if (report.burned > 0n) lines.push(`Burned ${formatUnits(report.burned, units.burnDecimals)} DCTY (spent ${formatUnits(report.swapped, units.quoteDecimals)} TTWO)`);
-  if (report.paid > 0n) lines.push(`Paid ${formatUnits(report.paid, units.quoteDecimals)} TTWO to ${report.recipients} holders`);
+  const lines = [units.title ? `${units.title} · cycle ${report.cycle}` : `Cycle ${report.cycle}`];
+  if (report.claimed > 0n) lines.push(`Claimed ${formatUnits(report.claimed, units.quoteDecimals)} ${quote}`);
+  if (report.burned > 0n) lines.push(`Burned ${formatUnits(report.burned, units.burnDecimals)} ${burn} (spent ${formatUnits(report.swapped, units.quoteDecimals)} ${quote})`);
+  if (report.paid > 0n) lines.push(`Paid ${formatUnits(report.paid, units.quoteDecimals)} ${quote} to ${report.recipients} holders`);
   if (report.skipped.length > 0) lines.push(`${report.skipped.length} payout(s) could not be delivered and went back to the pool`);
   for (const note of report.notes.filter((n) => /failed|expired|queued/.test(n))) lines.push(`Note: ${note}`);
   return lines.join("\n");

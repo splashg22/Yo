@@ -1,5 +1,5 @@
 /**
- * Jupiter swap, used when pump has no direct route from TTWO to the burn coin
+ * Jupiter swap, used when pump has no direct route from the pair token to the burn coin
  * (for example because the burn coin trades against SOL).
  *
  * Jupiter hands back a ready-made transaction. It is built by a third party,
@@ -116,7 +116,7 @@ export interface Holdings {
 
 /**
  * Compares the treasury before and after a SIMULATION of the swap. It may
- * spend at most `amountIn` TTWO and `maxLamports` SOL (network fees and
+ * spend at most `amountIn` of the pair token and `maxLamports` SOL (network fees and
  * account rent), and must receive at least `minOut` of the burn coin.
  */
 export function checkSwapEffects(
@@ -128,9 +128,9 @@ export function checkSwapEffects(
   const received = after.coin - before.coin;
   const lamports = before.lamports - after.lamports;
   if (spent > limits.amountIn) {
-    throw new Error(`the swap would take ${spent} TTWO base units, more than the ${limits.amountIn} allowed`);
+    throw new Error(`the swap would take ${spent} base units of the pair token, more than the ${limits.amountIn} allowed`);
   }
-  if (spent <= 0n) throw new Error("the swap would not spend any TTWO");
+  if (spent <= 0n) throw new Error("the swap would not spend any of the pair token");
   if (received < limits.minOut) {
     throw new Error(`the swap would deliver ${received} burn-coin base units, less than the minimum ${limits.minOut}`);
   }

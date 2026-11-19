@@ -48,10 +48,10 @@ export interface HolderSnapshot {
 export interface Chain {
   mints(): Mints;
   balances(): Promise<{ sol: bigint; quote: bigint; coin: bigint }>;
-  /** Creator fees waiting to be claimed, in TTWO base units. */
+  /** Creator fees waiting to be claimed, in base units of the pair token. */
   pendingFees(): Promise<bigint>;
   buildClaim(): Promise<Built>;
-  /** Human description of the TTWO -> burn coin route. Throws when there is none. */
+  /** Human description of the pair token -> burn coin route. Throws when there is none. */
   describeRoute(): Promise<string>;
   buildSwap(amountIn: bigint): Promise<Built & { expectedOut: bigint; minOut: bigint }>;
   buildBurn(amount: bigint): Promise<Built>;
@@ -266,7 +266,7 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
   if (fees > 0n && fees >= limits.minClaim) {
     await run("claim", () => chain.buildClaim());
   } else {
-    report.notes.push(fees === 0n ? "no fees to claim" : "fees below MIN_CLAIM_TTWO, left for later");
+    report.notes.push(fees === 0n ? "no fees to claim" : "fees below MIN_CLAIM, left for later");
   }
 
   // 4. Burn anything bought earlier but not yet burned, then swap and burn.
@@ -407,8 +407,8 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
     route = { result: "fail", detail: message(error) };
   }
 
-  // A swap can only be simulated with TTWO the treasury already holds.
-  let swap: Check = { result: "not_tested", detail: "the treasury holds no TTWO yet, so a swap cannot be simulated" };
+  // A swap can only be simulated with pair tokens the treasury already holds.
+  let swap: Check = { result: "not_tested", detail: "the treasury holds none of the pair token yet, so a swap cannot be simulated" };
   let expectedBurn: bigint | null = null;
   const swapProbe = min(wouldSwap > 0n ? wouldSwap : held.quote, held.quote);
   if (route.result === "fail") {
@@ -419,7 +419,7 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
       const sim = await chain.simulate(built);
       if (sim.ok) {
         if (swapProbe === wouldSwap) expectedBurn = built.expectedOut;
-        swap = { result: "pass", detail: `swapping ${swapProbe} base units of TTWO would buy about ${built.expectedOut} base units` };
+        swap = { result: "pass", detail: `swapping ${swapProbe} base units of the pair token would buy about ${built.expectedOut} base units` };
       } else {
         swap = { result: "fail", detail: sim.error ?? "simulation failed" };
       }
@@ -446,7 +446,7 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
   }
 
   // Payout test: the real first batch when the money is there, else 1 base unit.
-  let payout: Check = { result: "not_tested", detail: "the treasury holds no TTWO and there are no fees to claim, so a transfer cannot be simulated" };
+  let payout: Check = { result: "not_tested", detail: "the treasury holds none of the pair token and there are no fees to claim, so a transfer cannot be simulated" };
   const batch: QueueItem[] = wouldPay.slice(0, limits.payoutsPerTx).map((p) => ({ owner: p.owner, amount: p.amount.toString() }));
   const batchTotal = sum(batch.map((b) => BigInt(b.amount)));
   const tiny: QueueItem[] = [{ owner: firstQualifying ?? probeWallet, amount: "1" }];

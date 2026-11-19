@@ -1,7 +1,7 @@
 /**
  * The books (data/state.json). Amounts are base units stored as strings.
  *
- * TTWO the bot is holding for a purpose is always in exactly one place:
+ * Pair tokens (TTWO, ANT, ...) the bot is holding for a purpose are always in exactly one place:
  *   burnPool     waiting to be swapped into the burn coin
  *   payoutPool   waiting for the next holder distribution
  *   payoutQueue  already allotted to a named holder, transfer not yet confirmed
@@ -28,7 +28,7 @@ export interface Pending {
   lastValidBlockHeight: number;
   /** payout: the queue entries this transaction pays. */
   items?: QueueItem[];
-  /** burn: amount burned. swap: amount of TTWO sent in. */
+  /** burn: amount burned. swap: amount of the pair token sent in. */
   amount?: string;
 }
 
@@ -80,7 +80,7 @@ export function queueTotal(items: readonly QueueItem[]): bigint {
   return sum(items.map((i) => BigInt(i.amount)));
 }
 
-/** TTWO the books say the treasury must be holding. */
+/** Pair tokens the books say the treasury must be holding. */
 export function bookedQuote(state: State): bigint {
   return BigInt(state.burnPool) + BigInt(state.payoutPool) + queueTotal(state.payoutQueue);
 }
@@ -175,7 +175,7 @@ export function reconcile(state: State, quoteHeld: bigint, coinHeld: bigint): Re
   const problems: string[] = [];
   if (quoteHeld < quoteBooked) {
     problems.push(
-      `treasury holds ${quoteHeld} TTWO base units but the books account for ${quoteBooked}`,
+      `treasury holds ${quoteHeld} base units of the pair token but the books account for ${quoteBooked}`,
     );
   }
   if (coinHeld < coinBooked) {

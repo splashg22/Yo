@@ -3,8 +3,10 @@
 #   2. sudo cp deploy/dacity-bot.service /etc/systemd/system/
 #   3. sudo systemctl daemon-reload && sudo systemctl enable --now dacity-bot
 #   Logs: journalctl -u dacity-bot -f
+# For another coin, copy this file (e.g. to llm-bot.service) and add the coin's
+# name to the end of ExecStart: ... src/cli.ts loop llm
 [Unit]
-Description=DA City strategy bot
+Description=Strategy bot (DA City)
 After=network-online.target
 Wants=network-online.target
 

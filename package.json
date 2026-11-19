@@ -2,7 +2,7 @@
   "name": "dacity-strategy-bot",
   "version": "1.0.0",
   "private": true,
-  "description": "Claims pump.fun creator fees in TTWO, buys and burns DCTY with half, pays half to holders.",
+  "description": "Strategy-coin bot for pump.fun coins paired with tokenized stocks: claims the creator fees, buys and burns with half, pays half to holders.",
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
@@ -15,6 +15,7 @@
     "setup:wallet": "tsx scripts/setup.ts wallet",
     "setup:env": "tsx scripts/setup.ts env",
     "web": "tsx scripts/web.ts",
+    "web:sites": "tsx scripts/web.ts --sites",
     "web:publish": "bash deploy/publish-web.sh"
   },
   "dependencies": {

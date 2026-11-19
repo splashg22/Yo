@@ -1,6 +1,15 @@
 import { PublicKey } from "@solana/web3.js";
+import { loadBrand, type Brand } from "./brand.js";
 
 export interface Config {
+  /** The coin's public face: name and tickers. Chosen with BRAND=. */
+  brand: Brand;
+  /** Ticker of the pair token (fees and rewards are paid in it). Display only. */
+  quoteSymbol: string;
+  /** Ticker of the coin that is bought and burned. Display only. */
+  burnSymbol: string;
+  /** Ticker of the coin whose holders are paid; empty when unknown. Display only. */
+  holderSymbol: string;
   rpcUrl: string;
   treasuryKeypairPath: string;
   strategyMint: string;
@@ -57,6 +66,11 @@ function amount(env: Env, name: string, fallback?: string): string {
   return value;
 }
 
+/** An amount setting that was renamed: reads the new name, then the old one. */
+function renamed(env: Env, name: string, legacy: string, fallback?: string): string {
+  return amount(env, env[name]?.trim() ? name : env[legacy]?.trim() ? legacy : name, fallback);
+}
+
 function integer(env: Env, name: string, fallback: number, minimum: number, maximum: number): number {
   const raw = env[name]?.trim();
   const value = raw ? Number(raw) : fallback;
@@ -81,14 +95,23 @@ function venue(env: Env): Config["swapVenue"] {
   throw new Error("SWAP_VENUE must be auto, pump or jupiter");
 }
 
-export function parseConfig(env: Env): Config {
+export function parseConfig(env: Env, brand: Brand = loadBrand(env.BRAND)): Config {
   const expected = env.EXPECTED_QUOTE_MINT?.trim();
+  const strategyMint = address(env, "STRATEGY_MINT");
+  // BURN_MINT, else the brand's burn coin, else the coin buys back and burns itself.
+  const burnMint = env.BURN_MINT?.trim() ? address(env, "BURN_MINT") : brand.burnMint ? new PublicKey(brand.burnMint).toBase58() : strategyMint;
+  const holderMint = env.HOLDER_MINT?.trim() ? address(env, "HOLDER_MINT") : strategyMint;
+  const coinSymbol = env.COIN_SYMBOL?.trim() || brand.coinSymbol;
   return {
+    brand,
+    quoteSymbol: env.QUOTE_SYMBOL?.trim() || brand.quoteSymbol,
+    burnSymbol: env.BURN_SYMBOL?.trim() || (burnMint === strategyMint && coinSymbol ? coinSymbol : brand.burnSymbol),
+    holderSymbol: env.HOLDER_SYMBOL?.trim() || (holderMint === strategyMint ? coinSymbol : ""),
     rpcUrl: required(env, "RPC_URL"),
     treasuryKeypairPath: required(env, "TREASURY_KEYPAIR_PATH"),
-    strategyMint: address(env, "STRATEGY_MINT"),
-    burnMint: address(env, "BURN_MINT"),
-    holderMint: env.HOLDER_MINT?.trim() ? address(env, "HOLDER_MINT") : address(env, "STRATEGY_MINT"),
+    strategyMint,
+    burnMint,
+    holderMint,
     expectedQuoteMint: expected ? address(env, "EXPECTED_QUOTE_MINT") : null,
     minHold: amount(env, "MIN_HOLD"),
     excludeWallets: (env.EXCLUDE_WALLETS ?? "")
@@ -98,16 +121,16 @@ export function parseConfig(env: Env): Config {
       .map((w) => new PublicKey(w).toBase58()),
     excludeProgramOwned: bool(env, "EXCLUDE_PROGRAM_OWNED", true),
     dryRun: bool(env, "DRY_RUN", true),
-    maxSwapPerCycle: amount(env, "MAX_SWAP_TTWO_PER_CYCLE"),
+    maxSwapPerCycle: renamed(env, "MAX_SWAP_PER_CYCLE", "MAX_SWAP_TTWO_PER_CYCLE"),
     slippageBps: integer(env, "SLIPPAGE_BPS", 300, 0, 5000),
-    minClaim: amount(env, "MIN_CLAIM_TTWO", "0"),
-    minSwap: amount(env, "MIN_SWAP_TTWO", "0"),
-    minDistribute: amount(env, "MIN_DISTRIBUTE_TTWO", "0"),
-    minPayout: amount(env, "MIN_PAYOUT_TTWO", "0"),
+    minClaim: renamed(env, "MIN_CLAIM", "MIN_CLAIM_TTWO", "0"),
+    minSwap: renamed(env, "MIN_SWAP", "MIN_SWAP_TTWO", "0"),
+    minDistribute: renamed(env, "MIN_DISTRIBUTE", "MIN_DISTRIBUTE_TTWO", "0"),
+    minPayout: renamed(env, "MIN_PAYOUT", "MIN_PAYOUT_TTWO", "0"),
     payoutsPerTx: integer(env, "PAYOUTS_PER_TX", 5, 1, 8),
     priorityFeeMicroLamports: integer(env, "PRIORITY_FEE_MICROLAMPORTS", 10000, 0, 5_000_000),
     loopIntervalSeconds: integer(env, "LOOP_INTERVAL_SECONDS", 600, 30, 86_400),
-    dataDir: env.DATA_DIR?.trim() || "data",
+    dataDir: env.DATA_DIR?.trim() || (brand.slug ? `data/${brand.slug}` : "data"),
     swapVenue: venue(env),
     jupiterApiUrl: env.JUPITER_API_URL?.trim() || "https://api.jup.ag/swap/v1",
     jupiterApiKey: env.JUPITER_API_KEY?.trim() || null,
@@ -116,6 +139,6 @@ export function parseConfig(env: Env): Config {
     discordWebhookUrl: env.DISCORD_WEBHOOK_URL?.trim() || null,
     telegramBotToken: env.TELEGRAM_BOT_TOKEN?.trim() || null,
     telegramChatId: env.TELEGRAM_CHAT_ID?.trim() || null,
-    reportTitle: env.REPORT_TITLE?.trim() || "DA City strategy",
+    reportTitle: env.REPORT_TITLE?.trim() || brand.title,
   };
 }

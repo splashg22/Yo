@@ -1,10 +1,10 @@
-import "dotenv/config";
 import fs from "node:fs";
 import path from "node:path";
 import { Keypair } from "@solana/web3.js";
 import { formatUnits, parseUnits } from "./amounts.js";
 import { SolanaChain, loadKeypair } from "./chain.js";
 import { parseConfig, type Config } from "./config.js";
+import { loadEnv } from "./env.js";
 import {
   BooksMismatchError,
   LowSolError,
@@ -50,8 +50,8 @@ async function setup(config: Config) {
     limits,
     log: (message) => say(`  · ${message}`),
   };
-  const ttwo = (amount: bigint) => `${formatUnits(amount, info.quoteDecimals)} TTWO`;
-  const burnCoin = (amount: bigint) => `${formatUnits(amount, info.burnDecimals)} burn coin`;
+  const ttwo = (amount: bigint) => `${formatUnits(amount, info.quoteDecimals)} ${config.quoteSymbol}`;
+  const burnCoin = (amount: bigint) => `${formatUnits(amount, info.burnDecimals)} ${config.burnSymbol}`;
   return { chain, info, limits, deps, dataDir, ttwo, burnCoin };
 }
 
@@ -74,16 +74,17 @@ async function status(config: Config) {
   const { chain, info, deps, ttwo, burnCoin } = ctx;
   const state = deps.store.load(chain.mints());
   const [held, fees] = await Promise.all([chain.balances(), chain.pendingFees()]);
+  say(`Coin                    ${config.brand.title} (books in ${config.dataDir}/)`);
   say(`Mode                    ${config.dryRun ? "DRY RUN (nothing is sent)" : "LIVE"}`);
   say(`Treasury                ${chain.treasury.toBase58()}`);
   say(`  SOL                   ${formatUnits(held.sol, 9)}`);
   say(`Strategy coin           ${config.strategyMint}`);
-  say(`  Paired with (TTWO)    ${info.quoteMint.toBase58()}`);
+  say(`  Paired with (${config.quoteSymbol})`.padEnd(24) + info.quoteMint.toBase58());
   say(`  Stage                 ${info.curve.complete ? "graduated to the pump pool" : "on the bonding curve"}`);
   const creatorOk = info.curve.creator.equals(chain.treasury);
   say(`  Fees go to treasury   ${creatorOk ? "yes" : `NO — the coin's fee recipient is ${info.curve.creator.toBase58()}`}`);
   if (info.curve.isHolderReward) say(`  WARNING               this coin was created with Holder Rewards, not Creator Fee`);
-  say(`Burn coin               ${config.burnMint}`);
+  say(`Burn coin (${config.burnSymbol})`.padEnd(24) + config.burnMint + (config.burnMint === config.strategyMint ? " (the strategy coin itself)" : ""));
   say(`Rewards go to holders of ${config.holderMint} with at least ${config.minHold}`);
   say(`Fees waiting to claim   ${ttwo(fees)}`);
   say(`Books (cycle ${state.cycle})`);
@@ -117,9 +118,9 @@ async function cycleOnce(config: Config, ctx: Ctx): Promise<LiveReport | null> {
     if (report.wouldPay.length > 10) say(`    … and ${report.wouldPay.length - 10} more`);
     say();
     say("Checks");
-    say(`  (a) TTWO -> burn coin route   ${mark(report.route)} — ${report.route.detail}`);
+    say(`  (a) ${`${config.quoteSymbol} -> ${config.burnSymbol} route`.padEnd(25)} ${mark(report.route)} — ${report.route.detail}`);
     say(`      swap simulation           ${mark(report.swap)} — ${report.swap.detail}`);
-    say(`  (b) TTWO payout to a wallet   ${mark(report.payout)} — ${report.payout.detail}`);
+    say(`  (b) ${`${config.quoteSymbol} payout to a wallet`.padEnd(25)} ${mark(report.payout)} — ${report.payout.detail}`);
     say(`  (c) holder snapshot           ${mark(report.snapshot)} — ${report.snapshot.detail}`);
     return null;
   }
@@ -183,7 +184,7 @@ async function verify(config: Config, cycleArg?: string) {
       const want = expected[row.type];
       if (want && (want[0] !== moved.quote || want[1] !== moved.coin)) {
         bad = true;
-        verdict += ` BUT AMOUNTS DIFFER: ledger TTWO ${want[0]} / burn coin ${want[1]}, chain ${moved.quote} / ${moved.coin}`;
+        verdict += ` BUT AMOUNTS DIFFER: ledger ${config.quoteSymbol} ${want[0]} / ${config.burnSymbol} ${want[1]}, chain ${moved.quote} / ${moved.coin}`;
       } else if (want) verdict += ", amounts match the ledger";
     }
     if (bad) problems += 1;
@@ -198,7 +199,7 @@ function writeReport(config: Config, ctx: Ctx): string | null {
   const file = path.join(ctx.dataDir, "ledger.jsonl");
   if (!fs.existsSync(file)) return null;
   const units: Units = {
-    quoteDecimals: ctx.info.quoteDecimals, burnDecimals: ctx.info.burnDecimals, quoteSymbol: "TTWO", burnSymbol: "DCTY",
+    quoteDecimals: ctx.info.quoteDecimals, burnDecimals: ctx.info.burnDecimals, quoteSymbol: config.quoteSymbol, burnSymbol: config.burnSymbol,
   };
   const summary = summarize(parseLedger(fs.readFileSync(file, "utf8")), units);
   const out = path.join(ctx.dataDir, "report.html");
@@ -236,7 +237,7 @@ async function holders(config: Config) {
     say(`  ${h.owner}  ${formatUnits(h.amount, ctx.info.holderDecimals).padStart(18)}  ${percent.toFixed(2).padStart(6)}%  ${ttwo(share.get(h.owner) ?? 0n)}`);
   }
   if (qualifying.length > 20) say(`  … and ${qualifying.length - 20} more`);
-  const csv = ["wallet,balance,would_receive_ttwo"]
+  const csv = [`wallet,balance,would_receive_${config.quoteSymbol.toLowerCase().replace(/[^a-z0-9]+/g, "_")}`]
     .concat(qualifying.map((h) => `${h.owner},${formatUnits(h.amount, ctx.info.holderDecimals)},${formatUnits(share.get(h.owner) ?? 0n, ctx.info.quoteDecimals)}`));
   fs.mkdirSync(ctx.dataDir, { recursive: true });
   const out = path.join(ctx.dataDir, "holders.csv");
@@ -262,7 +263,7 @@ async function loop(config: Config) {
       notifier.clearError();
       if (result) {
         writeReport(config, ctx);
-        const message = formatCycleMessage(result, ctx.info);
+        const message = formatCycleMessage(result, { ...ctx.info, quoteSymbol: config.quoteSymbol, burnSymbol: config.burnSymbol, title: config.brand.title });
         if (message) await notifier.send(message);
       }
     } catch (error) {
@@ -282,16 +283,22 @@ async function loop(config: Config) {
   }
 }
 
+const USAGE = "usage: tsx src/cli.ts status | cycle | loop | verify [cycle] | report | holders, then optionally a coin (e.g. llm)";
+
 async function main() {
-  const command = process.argv[2];
+  const { rest } = loadEnv();
+  const [command, ...extra] = rest;
+  // A stray word must never make a command quietly run on the wrong coin.
+  const allowed = command === "verify" && extra.length === 1 && /^\d+$/.test(extra[0]!) ? 1 : 0;
+  if (extra.length > allowed) throw new Error(`did not understand "${extra.slice(allowed).join(" ")}". ${USAGE}`);
   const config = parseConfig(process.env);
   if (command === "status") await status(config);
   else if (command === "cycle") await cycleOnce(config, await setup(config));
   else if (command === "loop") await loop(config);
-  else if (command === "verify") await verify(config, process.argv[3]);
+  else if (command === "verify") await verify(config, extra[0]);
   else if (command === "report") await report(config);
   else if (command === "holders") await holders(config);
-  else throw new Error("usage: tsx src/cli.ts status | cycle | loop | verify [cycle] | report | holders");
+  else throw new Error(USAGE);
 }
 
 main().catch((error: unknown) => {

@@ -111,7 +111,8 @@ const amountOf = (info) => BigInt(info.tokenAmount ? info.tokenAmount.amount : i
 
 /**
  * Classifies one of the treasury's transactions from its on-chain record.
- * `cfg` needs treasury, burnMint and (ideally) quoteMint; `t` is the
+ * `cfg` needs treasury, burnMint and (ideally) quoteMint, plus the tickers
+ * quoteSymbol and burnSymbol (TTWO and DCTY when left out); `t` is the
  * `getTransaction` result with `jsonParsed` encoding.
  */
 export function classify(cfg, sig, blockTime, t) {
@@ -119,6 +120,8 @@ export function classify(cfg, sig, blockTime, t) {
   const msg = t.transaction.message;
   const keys = msg.accountKeys.map((k) => (typeof k === "string" ? k : k.pubkey));
   const treasury = cfg.treasury;
+  const Q = cfg.quoteSymbol || "TTWO";
+  const B = cfg.burnSymbol || "DCTY";
   const balances = rows(meta.postTokenBalances).concat(rows(meta.preTokenBalances));
   const owned = (list, mint) => rows(list).filter((r) => r.owner === treasury && r.mint === mint).reduce((a, r) => a + BigInt(r.uiTokenAmount.amount), 0n);
   const decimalsOf = (mint) => balances.find((x) => x.mint === mint)?.uiTokenAmount.decimals ?? null;
@@ -163,19 +166,19 @@ export function classify(cfg, sig, blockTime, t) {
 
   let kind = "other", text = "", amount = "", sign = 0;
   if (burned > 0n) {
-    kind = "burn"; text = "DCTY destroyed for good"; amount = `${fmt(burned, bd ?? 6, 2)} DCTY`; sign = -1;
+    kind = "burn"; text = `${B} destroyed for good`; amount = `${fmt(burned, bd ?? 6, 2)} ${B}`; sign = -1;
   } else if (burnDelta > 0n && quoteDelta < 0n) {
-    kind = "buy"; text = `Bought DCTY with TTWO${venues.length ? ` on ${venues.join(" + ")}` : ""}`;
-    amount = `${fmt(-quoteDelta, qd ?? 0)} TTWO → ${fmt(burnDelta, bd ?? 6, 2)} DCTY`; sign = 0;
+    kind = "buy"; text = `Bought ${B} with ${Q}${venues.length ? ` on ${venues.join(" + ")}` : ""}`;
+    amount = `${fmt(-quoteDelta, qd ?? 0)} ${Q} → ${fmt(burnDelta, bd ?? 6, 2)} ${B}`; sign = 0;
   } else if (payouts.size > 0) {
     kind = "payout";
     text = `${payouts.size} holder${payouts.size === 1 ? "" : "s"} paid${touchesPump ? ", fees claimed in the same transaction" : ""}`;
-    amount = `${fmt(paid, qd ?? 0)} TTWO`; sign = -1;
+    amount = `${fmt(paid, qd ?? 0)} ${Q}`; sign = -1;
   } else if (quoteDelta > 0n && touchesPump) {
-    kind = "claim"; text = "Creator fees claimed into the treasury"; amount = `${fmt(quoteDelta, qd ?? 0)} TTWO`; sign = 1;
+    kind = "claim"; text = "Creator fees claimed into the treasury"; amount = `${fmt(quoteDelta, qd ?? 0)} ${Q}`; sign = 1;
   } else if (quoteDelta !== 0n || burnDelta !== 0n) {
     text = "Token movement";
-    amount = [quoteDelta ? `${quoteDelta > 0n ? "+" : "-"}${fmt(quoteDelta < 0n ? -quoteDelta : quoteDelta, qd ?? 0)} TTWO` : "", burnDelta ? `${burnDelta > 0n ? "+" : "-"}${fmt(burnDelta < 0n ? -burnDelta : burnDelta, bd ?? 6, 2)} DCTY` : ""].filter(Boolean).join(", ");
+    amount = [quoteDelta ? `${quoteDelta > 0n ? "+" : "-"}${fmt(quoteDelta < 0n ? -quoteDelta : quoteDelta, qd ?? 0)} ${Q}` : "", burnDelta ? `${burnDelta > 0n ? "+" : "-"}${fmt(burnDelta < 0n ? -burnDelta : burnDelta, bd ?? 6, 2)} ${B}` : ""].filter(Boolean).join(", ");
   } else {
     text = venues.length ? `Interaction with ${venues.join(", ")}` : "SOL or account housekeeping";
     const sol = fmt(lamports < 0n ? -lamports : lamports, 9);

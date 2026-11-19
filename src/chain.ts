@@ -86,7 +86,7 @@ export async function resolvePair(
   const curve = await source.fetchBondingCurve(mint);
   const quoteMint = normalizeQuoteMint(curve.quoteMint);
   if (quoteMint.equals(NATIVE_MINT)) {
-    throw new Error("STRATEGY_MINT is paired with SOL. This bot only handles a token pair such as TTWO.");
+    throw new Error("STRATEGY_MINT is paired with SOL. This bot only handles a token pair such as a tokenized stock.");
   }
   if (expectedQuoteMint && quoteMint.toBase58() !== expectedQuoteMint) {
     throw new Error(`STRATEGY_MINT is paired with ${quoteMint.toBase58()}, not EXPECTED_QUOTE_MINT ${expectedQuoteMint}`);
@@ -217,7 +217,7 @@ export class SolanaChain implements Chain {
   }
 
   /**
-   * TTWO already swept into the treasury's two creator vaults (bonding curve
+   * Pair tokens already swept into the treasury's two creator vaults (bonding curve
    * and pump-amm). Read directly: two accounts, so it works on RPCs that cap
    * getMultipleAccounts, unlike the SDK's all-quote-mints lookup.
    */
@@ -320,7 +320,7 @@ export class SolanaChain implements Chain {
     }
     const cap = parseUnits(this.config.maxSwapPerCycle, this.info.quoteDecimals);
     const quote = await this.jupiterQuote(cap > 0n ? cap : 10n ** BigInt(this.info.quoteDecimals));
-    return `${describeQuote(quote)}; ${quote.inAmount} TTWO base units would buy about ${quote.outAmount}. Used because ${venue.why}`;
+    return `${describeQuote(quote)}; ${quote.inAmount} base units of the pair token would buy about ${quote.outAmount}. Used because ${venue.why}`;
   }
 
   async buildSwap(amountIn: bigint) {

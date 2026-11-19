@@ -9,7 +9,8 @@ set -euo pipefail
 repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 dest="${1:-$HOME/dacity-bot-backups}"
 mkdir -p "$dest"
-if [ ! -f "$repo/data/state.json" ] && [ ! -f "$repo/data/ledger.jsonl" ]; then
+# Every coin's books: data/ for the default coin, data/<coin>/ for the others.
+if [ -z "$(find "$repo/data" \( -name state.json -o -name ledger.jsonl \) -print -quit 2>/dev/null)" ]; then
   echo "nothing to back up yet"
   exit 0
 fi
