@@ -14,7 +14,8 @@
     "holders": "tsx src/cli.ts holders",
     "setup:wallet": "tsx scripts/setup.ts wallet",
     "setup:env": "tsx scripts/setup.ts env",
-    "web": "tsx scripts/web.ts"
+    "web": "tsx scripts/web.ts",
+    "web:publish": "bash deploy/publish-web.sh"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "4.3.1",

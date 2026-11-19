@@ -150,18 +150,22 @@ Publish it:
 
 ```bash
 npm run web            # writes web/config.json and copies the ledger next to the page
+npm run web:publish    # pushes web/ to the gh-pages branch, which GitHub Pages serves
 ```
 
 `config.json` holds public facts only (addresses, the minimum hold, a public
 RPC). `PUBLIC_RPC_URL` in `.env` must be a key-free endpoint; the default
 PublicNode one works from browsers. Set `REPO_URL` to show a source link in
-the footer and `HOLDER_SYMBOL` to name your coin.
+the footer and `HOLDER_SYMBOL` to name your coin. Without `config.json` the
+page shows a "launching soon" state and no numbers.
 
-Host the `web/` folder anywhere static. The included GitHub Actions workflow
-(`.github/workflows/pages.yml`) publishes it to GitHub Pages on every push once
-you set **Settings → Pages → Source: GitHub Actions** on the repository. Run
-`npm run web` and commit after live cycles so the ledger cross-check stays
-current; the chain data on the page is always live regardless.
+`deploy/publish-web.sh` copies only `web/` into a commit on the `gh-pages`
+branch and pushes it; nothing else in the repository (never `.env`, keys or
+`data/`) goes there. Turn the site on once with **Settings → Pages → Deploy
+from a branch → `gh-pages` / root**; after that every `npm run web:publish`
+updates it within a minute. Run `npm run web && npm run web:publish` after
+live cycles so the ledger cross-check stays current; the chain data on the
+page is always live regardless.
 
 ## Layout
 
