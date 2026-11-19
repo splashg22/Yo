@@ -1,0 +1,29 @@
+{
+  "name": "dacity-strategy-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Claims pump.fun creator fees in TTWO, buys and burns DCTY with half, pays half to holders.",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "status": "tsx src/cli.ts status",
+    "cycle": "tsx src/cli.ts cycle",
+    "loop": "tsx src/cli.ts loop"
+  },
+  "dependencies": {
+    "@pump-fun/pump-sdk": "4.3.1",
+    "@solana/spl-token": "^0.4.15",
+    "@solana/web3.js": "^1.99.0",
+    "bn.js": "^5.2.5",
+    "bs58": "^6.0.0",
+    "dotenv": "^18.0.10"
+  },
+  "devDependencies": {
+    "@types/bn.js": "^5.2.0",
+    "@types/node": "^26.6.6",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
