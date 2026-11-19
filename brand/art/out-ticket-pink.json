@@ -1,0 +1,29 @@
+[
+  {
+    "created_at": "2026-11-19T22:44:08.045672Z",
+    "display_name": "Nano Banana Pro",
+    "id": "afea98e6-0276-4f18-b181-39c6a4515b32",
+    "job_type": "nano_banana_pro",
+    "min_result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224408_afea98e6-0276-4f18-b181-39c6a4515b32_min.webp",
+    "params": {
+      "application": null,
+      "aspect_ratio": "3:4",
+      "batch_size": 1,
+      "height": 2400,
+      "input_image": null,
+      "input_images": [
+        {
+          "id": "8bdb4898-de31-452b-b2e9-d55bf81cb339",
+          "type": "media_input",
+          "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/8bdb4898-de31-452b-b2e9-d55bf81cb339_resize.jpg"
+        }
+      ],
+      "prompt": "One single tall translucent glass ticket standing upright on a dark reflective floor in front of a dark wall of rounded square tiles, lit from inside in hot neon pink, same style, palette and lighting as the reference image. Centered, lots of empty dark space around it. No text, no logos, no other objects.",
+      "resolution": "2k",
+      "surface": null,
+      "width": 1792
+    },
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224408_afea98e6-0276-4f18-b181-39c6a4515b32.png",
+    "status": "completed"
+  }
+]

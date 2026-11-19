@@ -1,0 +1,29 @@
+[
+  {
+    "created_at": "2026-11-19T22:43:33.188465Z",
+    "display_name": "Nano Banana Pro",
+    "id": "c9aa3b15-3861-47fd-a071-27b7a14bfb8a",
+    "job_type": "nano_banana_pro",
+    "min_result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224333_c9aa3b15-3861-47fd-a071-27b7a14bfb8a_min.webp",
+    "params": {
+      "application": null,
+      "aspect_ratio": "16:9",
+      "batch_size": 1,
+      "height": 1536,
+      "input_image": null,
+      "input_images": [
+        {
+          "id": "56102f54-6d3a-4ef8-abb8-3f9d86e82a5c",
+          "type": "media_input",
+          "url": "https://d2ol7oe51mr4n9.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/56102f54-6d3a-4ef8-abb8-3f9d86e82a5c_resize.jpg"
+        }
+      ],
+      "prompt": "The same scene as the reference image but empty: a dark wall of rounded square tiles under a soft magenta horizon glow, deep plum sky above, a dark reflective floor below. No tickets, no objects, no people, no text, no logos. Calm, cinematic, premium 3D render look, identical palette and lighting to the reference.",
+      "resolution": "2k",
+      "surface": null,
+      "width": 2752
+    },
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224333_c9aa3b15-3861-47fd-a071-27b7a14bfb8a.png",
+    "status": "completed"
+  }
+]

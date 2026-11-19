@@ -1,0 +1,26 @@
+[
+  {
+    "created_at": "2026-11-19T22:44:46.715025Z",
+    "display_name": "Recraft V4.1",
+    "id": "6dfe5814-2b19-41aa-9641-f90d7b8eba4b",
+    "job_type": "recraft_v4_1",
+    "min_result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224446_6dfe5814-2b19-41aa-9641-f90d7b8eba4b_min.webp",
+    "params": {
+      "aspect_ratio": "1:1",
+      "background_color": "#110610",
+      "batch_size": 1,
+      "colors": [
+        "#FF1F8F",
+        "#FFFFFF",
+        "#8FD3FF"
+      ],
+      "height": 1024,
+      "model_type": "vector",
+      "prompt": "Pictorial logo symbol of a single upright flame built from three nested teardrop tongues that share one baseline and one pointed apex direction, the outer tongue in the locked accent tone, the middle tongue in the locked primary tone and the innermost smallest tongue in the locked second accent tone, each tongue a smooth single curve with its tip leaning slightly to the right, concentric construction with consistent spacing between tongues, a calm geometric flame rather than a jagged one, bold solid fills that stay legible at sixteen pixels, centered and isolated with even margin on the locked background. Flat vector design, clean lines, no shadows, no texture, no text. Clean editable vector paths, SVG-friendly, minimal anchor points.",
+      "resolution": "2k",
+      "width": 1024
+    },
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_224446_6dfe5814-2b19-41aa-9641-f90d7b8eba4b.svg",
+    "status": "completed"
+  }
+]

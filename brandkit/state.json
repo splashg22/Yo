@@ -1,0 +1,63 @@
+{
+  "brandbookElements": [],
+  "essentialKitApproved": false,
+  "palette": {
+    "approvalSummary": "User-declared brand colours: the deep plum, hot pink and sky blue already used on the site.",
+    "colors": [
+      {
+        "hex": "#110610",
+        "name": "Night Plum",
+        "role": "background"
+      },
+      {
+        "hex": "#ffffff",
+        "name": "White",
+        "role": "text"
+      },
+      {
+        "hex": "#ff1f8f",
+        "name": "Hot Pink",
+        "role": "accent"
+      },
+      {
+        "hex": "#8fd3ff",
+        "name": "Sky Blue",
+        "role": "accent"
+      },
+      {
+        "hex": "#ff8fc8",
+        "name": "Soft Pink",
+        "role": "accent"
+      }
+    ],
+    "gradients": [],
+    "origin": "user_supplied",
+    "revision": 1
+  },
+  "typography": {
+    "approvalSummary": "User chose the Inter-style geometric sans from reference screenshots.",
+    "body": {
+      "family": "Inter",
+      "source": "google:Inter",
+      "style": "normal",
+      "weight": 400
+    },
+    "display": {
+      "family": "Inter",
+      "source": "google:Inter",
+      "style": "normal",
+      "weight": 700
+    },
+    "fontLinks": [
+      "https://fonts.google.com/specimen/Inter"
+    ],
+    "origin": "user_supplied",
+    "revision": 1
+  },
+  "version": 3,
+  "visualAxes": {
+    "familiarExperimental": 45,
+    "geometricOrganic": 25,
+    "restrainedExpressive": 35
+  }
+}

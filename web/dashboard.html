@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  .head { position: relative; padding: 150px 0 56px; }
+  .head { position: relative; padding: 150px 0 120px; margin: 0 -32px; padding-left: 32px; padding-right: 32px; }
   .head .sub { max-width: 720px; }
   .head .actions { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
   .chart { height: 170px; position: relative; }
@@ -44,8 +44,7 @@
 </header>
 
 <main class="container">
-  <div class="head">
-    <div class="room" aria-hidden="true"><div class="wall"></div><div class="floor"></div></div>
+  <div class="head screen photo-wall" style="padding-top:150px;padding-bottom:90px">
     <h1>Dashboard.</h1>
     <p class="sub">Read from the Solana blockchain in your browser.</p>
     <div class="actions"><button class="pill ghost sm" id="refresh" type="button">Refresh</button><a class="text-link" id="treasury-link" href="#" rel="noopener">View the treasury on Solscan →</a></div>
@@ -132,7 +131,7 @@
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const figure = (value, label, note) => `<div class="figure"><div class="value">${value}</div><div class="name">${esc(label)}</div><div class="note">${note}</div></div>`;
+  const figure = (value, label, note, c = "white") => `<div class="figure ${c}"><div class="value">${value}</div><div class="name">${esc(label)}</div><div class="note">${note}</div></div>`;
   const rows = (pairs) => pairs.map(([k, v]) => `<div class="row"><dt>${k}</dt><dd>${v}</dd></div>`).join("");
   const sk = `<span class="skeleton"></span>`;
 
@@ -161,9 +160,9 @@
     const s = summarize(state.rows);
     const live = state.live;
     $("kpis").innerHTML = [
-      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "DCTY burned", `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`),
+      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "DCTY burned", `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`, "pink"),
       figure(`${fmt(s.selfBurned, sd, 0)}<small>${esc(name)}</small>`, "Bought back and burned", cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "Starts with the first fee"),
-      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
+      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`, "blue"),
       figure(`${fmt(s.claimed, q)}<small>TTWO</small>`, "Fees claimed", `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`),
     ].join("");
 
