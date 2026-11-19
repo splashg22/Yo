@@ -136,6 +136,56 @@ async function cycleOnce(config: Config, ctx: Ctx) {
   }
 }
 
+/** Re-checks every transaction of one cycle (default: the latest) on-chain. */
+async function verify(config: Config, cycleArg?: string) {
+  const ctx = await setup(config);
+  const file = path.join(ctx.dataDir, "ledger.jsonl");
+  if (!fs.existsSync(file)) throw new Error("there is no ledger yet: no live cycle has run");
+  const entries = fs.readFileSync(file, "utf8").split("\n").filter(Boolean)
+    .map((line) => JSON.parse(line) as { type: string; cycle: number; signature?: string; [key: string]: unknown });
+  const cycle = cycleArg ? Number(cycleArg) : Math.max(...entries.map((e) => e.cycle));
+  const rows = entries.filter((e) => e.cycle === cycle && e.signature);
+  if (rows.length === 0) throw new Error(`cycle ${cycle} has no transactions in the ledger`);
+  say(`Cycle ${cycle}: ${rows.length} transaction(s)`);
+  let problems = 0;
+  for (const row of rows) {
+    const signature = row.signature!;
+    const { value } = await ctx.chain.connection.getSignatureStatuses([signature], { searchTransactionHistory: true });
+    const status = value[0];
+    const expectFailure = row.type === "tx_failed" || row.type === "tx_expired";
+    let verdict: string;
+    let bad = false;
+    if (!status) {
+      bad = !expectFailure;
+      verdict = expectFailure ? "not on chain (as recorded)" : "NOT FOUND ON CHAIN";
+    } else if (status.err) {
+      bad = !expectFailure;
+      verdict = expectFailure ? "failed on chain (as recorded)" : `FAILED ON CHAIN ${JSON.stringify(status.err)}`;
+    }
+    else {
+      verdict = `${status.confirmationStatus ?? "confirmed"}`;
+      // Compare what the ledger says moved with what the chain says moved.
+      const moved = await ctx.chain.deltas(signature);
+      const expected: Record<string, [bigint, bigint] | undefined> = {
+        claim: [BigInt(String(row.claimed ?? 0)), 0n],
+        swap: [-BigInt(String(row.spent ?? 0)), BigInt(String(row.bought ?? 0))],
+        burn: [0n, -BigInt(String(row.burned ?? 0))],
+        payout: [-(row.payouts as { amount: string }[] | undefined ?? []).reduce((a, p) => a + BigInt(p.amount), 0n), 0n],
+      };
+      const want = expected[row.type];
+      if (want && (want[0] !== moved.quote || want[1] !== moved.coin)) {
+        bad = true;
+        verdict += ` BUT AMOUNTS DIFFER: ledger TTWO ${want[0]} / burn coin ${want[1]}, chain ${moved.quote} / ${moved.coin}`;
+      } else if (want) verdict += ", amounts match the ledger";
+    }
+    if (bad) problems += 1;
+    say(`  ${row.type.padEnd(10)} ${verdict}`);
+    say(`             https://solscan.io/tx/${signature}`);
+  }
+  say(problems === 0 ? "All transactions check out." : `${problems} PROBLEM(S) — do not run another cycle until this is understood.`);
+  if (problems > 0) process.exit(2);
+}
+
 async function loop(config: Config) {
   let stopping = false;
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
@@ -169,7 +219,8 @@ async function main() {
   if (command === "status") await status(config);
   else if (command === "cycle") await cycleOnce(config, await setup(config));
   else if (command === "loop") await loop(config);
-  else throw new Error("usage: tsx src/cli.ts status | cycle | loop");
+  else if (command === "verify") await verify(config, process.argv[3]);
+  else throw new Error("usage: tsx src/cli.ts status | cycle | loop | verify [cycle]");
 }
 
 main().catch((error: unknown) => {

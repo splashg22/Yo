@@ -8,7 +8,10 @@
     "typecheck": "tsc --noEmit",
     "status": "tsx src/cli.ts status",
     "cycle": "tsx src/cli.ts cycle",
-    "loop": "tsx src/cli.ts loop"
+    "loop": "tsx src/cli.ts loop",
+    "verify": "tsx src/cli.ts verify",
+    "setup:wallet": "tsx scripts/setup.ts wallet",
+    "setup:env": "tsx scripts/setup.ts env"
   },
   "dependencies": {
     "@pump-fun/pump-sdk": "4.3.1",

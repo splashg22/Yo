@@ -1,0 +1,24 @@
+# systemd:
+#   1. Replace BOTUSER and /path/to/Yo below.
+#   2. sudo cp deploy/dacity-bot.service /etc/systemd/system/
+#   3. sudo systemctl daemon-reload && sudo systemctl enable --now dacity-bot
+#   Logs: journalctl -u dacity-bot -f
+[Unit]
+Description=DA City strategy bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=BOTUSER
+WorkingDirectory=/path/to/Yo
+ExecStart=/path/to/Yo/node_modules/.bin/tsx src/cli.ts loop
+Restart=on-failure
+RestartSec=30
+# Exit code 2 = the books and the treasury disagree. Stay stopped until a person looks.
+RestartPreventExitStatus=2
+# Let a transaction in flight finish before stopping.
+TimeoutStopSec=300
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target

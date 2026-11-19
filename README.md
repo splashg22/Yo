@@ -22,24 +22,36 @@ with); set `EXPECTED_QUOTE_MINT` to have the bot refuse anything else.
 
 ## Setup
 
+Do this on the always-on machine that will run the bot.
+
 ```bash
 npm install
-npm test            # 50 tests
+npm test                # 50 tests
 npm run typecheck
-cp .env.example .env    # then fill it in; DRY_RUN stays true
+npm run setup:wallet    # creates the treasury wallet OUTSIDE this folder, prints its address
 ```
 
-The treasury wallet must be the wallet that **created** the coin on pump.fun
-(TTWO pair, **Creator Fee**, not Holder Rewards). Keep its key file outside
-this folder; the bot refuses a key path inside it.
+Fund that address with SOL and launch the coin on pump.fun **from that
+wallet** (TTWO pair, **Creator Fee**, not Holder Rewards). Then:
+
+```bash
+npm run setup:env       # asks for the RPC URL, your coin's address and the minimum hold
+npm run status
+npm run cycle           # dry run
+```
+
+`setup:wallet` uses `solana-keygen`, which shows a seed phrase once: write it
+on paper. The scripts never read or print the private key. `.env` is created
+with `DRY_RUN=true` and is ignored by git.
 
 ## Commands
 
-| Command          | What it does                                                    |
-| ---------------- | --------------------------------------------------------------- |
-| `npm run status` | Read-only: balances, fees waiting, the books, and a books check. |
-| `npm run cycle`  | One cycle. With `DRY_RUN=true` it only simulates.               |
-| `npm run loop`   | A cycle every `LOOP_INTERVAL_SECONDS`, until stopped.           |
+| Command                  | What it does                                                     |
+| ------------------------ | ---------------------------------------------------------------- |
+| `npm run status`         | Read-only: balances, fees waiting, the books, and a books check. |
+| `npm run cycle`          | One cycle. With `DRY_RUN=true` it only simulates.                |
+| `npm run verify [cycle]` | Re-checks every transaction of a cycle (default: the latest) on-chain and compares the amounts with the ledger. |
+| `npm run loop`           | A cycle every `LOOP_INTERVAL_SECONDS`, until stopped.            |
 
 A dry run sends nothing and writes nothing. It reports what a live cycle
 would do and three checks: (a) a TTWO → DCTY swap route exists, (b) a TTWO
@@ -47,6 +59,20 @@ payout to a wallet simulates, (c) the holder snapshot works on your RPC.
 The swap can only be simulated once the treasury holds some TTWO.
 
 The bot is live only when `DRY_RUN` is exactly `false`.
+
+## Going live
+
+1. Set `DRY_RUN=false` and a small `MAX_SWAP_TTWO_PER_CYCLE` in `.env`.
+2. `npm run cycle`, then `npm run verify`. Do nothing else until every
+   transaction checks out.
+3. Keep it running with **one** of:
+   - pm2: `pm2 start deploy/ecosystem.config.cjs && pm2 save && pm2 startup`
+   - systemd: see the comments in `deploy/dacity-bot.service`
+4. Back up the books hourly: add `deploy/backup.sh` to cron (see the comments
+   in the file) and point it at a disk that is not this machine's.
+
+Both service configs restart the bot after a crash, but **not** after exit
+code 2, which means the books and the treasury disagree and a person must look.
 
 ## The rules
 
@@ -100,7 +126,9 @@ src/cycle.ts    one cycle, live or dry; crash recovery
 src/chain.ts    Solana + pump SDK calls
 src/jupiter.ts  Jupiter swap + the checks before signing
 src/holders.ts  holder snapshot
-src/cli.ts      status | cycle | loop
+src/cli.ts      status | cycle | loop | verify
+scripts/        guided setup (wallet, .env)
+deploy/         pm2 + systemd configs, backup script
 ```
 
 ## Not yet proven
