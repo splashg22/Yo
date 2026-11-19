@@ -19,244 +19,149 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150612'/%3E%3Cpath d='M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0' fill='none' stroke='%23ff1f8f' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,700;9..40,800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./ui.css">
 <style>
-  :root {
-    --bg: #0b0308; --panel: rgba(28, 8, 20, 0.72); --panel-2: #1c0714; --tile: #40182f;
-    --ink: #fff4fa; --muted: rgba(255, 228, 243, 0.68); --faint: rgba(255, 228, 243, 0.42);
-    --ring: rgba(255, 225, 243, 0.08); --ring-2: rgba(255, 225, 243, 0.16);
-    --btn: #ffe1f3; --btn-ink: #1c0713;
-    --accent: #ff1f8f; --accent-2: #ff6ab8; --ok: #4ade80; --warn: #fbbf24; --bad: #fb7185; --blue: #8fd3ff;
-    --font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  }
-  * { box-sizing: border-box; }
-  html { background: var(--bg); scroll-behavior: smooth; scroll-padding-top: 96px; }
-  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.55 var(--font); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
-  a { color: inherit; text-decoration: none; }
-  .wrap { max-width: 1080px; margin-left: auto; margin-right: auto; padding-left: 20px; padding-right: 20px; }
-  .muted { color: var(--muted); } .faint { color: var(--faint); }
-  .mono { font-family: var(--mono); font-size: 0.86em; overflow-wrap: anywhere; }
-  [hidden] { display: none !important; }
-
-  /* Tile grid texture with a pink glow, like a lit wall */
-  .grid { position: fixed; inset: 0; z-index: -1; pointer-events: none; background: var(--bg); }
-  .grid::before { content: ""; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='26'%3E%3Crect x='1.5' y='1.5' width='13' height='23' rx='2.5' fill='%23ffffff'/%3E%3C/svg%3E"); background-size: 16px 26px; opacity: 0.075; -webkit-mask-image: radial-gradient(1400px 900px at 50% 0%, #000 20%, rgba(0,0,0,0.25) 70%, transparent 100%); mask-image: radial-gradient(1400px 900px at 50% 0%, #000 20%, rgba(0,0,0,0.25) 70%, transparent 100%); }
-  .grid::after { content: ""; position: absolute; inset: 0; background: radial-gradient(1000px 520px at 50% -120px, rgba(255, 31, 143, 0.30), transparent 65%), radial-gradient(700px 500px at 50% 0%, rgba(120, 30, 90, 0.35), transparent 70%), linear-gradient(rgba(11, 3, 8, 0.2), rgba(11, 3, 8, 0.55)); }
-
-  /* Floating pill nav */
-  .nav { position: fixed; top: 14px; left: 0; right: 0; z-index: 20; display: flex; justify-content: center; gap: 10px; padding: 0 12px; }
-  .pill { display: inline-flex; align-items: center; height: 42px; border-radius: 999px; background: rgba(20, 6, 15, 0.78); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 0 var(--ring-2), 0 4px 10px -4px rgba(0,0,0,.7); }
-  .pill.logo { width: 42px; justify-content: center; } .pill.logo svg { width: 24px; height: 24px; }
-  .pill.links { padding: 0 6px; gap: 2px; }
-  .pill.links a { padding: 0 14px; height: 32px; display: inline-flex; align-items: center; border-radius: 999px; font-size: 14px; font-weight: 500; color: var(--ink); letter-spacing: -0.005em; }
-  .pill.links a:hover, .pill.links a.on { background: rgba(255, 225, 243, 0.08); box-shadow: inset 0 0 0 1px var(--ring); }
-  .pill.links a.buy { background: var(--btn); color: var(--btn-ink); font-weight: 700; margin-left: 4px; }
-
-  /* Buttons, badges, headings */
-  .btn { display: inline-flex; align-items: center; gap: 8px; height: 40px; padding: 0 16px; border-radius: 10px; background: var(--btn); color: var(--btn-ink); border: 1px solid transparent; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: transform .12s, box-shadow .12s; }
-  .btn:hover { transform: translateY(-1px); box-shadow: 0 10px 30px -8px rgba(255, 225, 243, 0.45); }
-  .btn.text { background: transparent; color: var(--ink); font-weight: 500; } .btn.text:hover { box-shadow: none; background: rgba(255, 225, 243, 0.06); }
-  .btn.ghost { background: transparent; color: var(--ink); font-weight: 500; box-shadow: inset 0 0 0 1px var(--ring-2); } .btn.ghost:hover { background: rgba(255, 225, 243, 0.06); }
-  .btn:disabled { opacity: 0.5; cursor: default; transform: none; box-shadow: none; }
-  .btn .ar { font-weight: 400; }
-  .badge { display: inline-flex; align-items: center; gap: 10px; height: 30px; padding: 0 12px 0 4px; border-radius: 999px; font-size: 12.5px; color: var(--ink); background: rgba(20, 6, 15, 0.7); box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 0 var(--ring-2); }
-  .badge b { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: 999px; background: rgba(255, 31, 143, 0.18); color: var(--accent-2); font-size: 11px; font-weight: 700; letter-spacing: 0.06em; }
-  .badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--faint); margin-left: -2px; }
-  .badge .dot.live { background: var(--ok); box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.18); }
-  .badge .dot.busy { background: var(--accent); animation: pulse 1.2s infinite; }
-  @keyframes pulse { 50% { opacity: 0.35; } }
-  .tag { text-align: center; font-size: clamp(1.3rem, 2.6vw, 1.75rem); font-weight: 300; letter-spacing: -0.02em; margin: 0 0 26px; color: var(--muted); }
-  .tag b { font-weight: 700; color: var(--ink); }
-  h2 { font-size: 1.05rem; font-weight: 600; margin: 0 0 10px; display: flex; align-items: baseline; gap: 10px; }
-  h2 .count { font-size: 0.74rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; background: rgba(255, 225, 243, 0.08); color: var(--muted); }
-
-  /* Hero */
-  .hero { padding: 132px 0 20px; text-align: center; }
-  .hero h1 { font-size: clamp(2.4rem, 6.4vw, 4rem); line-height: 1.04; letter-spacing: -0.04em; font-weight: 300; margin: 22px auto 18px; max-width: 15.5em; text-wrap: balance; }
-  .hero h1 b { font-weight: 800; }
-  .hero h1 .pink { color: var(--accent); } .hero h1 .blue { color: var(--blue); }
-  .hero p { max-width: 560px; margin: 0 auto 26px; color: var(--muted); font-size: 16px; }
-  .hero p b { color: var(--ink); font-weight: 600; }
-  .cta { display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; }
-
-  /* Fan of cards */
-  .fan { position: relative; height: 330px; margin: 46px auto 0; perspective: 1400px; max-width: 1000px; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 8%, #000 92%, transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 8%, #000 92%, transparent 100%); }
-  .fan .c { position: absolute; left: 50%; top: 0; width: 196px; height: 260px; margin-left: -98px; border-radius: 18px; overflow: hidden; background: linear-gradient(165deg, #3a1230 0%, #190615 70%); box-shadow: inset 0 0 0 1px rgba(255, 225, 243, 0.12), inset 0 1px 0 rgba(255, 225, 243, 0.18), 0 30px 60px -20px rgba(0, 0, 0, 0.9); transform-origin: 50% 110%; transition: transform .4s; }
-  .fan .c::before { content: ""; position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='18'%3E%3Crect x='1' y='1' width='10' height='16' rx='2' fill='%23ffffff'/%3E%3C/svg%3E"); background-size: 12px 18px; opacity: 0.06; }
-  .fan .c .n { position: absolute; top: 14px; left: 14px; font-size: 11px; font-weight: 700; letter-spacing: 0.08em; color: var(--faint); }
-  .fan .c .w { position: absolute; inset: 0; display: grid; place-items: center; font-size: 34px; font-weight: 800; letter-spacing: -0.04em; color: rgba(255, 244, 250, 0.92); }
-  .fan .c .w.pink { color: var(--accent); } .fan .c .w.blue { color: var(--blue); }
-  .fan .c .l { position: absolute; left: 14px; right: 14px; bottom: 14px; font-size: 13px; color: var(--muted); }
-  .fan .c .l b { display: block; color: var(--ink); font-weight: 600; }
-  .fan .c:nth-child(1) { transform: translateX(-340px) translateY(48px) rotate(-12deg) rotateY(16deg); }
-  .fan .c:nth-child(2) { transform: translateX(-175px) translateY(14px) rotate(-6deg) rotateY(8deg); }
-  .fan .c:nth-child(3) { transform: translateY(0); z-index: 2; }
-  .fan .c:nth-child(4) { transform: translateX(175px) translateY(14px) rotate(6deg) rotateY(-8deg); }
-  .fan .c:nth-child(5) { transform: translateX(340px) translateY(48px) rotate(12deg) rotateY(-16deg); }
-  .fan .c:hover { transform: translateY(-14px) scale(1.03); z-index: 3; }
-  .fan-cap { text-align: center; color: var(--faint); font-size: 13px; margin: 0 0 8px; }
-  .fan-cap b { display: block; color: var(--ink); font-weight: 600; font-size: 14px; }
-
-  /* Sections and glass panels */
+  /* Page layout on top of the component system in ui.css. */
   section { padding: 84px 0 0; }
-  .soon { max-width: 640px; margin: 36px auto 0; text-align: center; padding: 22px 24px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 var(--ring-2); }
-  .soon h3 { margin: 0 0 6px; font-size: 1.05rem; } .soon p { margin: 0; color: var(--muted); font-size: 0.95rem; }
-  .notice { border-radius: 12px; padding: 12px 14px; color: var(--ink); background: rgba(127, 29, 45, 0.25); box-shadow: inset 0 0 0 1px rgba(251, 113, 133, 0.35); font-size: 0.92rem; margin: 20px 0 0; }
-  .panel { background: var(--panel); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border-radius: 18px; box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 var(--ring-2), 0 20px 50px -30px rgba(0,0,0,.9); }
-  .panel.pad { padding: 20px; }
-  .status { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin: -8px 0 18px; }
-  .progress { flex: 0 1 180px; height: 3px; background: rgba(255, 225, 243, 0.1); border-radius: 2px; overflow: hidden; }
-  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
-  .linkbtn { background: none; border: 0; color: var(--accent-2); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0; }
 
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  .tile { padding: 18px 18px 16px; border-radius: 16px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 var(--ring-2); min-width: 0; }
-  .tile.hero { background: linear-gradient(180deg, rgba(64, 18, 50, 0.85), var(--panel)); box-shadow: inset 0 0 0 1px rgba(255, 31, 143, 0.35), inset 0 1px 0 rgba(255, 106, 184, 0.3); }
-  .tile .label { color: var(--muted); font-size: 0.72rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
-  .tile .value { font-size: 1.7rem; font-weight: 800; letter-spacing: -0.03em; font-variant-numeric: tabular-nums; margin-top: 8px; overflow-wrap: anywhere; line-height: 1.15; }
-  .tile .value small { font-size: 0.58em; font-weight: 600; color: var(--muted); margin-left: 5px; letter-spacing: 0; }
-  .tile.hero .value { color: var(--accent); }
-  .tile .sub { color: var(--faint); font-size: 0.8rem; margin-top: 8px; }
-  .skeleton { display: inline-block; width: 60%; height: 1em; border-radius: 6px; background: linear-gradient(90deg, rgba(255,225,243,.08) 25%, rgba(255,225,243,.16) 50%, rgba(255,225,243,.08) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
-  @keyframes shimmer { to { background-position: -200% 0; } }
+  .hero { padding: 54px 0 10px; }
+  .hero .tape { margin-bottom: 44px; }
+  .hero h1 { font-size: clamp(2.4rem, 6.2vw, 4.1rem); line-height: 1.02; letter-spacing: -0.045em; font-weight: 300; margin: 0 0 20px; max-width: 16em; }
+  .hero h1 b { font-weight: 800; }
+  .hero .lede { max-width: 620px; margin: 0 0 26px; color: var(--muted); font-size: 16.5px; }
+  .hero .lede b { color: var(--ink); font-weight: 600; }
+  .hero .cta { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
 
-  /* How it works: sticky word list + scrolling cards */
+  /* Fan of tickets */
+  .fan { position: relative; height: 330px; margin: 54px auto 0; perspective: 1400px; max-width: 1000px; -webkit-mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); mask-image: linear-gradient(to right, transparent 0, #000 7%, #000 93%, transparent 100%); }
+  .fan .ticket { position: absolute; left: 50%; top: 0; width: 196px; height: 262px; margin-left: -98px; transform-origin: 50% 110%; transition: transform .4s; }
+  .fan .ticket .w { position: absolute; left: 30px; right: 14px; top: 92px; margin: 0; }
+  .fan .ticket .l { position: absolute; left: 30px; right: 14px; bottom: 14px; }
+  .fan .ticket:nth-child(1) { transform: translateX(-340px) translateY(48px) rotate(-12deg) rotateY(16deg); }
+  .fan .ticket:nth-child(2) { transform: translateX(-175px) translateY(14px) rotate(-6deg) rotateY(8deg); }
+  .fan .ticket:nth-child(3) { transform: translateY(0); z-index: 2; }
+  .fan .ticket:nth-child(4) { transform: translateX(175px) translateY(14px) rotate(6deg) rotateY(-8deg); }
+  .fan .ticket:nth-child(5) { transform: translateX(340px) translateY(48px) rotate(12deg) rotateY(-16deg); }
+  .fan .ticket:hover { transform: translateY(-14px) scale(1.03); z-index: 3; }
+  .fan-cap { display: flex; justify-content: center; gap: 18px; margin: 0 0 8px; font-family: var(--mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--faint); }
+  .fan-cap b { color: var(--ink); font-weight: 600; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+
+  /* How it works: sticky word list + numbered frames */
   .how { display: grid; grid-template-columns: 1fr 1.15fr; gap: 40px; align-items: start; }
-  .words { position: sticky; top: 120px; display: grid; gap: 6px; padding-top: 10px; }
-  .words button { background: none; border: 0; padding: 0; text-align: left; white-space: nowrap; font: inherit; font-size: clamp(2rem, 4.4vw, 3.2rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; color: var(--ink); cursor: pointer; filter: blur(3px); opacity: 0.28; transition: filter .35s, opacity .35s, transform .35s; transform: translateX(0); }
-  .words button.on { filter: none; opacity: 1; transform: translateX(6px); }
+  .words { position: sticky; top: 90px; display: grid; gap: 6px; padding-top: 6px; }
+  .words button { background: none; border: 0; padding: 0; text-align: left; white-space: nowrap; font: inherit; font-size: clamp(2rem, 4.4vw, 3.2rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1.1; color: var(--ink); cursor: pointer; opacity: 0.22; transition: opacity .35s, transform .35s; display: flex; align-items: baseline; gap: 14px; }
+  .words button i { font: 500 11px var(--mono); letter-spacing: 0.14em; color: var(--faint); }
+  .words button.on { opacity: 1; transform: translateX(6px); }
   .words p { margin: 18px 0 0; color: var(--muted); font-size: 0.95rem; max-width: 36ch; }
-  .hcards { display: grid; gap: 18px; }
-  .hcard { padding: 22px 22px 20px; border-radius: 18px; background: var(--panel); box-shadow: inset 0 0 0 1px var(--ring), inset 0 1px 0 var(--ring-2); min-height: 200px; scroll-margin-top: 110px; }
-  .hcard .k { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint); }
-  .hcard .t { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 6px 0 8px; }
-  .hcard .t.pink { color: var(--accent); } .hcard .t.blue { color: var(--blue); }
+  .hcards { display: grid; gap: 14px; }
+  .hcard { min-height: 196px; scroll-margin-top: 90px; }
+  .hcard .t { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.02em; margin: 8px 0 8px; }
   .hcard p { margin: 0; color: var(--muted); font-size: 0.95rem; }
   .hcard p strong { color: var(--ink); font-weight: 600; }
-  .hcard .big { font-size: 48px; font-weight: 800; letter-spacing: -0.05em; margin: 10px 0 6px; line-height: 1; }
+  .hcard .big { font-family: var(--mono); font-size: 44px; font-weight: 600; letter-spacing: -0.03em; margin: 10px 0 6px; line-height: 1; }
 
-  /* Table, wallet, filters */
-  .panel.table { padding: 0 18px; overflow-x: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  th { text-align: left; color: var(--faint); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 13px 12px 11px 0; border-bottom: 1px solid var(--ring-2); }
-  td { padding: 12px 12px 12px 0; border-bottom: 1px solid var(--ring); vertical-align: top; }
-  tr:last-child td { border-bottom: 0; }
-  td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; font-weight: 600; }
-  td.num.in { color: var(--ok); } td.num.out { color: var(--ink); } td.num.burn { color: var(--accent); }
-  .nowrap { white-space: nowrap; }
-  .type { display: inline-block; font-size: 0.72rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; box-shadow: inset 0 0 0 1px var(--ring-2); color: var(--muted); white-space: nowrap; margin-right: 8px; vertical-align: 1px; }
-  .type.claim { color: var(--ok); box-shadow: inset 0 0 0 1px rgba(74, 222, 128, 0.35); background: rgba(74, 222, 128, 0.08); }
-  .type.buy { color: var(--accent-2); box-shadow: inset 0 0 0 1px rgba(255, 106, 184, 0.4); background: rgba(255, 31, 143, 0.1); }
-  .type.burn { color: var(--btn-ink); background: var(--accent); box-shadow: none; }
-  .type.payout { color: var(--blue); box-shadow: inset 0 0 0 1px rgba(143, 211, 255, 0.35); background: rgba(143, 211, 255, 0.08); }
-  .detail { color: var(--faint); font-size: 0.82rem; margin-top: 4px; }
-  .detail a, .proof a, #addresses a, #repo a, #ledger a { color: var(--accent-2); } .detail a:hover, .proof a:hover, #addresses a:hover, #repo a:hover, #ledger a:hover { text-decoration: underline; }
-  .proof { font-size: 0.78rem; white-space: nowrap; }
-  .proof .ok { color: var(--ok); } .proof .bad { color: var(--bad); }
-  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  input[type=text] { flex: 1 1 320px; min-width: 0; height: 42px; background: rgba(11, 3, 8, 0.6); color: var(--ink); border: 0; box-shadow: inset 0 0 0 1px var(--ring-2); border-radius: 10px; padding: 0 14px; font: inherit; font-family: var(--mono); font-size: 0.9rem; }
-  input[type=text]:focus { outline: none; box-shadow: inset 0 0 0 1px var(--accent), 0 0 0 4px rgba(255, 31, 143, 0.15); }
   .wallet-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
-  .wallet-tiles .tile .value { font-size: 1.3rem; }
-  .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 12px; }
-  .filters button { height: 32px; padding: 0 13px; font: inherit; font-size: 13px; font-weight: 700; border-radius: 999px; border: 0; background: var(--btn); color: var(--btn-ink); cursor: pointer; }
-  .filters button[aria-pressed=false] { background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--ring-2); font-weight: 500; }
-  .filters button .c { opacity: 0.65; font-weight: 500; margin-left: 4px; }
+  .wallet-tiles .stat .v { font-size: 1.3rem; }
+  .table { padding: 0 18px; overflow-x: auto; }
+  .count { font-family: var(--mono); font-size: 0.6em; color: var(--faint); font-weight: 500; margin-left: 10px; letter-spacing: 0.1em; }
 
-  /* Wordmarks and footer */
-  .marks { display: flex; flex-wrap: wrap; justify-content: center; gap: 18px 44px; filter: grayscale(1); opacity: 0.8; }
-  .marks span { font-weight: 800; letter-spacing: -0.03em; font-size: clamp(1.1rem, 2.4vw, 1.6rem); color: #e9dbe4; }
-  .marks span.light { font-weight: 300; letter-spacing: 0; } .marks span.mono { font-family: var(--mono); font-weight: 700; font-size: 1.1rem; } .marks span.serif { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; }
-  footer { margin-top: 90px; padding-top: 26px; padding-bottom: 60px; text-align: center; color: var(--faint); font-size: 12.5px; }
-  footer p { margin: 6px auto; max-width: 720px; overflow-wrap: anywhere; }
-  footer .addr { margin: 0 8px; white-space: nowrap; }
+  .marks { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 14px 30px; padding: 18px 0; border-top: 1px solid var(--hair); border-bottom: 1px solid var(--hair); filter: grayscale(1); opacity: 0.75; }
+  .marks span { font-weight: 800; letter-spacing: -0.03em; font-size: clamp(1rem, 2vw, 1.3rem); color: #e9dbe4; }
+  .marks span.light { font-weight: 300; letter-spacing: 0; } .marks span.mono { font-family: var(--mono); font-weight: 600; font-size: 1rem; } .marks span.serif { font-family: Georgia, "Times New Roman", serif; font-style: italic; font-weight: 700; }
 
-  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } .fan .c, .words button, .btn { transition: none; } .badge .dot.busy, .skeleton { animation: none; } }
   @media (max-width: 900px) {
     .tiles { grid-template-columns: repeat(2, 1fr); }
-    .how { grid-template-columns: 1fr; } .words { position: static; grid-auto-flow: column; justify-content: start; gap: 14px; overflow-x: auto; padding-bottom: 6px; } .words button { font-size: 1.4rem; filter: none; opacity: 0.4; } .words p { display: none; }
-    .fan { height: 250px; } .fan .c { width: 150px; height: 200px; margin-left: -75px; } .fan .c .w { font-size: 26px; }
-    .fan .c:nth-child(1) { transform: translateX(-250px) translateY(40px) rotate(-12deg); } .fan .c:nth-child(2) { transform: translateX(-128px) translateY(12px) rotate(-6deg); } .fan .c:nth-child(4) { transform: translateX(128px) translateY(12px) rotate(6deg); } .fan .c:nth-child(5) { transform: translateX(250px) translateY(40px) rotate(12deg); }
+    .how { grid-template-columns: 1fr; } .words { position: static; grid-auto-flow: column; justify-content: start; gap: 18px; overflow-x: auto; padding-bottom: 6px; } .words button { font-size: 1.4rem; opacity: 0.4; } .words button i { display: none; } .words p { display: none; }
+    .fan { height: 250px; } .fan .ticket { width: 150px; height: 200px; margin-left: -75px; } .fan .ticket .w { font-size: 26px; top: 66px; } .fan .ticket .w.mono { font-size: 22px; }
+    .fan .ticket:nth-child(1) { transform: translateX(-250px) translateY(40px) rotate(-12deg); } .fan .ticket:nth-child(2) { transform: translateX(-128px) translateY(12px) rotate(-6deg); } .fan .ticket:nth-child(4) { transform: translateX(128px) translateY(12px) rotate(6deg); } .fan .ticket:nth-child(5) { transform: translateX(250px) translateY(40px) rotate(12deg); }
   }
   @media (max-width: 640px) {
-    .pill.links a:not(.buy):not(.keep) { display: none; }
-    .hero { padding-top: 110px; } section { padding-top: 64px; }
+    .bar nav a:not(.keep):not(.btn) { display: none; }
+    .hero { padding-top: 34px; } section { padding-top: 64px; }
     .tiles, .wallet-tiles { grid-template-columns: 1fr; }
-    .fan { height: 210px; } .fan .c { width: 120px; height: 160px; margin-left: -60px; border-radius: 14px; } .fan .c .w { font-size: 20px; inset: 40px 0 auto; place-items: start center; } .fan .c .l { font-size: 11px; line-height: 1.3; } .fan .c .l b { font-size: 12px; }
-    .fan .c:nth-child(1) { transform: translateX(-190px) translateY(36px) rotate(-12deg); } .fan .c:nth-child(2) { transform: translateX(-98px) translateY(10px) rotate(-6deg); } .fan .c:nth-child(4) { transform: translateX(98px) translateY(10px) rotate(6deg); } .fan .c:nth-child(5) { transform: translateX(190px) translateY(36px) rotate(12deg); }
-    td, th { padding-right: 8px; } .hide-sm { display: none; }
+    .fan { height: 210px; } .fan .ticket { width: 124px; height: 164px; margin-left: -62px; padding-left: 24px; } .fan .ticket::before { left: 12px; } .fan .ticket .w { font-size: 20px; top: 50px; left: 24px; } .fan .ticket .w.mono { font-size: 17px; } .fan .ticket .l { font-size: 11px; left: 24px; padding-top: 6px; } .fan .ticket .l b { font-size: 12px; } .fan .ticket .no { display: none; }
+    .fan .ticket:nth-child(1) { transform: translateX(-190px) translateY(36px) rotate(-12deg); } .fan .ticket:nth-child(2) { transform: translateX(-98px) translateY(10px) rotate(-6deg); } .fan .ticket:nth-child(4) { transform: translateX(98px) translateY(10px) rotate(6deg); } .fan .ticket:nth-child(5) { transform: translateX(190px) translateY(36px) rotate(12deg); }
   }
+  @media (prefers-reduced-motion: reduce) { .fan .ticket, .words button { transition: none; } }
 </style>
 </head>
 <body>
-<div class="grid" aria-hidden="true"></div>
+<div class="wall" aria-hidden="true"></div>
 
-<header class="nav">
-  <a class="pill logo" href="#top" aria-label="Dacity Strategy"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-  <nav class="pill links">
-    <a href="#top" class="keep">Home</a><a href="./dashboard.html" class="keep">Dashboard</a><a href="#live" data-live>Live</a><a href="#how">How it works</a><a href="#wallet" data-live>Wallet</a><a href="#txs" data-live>Transactions</a>
-    <a class="buy" id="buy-nav" href="#" rel="noopener" hidden>Buy</a>
-  </nav>
+<header class="bar">
+  <div class="wrap in">
+    <a class="wm" href="#top"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="nav-title">Dacity Strategy</span><small>Statement</small></a>
+    <nav>
+      <a href="./dashboard.html" class="keep"><i>00</i>Dashboard</a><a href="#live" data-live><i>01</i>Live</a><a href="#how"><i>02</i>How</a><a href="#wallet" data-live><i>03</i>Wallet</a><a href="#txs" data-live><i>04</i>History</a>
+      <a class="btn fill keep" id="buy-nav" href="#" rel="noopener" hidden>Buy</a>
+    </nav>
+  </div>
 </header>
 
 <main id="top">
   <section class="hero wrap">
-    <span class="badge"><b id="badge-kind">SOON</b><span class="dot" id="dot"></span><span id="eyebrow-text">Introducing <span id="nav-title">Dacity Strategy</span></span></span>
+    <div class="tape" aria-live="polite">
+      <span><i class="rec" id="rec"></i><span class="stamp ink" id="badge-kind">Statement</span></span>
+      <span><span class="k">Chain</span><span class="v">Solana</span></span>
+      <span><span class="k">Slot</span><span class="v" id="slot">—</span></span>
+      <span class="hide-sm"><span class="k">Read</span><span class="v" id="read-at">—</span></span>
+      <span><span class="v" id="eyebrow-text" style="color:var(--muted)">Reading the chain in your browser</span><span class="meter" id="progress" hidden><i></i></span></span>
+    </div>
     <h1>Fees burn <span class="pink">DCTY</span>, buy back the coin <b>and pay you in <span class="blue">TTWO</span>.</b></h1>
-    <p><b id="title">Dacity Strategy</b> is a pump.fun coin paired with TTWO, tokenized Take-Two stock. Its creator fees never sit still: <b><span class="pct-burn">40%</span> buys DacityCoin and burns it, <span class="pct-buyback">20%</span> buys this coin back and burns it, <span class="pct-holders">40%</span> is sent to holders in TTWO.</b> Nothing to claim. Everything on-chain.</p>
+    <p class="lede"><b id="title">Dacity Strategy</b> is a pump.fun coin paired with TTWO, tokenized Take-Two stock. Its creator fees never sit still: <b><span class="pct-burn">40%</span> buys DacityCoin and burns it, <span class="pct-buyback">20%</span> buys this coin back and burns it, <span class="pct-holders">40%</span> is sent to holders in TTWO.</b> Nothing to claim. Everything on-chain.</p>
     <div class="cta">
-      <a class="btn text" href="#how" data-soon hidden>How it works</a>
+      <a class="btn fill" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun <span class="ar">→</span></a>
       <a class="btn" href="./dashboard.html" data-live>Open the dashboard <span class="ar">→</span></a>
-      <a class="btn text" href="#txs" data-live>See every transaction</a>
-      <a class="btn" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun <span class="ar">→</span></a>
-      <a class="btn" href="#wallet" data-live>Check my wallet <span class="ar">→</span></a>
+      <a class="btn quiet" href="#txs" data-live>Every transaction</a>
+      <a class="btn quiet" href="#wallet" data-live>Check my wallet</a>
       <a class="btn" href="#how" data-soon hidden>See the plan <span class="ar">→</span></a>
     </div>
 
     <div class="fan" aria-hidden="true">
-      <div class="c"><span class="n">01 · CLAIM</span><span class="w">TTWO</span><span class="l"><b>Fees arrive</b>paid by pump.fun on every trade</span></div>
-      <div class="c"><span class="n">02 · SPLIT</span><span class="w split-fan">40·20·40</span><span class="l"><b>Three ways, fixed</b>nothing is kept</span></div>
-      <div class="c"><span class="n">03 · BURN</span><span class="w pink">DCTY</span><span class="l"><b><span class="pct-burn">40%</span> buys DacityCoin</b>and burns it on the spot</span></div>
-      <div class="c"><span class="n">04 · BUY BACK</span><span class="w pink">🔥</span><span class="l"><b><span class="pct-buyback">20%</span> buys this coin</b>and burns it too</span></div>
-      <div class="c"><span class="n">05 · PAY</span><span class="w blue">HOLDERS</span><span class="l"><b><span class="pct-holders">40%</span>, in TTWO</b>sent straight to wallets</span></div>
+      <div class="ticket"><span class="no">No. 01</span><span class="k">01 · Claim</span><div class="w mono">TTWO</div><div class="l"><b>Fees arrive</b>paid by pump.fun on every trade</div></div>
+      <div class="ticket"><span class="no">No. 02</span><span class="k">02 · Split</span><div class="w mono split-fan">40·20·40</div><div class="l"><b>Three ways, fixed</b>nothing is kept</div></div>
+      <div class="ticket"><span class="no">No. 03</span><span class="k">03 · Burn</span><div class="w pink">DCTY</div><div class="l"><b><span class="pct-burn">40%</span> buys DacityCoin</b>and burns it on the spot</div></div>
+      <div class="ticket"><span class="no">No. 04</span><span class="k">04 · Buy back</span><div class="w">🔥</div><div class="l"><b><span class="pct-buyback">20%</span> buys this coin</b>and burns it too</div></div>
+      <div class="ticket"><span class="no">No. 05</span><span class="k">05 · Pay</span><div class="w blue">TTWO</div><div class="l"><b><span class="pct-holders">40%</span> to holders</b>sent straight to wallets</div></div>
     </div>
-    <p class="fan-cap"><b>Claim · Split · Burn · Buy back · Pay</b>one cycle, every time fees build up</p>
+    <p class="fan-cap"><b>Claim · Split · Burn · Buy back · Pay</b><span>one cycle, every time fees build up</span></p>
 
-    <div id="setup" class="soon" hidden><h3>Launching soon</h3><p>The coin is not live yet. The moment it is, this page lights up with the treasury's balances and every claim, buy, burn, buyback and payout, read directly from Solana.</p></div>
+    <div id="setup" class="notice" hidden>The page could not load its configuration, so it is showing the plan without numbers.</div>
     <div id="error" class="notice" hidden></div>
   </section>
 
   <section id="live" class="wrap" data-live>
-    <p class="tag">Every fee accounted for, <b>live from the chain.</b></p>
-    <div class="status"><span id="status-text">Connecting…</span><span class="progress" id="progress" hidden><i></i></span><button class="linkbtn" id="refresh" hidden>Refresh</button></div>
+    <div class="sec"><span class="idx">01</span><h2>Every fee accounted for, <b>live from the chain.</b></h2></div>
+    <div class="row" style="justify-content:space-between;margin:0 0 14px"><span class="lbl" id="status-text">Connecting…</span><button class="linkbtn" id="refresh" hidden>Refresh</button></div>
     <div class="tiles" id="tiles"></div>
   </section>
 
   <section id="how" class="wrap">
-    <p class="tag">Five steps, <b>no hands on the money.</b></p>
+    <div class="sec"><span class="idx">02</span><h2>Five steps, <b>no hands on the money.</b></h2></div>
     <div class="how">
       <div class="words" id="words">
-        <button type="button" class="on" data-i="0">Claim</button>
-        <button type="button" data-i="1">Split</button>
-        <button type="button" data-i="2">Burn</button>
-        <button type="button" data-i="3">Buy back</button>
-        <button type="button" data-i="4">Pay</button>
+        <button type="button" class="on" data-i="0"><i>01</i>Claim</button>
+        <button type="button" data-i="1"><i>02</i>Split</button>
+        <button type="button" data-i="2"><i>03</i>Burn</button>
+        <button type="button" data-i="3"><i>04</i>Buy back</button>
+        <button type="button" data-i="4"><i>05</i>Pay</button>
         <p>A small open-source bot runs the treasury on a fixed rule. It cannot change the split and it keeps nothing. Every step is a public Solana transaction.</p>
       </div>
       <div class="hcards" id="hcards">
-        <div class="hcard"><div class="k">Step 1 · Claim</div><div class="t">Creator fees in TTWO</div><p>pump.fun pays the coin's creator a fee on every trade. Because the coin is paired with TTWO, the fee arrives in TTWO and waits in a vault only the treasury can claim. The bot claims it each cycle.</p></div>
-        <div class="hcard"><div class="k">Step 2 · Split</div><div class="big split-big">40 / 20 / 40</div><p>Every claim is divided three ways by a fixed rule: <span class="pct-burn">40%</span> to burn DCTY, <span class="pct-buyback">20%</span> to buy this coin back, <span class="pct-holders">40%</span> to holders. <strong>Nothing is kept</strong> and no one can change the ratio without changing the public code.</p></div>
-        <div class="hcard"><div class="k">Step 3 · Burn</div><div class="t pink">Buy DCTY, destroy it</div><p>The first share buys DacityCoin on the open market and burns it in the same cycle. Supply only goes down, and each burn is a transaction anyone can open.</p></div>
-        <div class="hcard"><div class="k">Step 4 · Buy back</div><div class="t pink">Buy this coin back, destroy it</div><p>The second share buys <strong class="self-name">Dacity Strategy</strong> on its own market and burns it too. The coin you hold gets scarcer with every cycle, and every buyback is on-chain.</p></div>
-        <div class="hcard"><div class="k">Step 5 · Pay</div><div class="t blue">Holders are paid in TTWO</div><p>The last share is sent, pro rata, to every wallet holding at least <strong id="minhold">the minimum</strong>. <strong>Nothing to claim:</strong> it simply lands in your wallet.</p></div>
+        <div class="frame hcard"><span class="tr"></span><span class="bl"></span><span class="lbl">Step 01 · Claim</span><div class="t">Creator fees in TTWO</div><p>pump.fun pays the coin's creator a fee on every trade. Because the coin is paired with TTWO, the fee arrives in TTWO and waits in a vault only the treasury can claim. The bot claims it each cycle.</p></div>
+        <div class="frame hcard"><span class="tr"></span><span class="bl"></span><span class="lbl">Step 02 · Split</span><div class="big split-big">40 / 20 / 40</div><p>Every claim is divided three ways by a fixed rule: <span class="pct-burn">40%</span> to burn DCTY, <span class="pct-buyback">20%</span> to buy this coin back, <span class="pct-holders">40%</span> to holders. <strong>Nothing is kept</strong> and no one can change the ratio without changing the public code.</p></div>
+        <div class="frame hcard hot"><span class="tr"></span><span class="bl"></span><span class="lbl">Step 03 · Burn</span><div class="t pink">Buy DCTY, destroy it</div><p>The first share buys DacityCoin on the open market and burns it in the same cycle. Supply only goes down, and each burn is a transaction anyone can open.</p></div>
+        <div class="frame hcard hot"><span class="tr"></span><span class="bl"></span><span class="lbl">Step 04 · Buy back</span><div class="t pink">Buy this coin back, destroy it</div><p>The second share buys <strong class="self-name">Dacity Strategy</strong> on its own market and burns it too. The coin you hold gets scarcer with every cycle, and every buyback is on-chain.</p></div>
+        <div class="frame hcard"><span class="tr"></span><span class="bl"></span><span class="lbl">Step 05 · Pay</span><div class="t blue">Holders are paid in TTWO</div><p>The last share is sent, pro rata, to every wallet holding at least <strong id="minhold">the minimum</strong>. <strong>Nothing to claim:</strong> it simply lands in your wallet.</p></div>
       </div>
     </div>
   </section>
 
   <section id="wallet" class="wrap" data-live>
-    <p class="tag">Your wallet, <b>your share.</b></p>
-    <div class="panel pad">
+    <div class="sec"><span class="idx">03</span><h2>Your wallet, <b>your share.</b></h2></div>
+    <div class="frame"><span class="tr"></span><span class="bl"></span>
       <form class="row" id="wallet-form">
         <input type="text" id="wallet-input" placeholder="Paste a Solana wallet address" autocomplete="off" spellcheck="false" aria-label="Wallet address">
         <button type="submit" class="btn" id="wallet-btn">Check <span class="ar">→</span></button>
@@ -266,22 +171,20 @@
   </section>
 
   <section id="txs" class="wrap" data-live>
-    <p class="tag">Every transaction, <b>one list.</b></p>
-    <h2>Treasury history <span class="count" id="tx-count"></span></h2>
-    <div class="filters" id="filters" role="group" aria-label="Filter transactions"></div>
-    <div class="panel table"><table><thead><tr><th class="hide-sm">When</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
-    <div class="row" style="margin-top:12px"><button class="btn ghost" id="more" hidden>Show more</button></div>
-    <div class="panel pad" id="ledger" style="margin-top:14px"><span class="muted">Checking the bot's published books against the chain…</span></div>
+    <div class="sec"><span class="idx">04</span><h2>Treasury history<span class="count" id="tx-count"></span></h2></div>
+    <div class="tabs" id="filters" role="group" aria-label="Filter transactions"></div>
+    <div class="frame table"><span class="tr"></span><span class="bl"></span><table class="ledger"><thead><tr><th class="hide-sm">When</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
+    <div class="row" style="margin-top:12px"><button class="btn" id="more" hidden>Show more</button></div>
+    <div class="frame" id="ledger" style="margin-top:14px"><span class="tr"></span><span class="bl"></span><span class="muted">Checking the bot's published books against the chain…</span></div>
   </section>
 
   <section class="wrap">
-    <p class="tag">Built on <b>open rails.</b></p>
     <div class="marks" aria-label="Built with">
       <span>SOLANA</span><span class="light">pump.fun</span><span class="serif">DacityCoin</span><span class="mono">TTWO</span><span>TOKEN‑2022</span><span class="light">solscan</span><span class="mono">open source</span>
     </div>
   </section>
 
-  <footer class="wrap">
+  <footer class="wrap fine">
     <p id="addresses"></p>
     <p>Verify it yourself: open the treasury on any explorer. Its history is this page. Data comes from a public Solana RPC and can lag by a few seconds. <span id="repo"></span></p>
     <p>Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
@@ -289,7 +192,7 @@
 </main>
 
 <script type="module">
-  import { BASE58, classify, fmt, makeRpc, receivedBy, summarize, toBase, ata } from "./proof.js";
+  import { BASE58, classify, fmt, makeRpc, receivedBy, summarize, toBase, ata, crossCheck } from "./proof.js";
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -298,11 +201,12 @@
   const acctUrl = (a) => `https://solscan.io/account/${encodeURIComponent(a)}`;
   const when = (t) => (t ? new Date(t * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC" : "pending");
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+  const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
   const MAX_HISTORY = 2000;
-  const LABELS = { claim: "Claim", buy: "Buy", burn: "Burn", payout: "Pay holders", other: "Other" };
-  const label = (x) => (x.coin === "self" ? { buy: "Buy back", burn: "Burn" }[x.kind] : LABELS[x.kind]);
   const STRATEGY = ["claim", "buy", "burn", "payout"];
+  const STAMP = { claim: ["ok", "Claim"], buy: ["pink", "Buy"], burn: ["solid", "Burn"], payout: ["blue", "Pay"], other: ["ink", "Other"] };
+  const stampOf = (x) => { const [cls, text] = STAMP[x.kind]; return `<span class="stamp ${cls}">${x.coin === "self" && x.kind === "buy" ? "Buy back" : text}</span>`; };
 
   let cfg, rpc;
   const state = { rows: [], filter: "strategy", shown: 25, live: null, truncated: false, scanning: false };
@@ -322,6 +226,9 @@
     const r = await rpc("getAccountInfo", [await ata(owner, mint, m.program), { encoding: "jsonParsed", commitment: "confirmed" }]);
     return { amount: r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n, decimals: m.decimals };
   }
+  async function readSlot() {
+    try { const slot = await rpc("getSlot", [{ commitment: "confirmed" }]); $("slot").textContent = group(slot); $("read-at").textContent = new Date().toISOString().slice(11, 19) + " UTC"; } catch {}
+  }
   const cacheKey = (sig) => `dacity:tx:v2:${sig}`; // bump when classify() changes shape
   const revive = (k, v) => (typeof v === "string" && /^-?\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v);
   const readCache = (sig) => { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } };
@@ -333,7 +240,8 @@
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const tile = (label, value, sub, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="label">${esc(label)}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  let statIndex = 0;
+  const stat = (label, value, sub, hot) => `<div class="frame stat${hot ? " hot" : ""}"><span class="tr"></span><span class="bl"></span><span class="idx">${String(++statIndex).padStart(2, "0")}</span><div class="k">${esc(label)}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
   function renderTiles() {
@@ -342,12 +250,13 @@
     const live = state.live;
     const sk = `<span class="skeleton"></span>`;
     const name = esc(cfg.strategySymbol || "coin");
+    statIndex = 0;
     $("tiles").innerHTML = [
-      tile("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, live ? `supply now ${fmt(live.supply, b, 0)} · ${plural(s.burns, "burn")}` : plural(s.burns, "burn"), true),
-      tile("Bought back & burned", `${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, live && live.selfSupply != null ? `supply now ${fmt(live.selfSupply, sd, 0)} · ${plural(s.selfBurns, "burn")}` : cfg.strategyMint ? plural(s.selfBurns, "burn") : "starts with the first fee", true),
-      tile("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
-      tile("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${fmt(s.spent, q)} TTWO on DCTY · ${fmt(s.selfSpent, q)} TTWO on buybacks`),
-      tile("Treasury holds", live ? `${fmt(live.quote.amount, q)}<small>TTWO</small>` : sk, live ? `${fmt(live.coin.amount, b, 2)} DCTY and ${fmt(live.self.amount, sd, 2)} ${name} waiting to burn · ${fmt(live.sol, 9, 3)} SOL for fees` : "reading balances…"),
+      stat("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, live ? `supply now ${fmt(live.supply, b, 0)} · ${plural(s.burns, "burn")}` : plural(s.burns, "burn"), true),
+      stat("Bought back & burned", `${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, live && live.selfSupply != null ? `supply now ${fmt(live.selfSupply, sd, 0)} · ${plural(s.selfBurns, "burn")}` : cfg.strategyMint ? plural(s.selfBurns, "burn") : "starts with the first fee", true),
+      stat("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
+      stat("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${fmt(s.spent, q)} TTWO on DCTY · ${fmt(s.selfSpent, q)} TTWO on buybacks`),
+      stat("Treasury holds", live ? `${fmt(live.quote.amount, q)}<small>TTWO</small>` : sk, live ? `${fmt(live.coin.amount, b, 2)} DCTY and ${fmt(live.self.amount, sd, 2)} ${name} waiting to burn · ${fmt(live.sol, 9, 3)} SOL for fees` : "reading balances…"),
     ].join("");
   }
 
@@ -371,12 +280,12 @@
         ? `<div class="detail mono">${x.payouts.slice(0, 4).map(([o, a]) => `<a href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a> ${fmt(a, x.qd ?? 0)}`).join(" · ")}${x.payouts.length > 4 ? ` · +${x.payouts.length - 4} more` : ""}</div>`
         : "";
       const cls = x.kind === "burn" ? "burn" : x.sign > 0 ? "in" : "out";
-      const prefix = x.kind === "burn" ? "🔥 " : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
+      const prefix = x.kind === "burn" ? "" : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
       return `<tr>
         <td class="nowrap muted hide-sm">${esc(when(x.time))}</td>
-        <td><span class="type ${x.kind}">${label(x)}</span>${esc(x.text)}${payees}</td>
+        <td>${stampOf(x)}${esc(x.text)}${payees}</td>
         <td class="num ${cls}">${x.amount ? prefix + esc(x.amount) : ""}</td>
-        <td class="proof"><a class="mono" href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a><div class="${x.err ? "bad" : "ok"}">${x.err ? "failed on chain" : "✓ confirmed"}</div></td>
+        <td class="proof"><a href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a><div class="${x.err ? "bad" : "ok"}">${x.err ? "failed on chain" : "confirmed"}</div></td>
       </tr>`;
     }).join("") || `<tr><td colspan="4" class="muted" style="padding:18px 0">${state.scanning ? "Reading the chain…" : state.filter === "strategy" && state.rows.length ? "No strategy activity yet. The first claim, buy, burn, buyback and payout will appear here." : "No transactions yet."}</td></tr>`;
     $("tx-count").textContent = rows.length ? `${rows.length}` : "";
@@ -384,10 +293,12 @@
   }
   $("more").onclick = () => { state.shown += 100; renderTable(); };
 
-  function setStatus(kind, text, pct, eyebrow) {
-    $("dot").className = `dot ${kind}`;
+  function setStatus(kind, text, pct, note) {
+    $("rec").className = `rec ${kind}`;
+    $("badge-kind").className = `stamp ${kind === "live" ? "ok" : kind === "busy" ? "pink" : "ink"}`;
+    $("badge-kind").textContent = kind === "live" ? "Live" : kind === "busy" ? "Reading" : "Statement";
     $("status-text").textContent = text;
-    if (eyebrow) $("eyebrow-text").textContent = eyebrow;
+    if (note) $("eyebrow-text").textContent = note;
     $("progress").hidden = pct == null;
     if (pct != null) $("progress").querySelector("i").style.width = `${pct}%`;
   }
@@ -408,13 +319,14 @@
       const total = got.reduce((a, g) => a + g.amount, 0n);
       const qd = got[0]?.decimals ?? decimals().q;
       const qualifies = held.amount > 0n && held.amount >= minHold && addr !== cfg.treasury;
+      statIndex = 0;
       out.innerHTML = `
         <div class="wallet-tiles">
-          ${tile("Holds", `${fmt(held.amount, held.decimals)}<small>${esc(cfg.holderSymbol || "")}</small>`, addr === cfg.treasury ? "this is the treasury itself" : `needs ${esc(cfg.minHold)} to qualify`)}
-          ${tile("Qualifies right now", qualifies ? `<span style="color:var(--ok)">Yes</span>` : `<span style="color:var(--warn)">Not yet</span>`, qualifies ? "will be in the next payout" : "buy or hold more to be included")}
-          ${tile("Received so far", `${fmt(total, qd)}<small>TTWO</small>`, state.scanning ? `${plural(got.length, "payout")} found so far, still reading…` : plural(got.length, "payout"))}
+          ${stat("Holds", `${fmt(held.amount, held.decimals)}<small>${esc(cfg.holderSymbol || "")}</small>`, addr === cfg.treasury ? "this is the treasury itself" : `needs ${esc(group(cfg.minHold))} to qualify`)}
+          ${stat("Qualifies right now", qualifies ? `<span class="stamp ok">Yes</span>` : `<span class="stamp warn">Not yet</span>`, qualifies ? "will be in the next payout" : "buy or hold more to be included")}
+          ${stat("Received so far", `${fmt(total, qd)}<small>TTWO</small>`, state.scanning ? `${plural(got.length, "payout")} found so far, still reading…` : plural(got.length, "payout"))}
         </div>
-        ${got.length ? `<div class="detail mono" style="margin-top:10px">${got.slice(0, 15).map((g) => `<a href="${txUrl(g.sig)}" rel="noopener">${esc(when(g.time))}</a> +${fmt(g.amount, g.decimals ?? qd)} TTWO`).join("<br>")}${got.length > 15 ? `<br>… and ${got.length - 15} more` : ""}</div>` : ""}`;
+        ${got.length ? `<div class="ledger"><div class="detail mono" style="margin-top:10px">${got.slice(0, 15).map((g) => `<a href="${txUrl(g.sig)}" rel="noopener">${esc(when(g.time))}</a> +${fmt(g.amount, g.decimals ?? qd)} TTWO`).join("<br>")}${got.length > 15 ? `<br>… and ${got.length - 15} more` : ""}</div></div>` : ""}`;
     } catch (err) {
       out.innerHTML = `<p class="muted" style="margin:12px 0 0">Could not read that wallet: ${esc(err.message)}</p>`;
     } finally { $("wallet-btn").disabled = false; }
@@ -422,36 +334,37 @@
 
   // ---- The bot's books vs. the chain ------------------------------------------------
   async function checkLedger() {
+    const box = $("ledger");
+    const corners = `<span class="tr"></span><span class="bl"></span>`;
     let text;
     try { const r = await fetch("./ledger.jsonl", { cache: "no-store" }); if (!r.ok) throw 0; text = await r.text(); }
-    catch { $("ledger").innerHTML = `<span class="muted">The bot's ledger is not published next to this page yet. The table above comes from the chain alone, so nothing is missing.</span>`; return; }
-    const entries = text.split("\n").filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
-    const withSig = entries.filter((e) => e.signature && ["claim", "swap", "burn", "buyback", "buyback_burn", "payout"].includes(e.type));
-    const onChain = new Set(state.rows.filter((x) => !x.err).map((x) => x.sig));
-    let missing = withSig.filter((e) => !onChain.has(e.signature));
+    catch { box.innerHTML = `${corners}<span class="muted">The bot's ledger is not published next to this page yet. The table above comes from the chain alone, so nothing is missing.</span>`; return; }
+    const entries = text.split("\n").filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } });
+    const check = crossCheck(entries, state.rows);
+    let missing = check.missing;
     if (missing.length) {
       try {
         const st = await rpc("getSignatureStatuses", [missing.map((e) => e.signature), { searchTransactionHistory: true }]);
         missing = missing.filter((e, i) => !st.value[i] || st.value[i].err);
       } catch {}
     }
-    const cycles = entries.reduce((a, e) => Math.max(a, e.cycle || 0), 0);
     const ok = missing.length === 0;
-    $("ledger").innerHTML = `
+    box.innerHTML = `${corners}
       <div class="row" style="justify-content:space-between">
         <div>
-          <b style="color:${ok ? "var(--ok)" : "var(--bad)"}">${ok ? "✓ Every entry in the bot's books is on the chain" : `${plural(missing.length, "entry")} in the books ${missing.length === 1 ? "is" : "are"} NOT on the chain`}</b>
-          <div class="muted" style="font-size:.9rem;margin-top:2px">The bot publishes its own books: ${plural(withSig.length, "transaction")} over ${plural(cycles, "cycle")}. Each one was just looked up on-chain.</div>
+          <span class="stamp ${ok ? "ok" : "bad"}">${ok ? "Books match" : "Mismatch"}</span>
+          <b style="margin-left:10px">${ok ? "Every entry in the bot's books is on the chain" : `${plural(missing.length, "entry")} in the books ${missing.length === 1 ? "is" : "are"} NOT on the chain`}</b>
+          <div class="muted" style="font-size:.9rem;margin-top:4px">The bot publishes its own books: ${plural(check.withSig.length, "transaction")} over ${plural(check.cycles, "cycle")}. Each one was just looked up on-chain.</div>
         </div>
-        <a href="./ledger.jsonl" style="font-size:.85rem">Open the raw ledger</a>
+        <a class="linkbtn" href="./ledger.jsonl">Open the raw ledger</a>
       </div>
-      ${missing.length ? `<div class="detail mono" style="margin-top:8px">${missing.slice(0, 10).map((e) => esc(`${e.type} ${e.signature}`)).join("<br>")}</div>` : ""}`;
+      ${missing.length ? `<div class="ledger"><div class="detail mono" style="margin-top:8px">${missing.slice(0, 10).map((e) => esc(`${e.type} ${e.signature}`)).join("<br>")}</div></div>` : ""}`;
   }
 
   // ---- Main -------------------------------------------------------------------------
   async function loadHistory() {
     state.scanning = true;
-    setStatus("busy", "Reading the treasury's history…", 0, "Reading the chain in your browser…");
+    setStatus("busy", "Reading the treasury's history…", 0, "Reading the chain in your browser");
     const sigs = [];
     let before;
     try {
@@ -488,7 +401,7 @@
     }
     state.scanning = false;
     const now = new Date().toISOString().slice(11, 16);
-    setStatus("live", state.truncated ? `Live · the ${sigs.length} most recent transactions (totals cover only these) · updated ${now} UTC` : `Live · ${plural(sigs.length, "transaction")} read from the chain · updated ${now} UTC`, null, "Live on Solana · verified in your browser");
+    setStatus("live", state.truncated ? `Live · the ${sigs.length} most recent transactions (totals cover only these) · updated ${now} UTC` : `Live · ${plural(sigs.length, "transaction")} read from the chain · updated ${now} UTC`, null, "Verified in your browser");
     $("refresh").hidden = false;
     renderAll();
   }
@@ -509,7 +422,7 @@
       $("setup").hidden = false;
       for (const el of document.querySelectorAll("[data-live]")) el.hidden = true;
       for (const el of document.querySelectorAll("[data-soon]")) el.hidden = false;
-      setStatus("", "Not live yet", null, "Launching soon · proof goes live with the coin");
+      setStatus("", "Not configured", null, "Configuration missing");
       $("minhold").textContent = "the minimum";
       return;
     }
@@ -521,20 +434,21 @@
       for (const el of document.querySelectorAll(".split-big")) el.textContent = `${cfg.split.burn} / ${cfg.split.buyback} / ${cfg.split.holders}`;
     }
     if (cfg.strategySymbol) for (const el of document.querySelectorAll(".self-name")) el.textContent = cfg.strategySymbol;
-    $("badge-kind").textContent = "LIVE";
     if (cfg.strategyMint) {
       const buy = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`;
       for (const id of ["buy-nav", "buy-hero"]) { $(id).href = buy; $(id).hidden = false; }
     }
     // Until the coin exists there is no holder balance to check, so the wallet box stays out of the way.
     if (!cfg.holderMint) for (const el of document.querySelectorAll('#wallet, a[href="#wallet"]')) el.hidden = true;
-    $("minhold").textContent = `${String(cfg.minHold).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} ${cfg.holderSymbol || "of the strategy coin"}`;
+    $("minhold").textContent = `${group(cfg.minHold)} ${cfg.holderSymbol || "of the strategy coin"}`;
     if (cfg.repoUrl) $("repo").innerHTML = `Source: <a href="${esc(cfg.repoUrl)}" rel="noopener">${esc(cfg.repoUrl.replace(/^https?:\/\//, ""))}</a> (the money rules are in src/split.ts).`;
     $("addresses").innerHTML = [
       ["Treasury", cfg.treasury], cfg.strategyMint ? ["Strategy coin", cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
       cfg.holderMint && cfg.holderMint !== cfg.strategyMint ? ["Rewarded holders of", cfg.holderMint] : null,
-    ].filter(Boolean).map(([k, v]) => `<span class="addr">${esc(k)} <a class="mono" href="${acctUrl(v)}" rel="noopener" title="${esc(v)}">${esc(short(v))}</a></span>`).join("");
+    ].filter(Boolean).map(([k, v]) => `<span class="addr">${esc(k)} <a href="${acctUrl(v)}" rel="noopener" title="${esc(v)}">${esc(short(v))}</a></span>`).join("");
     renderAll();
+    readSlot();
+    setInterval(readSlot, 30_000);
     await loadBalances();
     await loadHistory();
     if (state.live && state.live.quote.decimals == null && cfg.quoteMint) await loadBalances();
