@@ -334,7 +334,7 @@
     const name = esc(cfg.strategySymbol || "coin");
     $("tiles").innerHTML = [
       tile("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, live ? `supply now ${fmt(live.supply, b, 0)} · ${plural(s.burns, "burn")}` : plural(s.burns, "burn"), true),
-      tile("Bought back & burned", `${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, live ? `supply now ${fmt(live.selfSupply, sd, 0)} · ${plural(s.selfBurns, "burn")}` : plural(s.selfBurns, "burn"), true),
+      tile("Bought back & burned", `${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, live && live.selfSupply != null ? `supply now ${fmt(live.selfSupply, sd, 0)} · ${plural(s.selfBurns, "burn")}` : cfg.strategyMint ? plural(s.selfBurns, "burn") : "starts with the first fee", true),
       tile("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
       tile("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${fmt(s.spent, q)} TTWO on DCTY · ${fmt(s.selfSpent, q)} TTWO on buybacks`),
       tile("Treasury holds", live ? `${fmt(live.quote.amount, q)}<small>TTWO</small>` : sk, live ? `${fmt(live.coin.amount, b, 2)} DCTY and ${fmt(live.self.amount, sd, 2)} ${name} waiting to burn · ${fmt(live.sol, 9, 3)} SOL for fees` : "reading balances…"),
@@ -485,9 +485,10 @@
 
   async function loadBalances() {
     try {
-      const [sol, coin, self] = await Promise.all([rpc("getBalance", [cfg.treasury, { commitment: "confirmed" }]), tokenBalance(cfg.treasury, cfg.burnMint), tokenBalance(cfg.treasury, cfg.strategyMint)]);
-      const quote = cfg.quoteMint ? await tokenBalance(cfg.treasury, cfg.quoteMint) : { amount: 0n, decimals: null };
-      state.live = { sol: BigInt(sol.value), coin, self, quote, supply: (await mintOf(cfg.burnMint)).supply, selfSupply: (await mintOf(cfg.strategyMint)).supply };
+      const none = { amount: 0n, decimals: null };
+      const [sol, coin, self] = await Promise.all([rpc("getBalance", [cfg.treasury, { commitment: "confirmed" }]), tokenBalance(cfg.treasury, cfg.burnMint), cfg.strategyMint ? tokenBalance(cfg.treasury, cfg.strategyMint) : none]);
+      const quote = cfg.quoteMint ? await tokenBalance(cfg.treasury, cfg.quoteMint) : none;
+      state.live = { sol: BigInt(sol.value), coin, self, quote, supply: (await mintOf(cfg.burnMint)).supply, selfSupply: cfg.strategyMint ? (await mintOf(cfg.strategyMint)).supply : null };
       renderTiles();
     } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read balances: ${err.message}`; }
   }
@@ -511,13 +512,18 @@
     }
     if (cfg.strategySymbol) for (const el of document.querySelectorAll(".self-name")) el.textContent = cfg.strategySymbol;
     $("badge-kind").textContent = "LIVE";
-    const buy = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`;
-    for (const id of ["buy-nav", "buy-hero"]) { $(id).href = buy; $(id).hidden = false; }
-    $("minhold").textContent = `${cfg.minHold} ${cfg.holderSymbol || "of the strategy coin"}`;
+    if (cfg.strategyMint) {
+      const buy = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`;
+      for (const id of ["buy-nav", "buy-hero"]) { $(id).href = buy; $(id).hidden = false; }
+    }
+    // Until the coin exists there is no holder balance to check, so the wallet box stays out of the way.
+    if (!cfg.holderMint) for (const el of document.querySelectorAll('#wallet, a[href="#wallet"]')) el.hidden = true;
+    if (!cfg.strategyMint) document.querySelector('.cta a[href="#txs"]').classList.remove("text");
+    $("minhold").textContent = `${String(cfg.minHold).replace(/\B(?=(\d{3})+(?!\d))/g, ",")} ${cfg.holderSymbol || "of the strategy coin"}`;
     if (cfg.repoUrl) $("repo").innerHTML = `Source: <a href="${esc(cfg.repoUrl)}" rel="noopener">${esc(cfg.repoUrl.replace(/^https?:\/\//, ""))}</a> (the money rules are in src/split.ts).`;
     $("addresses").innerHTML = [
-      ["Treasury", cfg.treasury], ["Strategy coin", cfg.strategyMint], ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
-      cfg.holderMint !== cfg.strategyMint ? ["Rewarded holders of", cfg.holderMint] : null,
+      ["Treasury", cfg.treasury], cfg.strategyMint ? ["Strategy coin", cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
+      cfg.holderMint && cfg.holderMint !== cfg.strategyMint ? ["Rewarded holders of", cfg.holderMint] : null,
     ].filter(Boolean).map(([k, v]) => `<span class="addr">${esc(k)} <a class="mono" href="${acctUrl(v)}" rel="noopener" title="${esc(v)}">${esc(short(v))}</a></span>`).join("");
     renderAll();
     await loadBalances();
