@@ -21,7 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  .head { position: relative; padding: 150px 0 120px; margin: 0 -32px; padding-left: 32px; padding-right: 32px; }
+  .head { position: relative; margin: 0 -32px; padding-left: 32px; padding-right: 32px; }
   .head .sub { max-width: 720px; }
   .head .actions { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
   .chart { height: 170px; position: relative; }
@@ -37,22 +37,22 @@
   <div class="container">
     <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg><span id="brand-title">Dacity Strategy</span></a>
     <nav class="site-nav">
-      <a href="./">Home</a><a href="./#how">How it works</a><a href="./#faq">FAQ</a>
+      <a href="./">Home</a><a href="./#how">How it works</a>
       <a class="pill sm keep" id="buy" href="#" rel="noopener" hidden>Buy</a>
     </nav>
   </div>
 </header>
 
 <main class="container">
-  <div class="head screen photo-wall" style="padding-top:150px;padding-bottom:90px">
-    <h1>Dashboard.</h1>
+  <div class="head screen photo-wall" style="padding-top:140px;padding-bottom:70px;background-position:center 100%">
+    <h1 style="font-size:clamp(2rem,3.6vw,3rem)">Dashboard.</h1>
     <p class="sub">Read from the Solana blockchain in your browser.</p>
     <div class="actions"><button class="pill ghost sm" id="refresh" type="button">Refresh</button><a class="text-link" id="treasury-link" href="#" rel="noopener">View the treasury on Solscan →</a></div>
   </div>
 
   <div class="figures four" id="kpis" style="margin-top:0"></div>
 
-  <div class="grid grid-3 block" style="margin-top:64px">
+  <div class="grid grid-3 block" style="margin-top:56px;grid-template-columns:1fr 1fr 1.25fr">
     <div class="panel"><h3>Treasury now<small id="sol-note"></small></h3><dl class="rows" id="holdings"></dl></div>
     <div class="panel"><h3>Supply</h3><dl class="rows" id="supply"></dl></div>
     <div class="panel"><h3>The split<small>where fees went</small></h3><div class="bar" id="bar"></div><dl class="rows" id="legend"></dl><dl class="rows" id="next" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line-strong)"></dl></div>
@@ -78,7 +78,7 @@
   <div class="container">
     <div class="top">
       <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg>Dacity Strategy</a>
-      <nav><a href="./#how">How it works</a><a href="./#faq">FAQ</a><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></nav>
+      <nav><a href="./">Home</a><a href="./#how">How it works</a><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></nav>
     </div>
     <div class="legal">
       <p id="addresses"></p>
