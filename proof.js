@@ -86,22 +86,33 @@ async function sha256(bytes) {
   return new Uint8Array(await subtle.digest("SHA-256", bytes));
 }
 
-/** The associated token account of `owner` for `mint` under `tokenProgram`. */
-export async function ata(owner, mint, tokenProgram) {
-  const seeds = [b58decode(owner), b58decode(tokenProgram), b58decode(mint)];
+/** A program-derived address, like web3.js findProgramAddress. Seeds are byte arrays or strings. */
+export async function pda(seeds, program) {
+  const parts = seeds.map((s) => (typeof s === "string" ? new TextEncoder().encode(s) : s));
   const tail = new TextEncoder().encode("ProgramDerivedAddress");
-  const program = b58decode(ATA_PROGRAM);
+  const programBytes = b58decode(program);
+  const length = parts.reduce((a, p) => a + p.length, 0);
   for (let bump = 255; bump >= 0; bump--) {
-    const data = new Uint8Array(32 * 4 + 1 + tail.length);
+    const data = new Uint8Array(length + 1 + 32 + tail.length);
     let o = 0;
-    for (const s of seeds) { data.set(s, o); o += 32; }
+    for (const p of parts) { data.set(p, o); o += p.length; }
     data[o++] = bump;
-    data.set(program, o); o += 32;
+    data.set(programBytes, o); o += 32;
     data.set(tail, o);
     const hash = await sha256(data);
     if (!onCurve(hash)) return b58encode(hash);
   }
   throw new Error("no program address");
+}
+
+/** The associated token account of `owner` for `mint` under `tokenProgram`. */
+export function ata(owner, mint, tokenProgram) {
+  return pda([b58decode(owner), b58decode(tokenProgram), b58decode(mint)], ATA_PROGRAM);
+}
+
+/** The two vaults pump sweeps a creator's fees into (bonding curve and pump pool). */
+export async function creatorVaults(creator) {
+  return Promise.all([pda(["creator-vault", b58decode(creator)], PUMP_PROGRAM), pda(["creator_vault", b58decode(creator)], PUMP_AMM_PROGRAM)]);
 }
 
 // ---- Transactions ------------------------------------------------------------
