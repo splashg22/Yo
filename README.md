@@ -5,7 +5,7 @@ Take-Two stock). The coin earns creator fees in TTWO. Each cycle the bot:
 
 1. **Claims** the creator fees (TTWO) into the treasury wallet.
 2. **Splits** them 50/50.
-3. **Buys and burns DCTY** with one half (through pump's own swap route).
+3. **Buys and burns DCTY** with one half.
 4. **Pays the other half in TTWO** to holders above a minimum balance, in
    proportion to what they hold.
 
@@ -15,7 +15,7 @@ Three tokens are involved, set in `.env`:
 | --------------- | -------------------------------------------------------- |
 | `STRATEGY_MINT` | Your pump.fun coin. Its creator fees fund everything.    |
 | `BURN_MINT`     | The coin that is bought and burned (DCTY).               |
-| `HOLDER_MINT`   | The coin whose holders receive the TTWO rewards.         |
+| `HOLDER_MINT`   | Whose holders get the TTWO. Empty = holders of your coin. |
 
 TTWO itself is read from the chain (it is whatever `STRATEGY_MINT` is paired
 with); set `EXPECTED_QUOTE_MINT` to have the bot refuse anything else.
@@ -24,7 +24,7 @@ with); set `EXPECTED_QUOTE_MINT` to have the bot refuse anything else.
 
 ```bash
 npm install
-npm test            # 38 tests
+npm test            # 50 tests
 npm run typecheck
 cp .env.example .env    # then fill it in; DRY_RUN stays true
 ```
@@ -42,7 +42,7 @@ this folder; the bot refuses a key path inside it.
 | `npm run loop`   | A cycle every `LOOP_INTERVAL_SECONDS`, until stopped.           |
 
 A dry run sends nothing and writes nothing. It reports what a live cycle
-would do and three checks: (a) pump resolves a TTWO → DCTY route, (b) a TTWO
+would do and three checks: (a) a TTWO → DCTY swap route exists, (b) a TTWO
 payout to a wallet simulates, (c) the holder snapshot works on your RPC.
 The swap can only be simulated once the treasury holds some TTWO.
 
@@ -64,6 +64,16 @@ The bot is live only when `DRY_RUN` is exactly `false`.
 These live in `src/split.ts`. Paying a holder who has never held TTWO costs
 the treasury about 0.002 SOL of account rent, once per holder;
 `MIN_PAYOUT_TTWO` holds back shares too small to be worth it.
+
+## The swap
+
+`SWAP_VENUE=auto` uses pump's own router when DCTY can be bought directly with
+TTWO, and otherwise Jupiter (which can go TTWO → SOL → DCTY). Jupiter builds
+the transaction, so before signing it the bot checks that the treasury is the
+only payer and signer, and simulates it to confirm it takes no more than the
+intended TTWO, delivers at least the quoted minimum of DCTY, and costs no more
+than `MAX_SWAP_SOL_COST` in SOL. Whatever DCTY actually arrives is what gets
+burned, in a separate transaction right after.
 
 ## The books
 
@@ -88,13 +98,14 @@ src/split.ts    the money rules (pure)
 src/state.ts    the books
 src/cycle.ts    one cycle, live or dry; crash recovery
 src/chain.ts    Solana + pump SDK calls
+src/jupiter.ts  Jupiter swap + the checks before signing
 src/holders.ts  holder snapshot
 src/cli.ts      status | cycle | loop
 ```
 
 ## Not yet proven
 
-The on-chain layer (`src/chain.ts`, `src/holders.ts`) is written against
-`@pump-fun/pump-sdk` 4.3.1 and its instructions assemble, but it has **never
-been run against mainnet**. The first dry run is the test. The tests cover the
+The on-chain layer (`src/chain.ts`, `src/holders.ts`, `src/jupiter.ts`) is
+written against `@pump-fun/pump-sdk` 4.3.1 and Jupiter's Swap API v1, but it
+has **never been run against mainnet or the live Jupiter API**. The first dry run is the test. The tests cover the
 rules, the books and the cycle logic against a simulated chain.

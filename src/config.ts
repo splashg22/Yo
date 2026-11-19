@@ -22,6 +22,10 @@ export interface Config {
   priorityFeeMicroLamports: number;
   loopIntervalSeconds: number;
   dataDir: string;
+  swapVenue: "auto" | "pump" | "jupiter";
+  jupiterApiUrl: string;
+  jupiterApiKey: string | null;
+  maxSwapSolCost: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -66,6 +70,12 @@ function bool(env: Env, name: string, fallback: boolean): boolean {
   throw new Error(`${name} must be true or false`);
 }
 
+function venue(env: Env): Config["swapVenue"] {
+  const raw = env.SWAP_VENUE?.trim().toLowerCase() || "auto";
+  if (raw === "auto" || raw === "pump" || raw === "jupiter") return raw;
+  throw new Error("SWAP_VENUE must be auto, pump or jupiter");
+}
+
 export function parseConfig(env: Env): Config {
   const expected = env.EXPECTED_QUOTE_MINT?.trim();
   return {
@@ -73,7 +83,7 @@ export function parseConfig(env: Env): Config {
     treasuryKeypairPath: required(env, "TREASURY_KEYPAIR_PATH"),
     strategyMint: address(env, "STRATEGY_MINT"),
     burnMint: address(env, "BURN_MINT"),
-    holderMint: address(env, "HOLDER_MINT"),
+    holderMint: env.HOLDER_MINT?.trim() ? address(env, "HOLDER_MINT") : address(env, "STRATEGY_MINT"),
     expectedQuoteMint: expected ? address(env, "EXPECTED_QUOTE_MINT") : null,
     minHold: amount(env, "MIN_HOLD"),
     excludeWallets: (env.EXCLUDE_WALLETS ?? "")
@@ -93,5 +103,9 @@ export function parseConfig(env: Env): Config {
     priorityFeeMicroLamports: integer(env, "PRIORITY_FEE_MICROLAMPORTS", 10000, 0, 5_000_000),
     loopIntervalSeconds: integer(env, "LOOP_INTERVAL_SECONDS", 600, 30, 86_400),
     dataDir: env.DATA_DIR?.trim() || "data",
+    swapVenue: venue(env),
+    jupiterApiUrl: env.JUPITER_API_URL?.trim() || "https://api.jup.ag/swap/v1",
+    jupiterApiKey: env.JUPITER_API_KEY?.trim() || null,
+    maxSwapSolCost: amount(env, "MAX_SWAP_SOL_COST", "0.02"),
   };
 }

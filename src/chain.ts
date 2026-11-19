@@ -37,6 +37,15 @@ import { PUMP_AMM_SDK } from "@pump-fun/pump-sdk/swap";
 import type { Config } from "./config.js";
 import type { Built, Chain, HolderSnapshot, SimResult, TxStatus } from "./cycle.js";
 import { aggregateByOwner, snapshotViaProgramAccounts, snapshotViaTokenAccountsApi } from "./holders.js";
+import { parseUnits } from "./amounts.js";
+import {
+  checkSwapEffects,
+  checkSwapTransaction,
+  describeQuote,
+  getQuote,
+  getSwapTransaction,
+  type JupiterOptions,
+} from "./jupiter.js";
 import type { Mints, QueueItem } from "./state.js";
 import { tokenDelta } from "./txmeta.js";
 
@@ -241,15 +250,46 @@ export class SolanaChain implements Chain {
     return this.sdk.resolveMultiHopRoute([this.info.quoteMint, this.burnMint], "buy");
   }
 
+  private get jupiter(): JupiterOptions {
+    return { apiUrl: this.config.jupiterApiUrl, apiKey: this.config.jupiterApiKey };
+  }
+
+  private jupiterQuote(amount: bigint) {
+    return getQuote(this.jupiter, {
+      inputMint: this.info.quoteMint.toBase58(),
+      outputMint: this.burnMint.toBase58(),
+      amount,
+      slippageBps: this.config.slippageBps,
+    });
+  }
+
+  /** pump's own route when there is one, otherwise Jupiter (SWAP_VENUE=auto). */
+  private async venue(): Promise<{ kind: "pump"; hops: MultiHopHop[] } | { kind: "jupiter"; why: string }> {
+    if (this.config.swapVenue === "jupiter") return { kind: "jupiter", why: "SWAP_VENUE=jupiter" };
+    try {
+      return { kind: "pump", hops: await this.route() };
+    } catch (error) {
+      if (this.config.swapVenue === "pump") throw error;
+      return { kind: "jupiter", why: `pump has no direct route (${(error as Error).message})` };
+    }
+  }
+
   async describeRoute(): Promise<string> {
-    const hops = await this.route();
-    return hops
-      .map((hop) => `${hop.quoteMint.toBase58()} -> ${hop.baseMint.toBase58()} on the ${hop.venue === "curve" ? "bonding curve" : "pump pool"}`)
-      .join(", then ");
+    const venue = await this.venue();
+    if (venue.kind === "pump") {
+      return venue.hops
+        .map((hop) => `${hop.quoteMint.toBase58()} -> ${hop.baseMint.toBase58()} on the ${hop.venue === "curve" ? "bonding curve" : "pump pool"}`)
+        .join(", then ");
+    }
+    const cap = parseUnits(this.config.maxSwapPerCycle, this.info.quoteDecimals);
+    const quote = await this.jupiterQuote(cap > 0n ? cap : 10n ** BigInt(this.info.quoteDecimals));
+    return `${describeQuote(quote)}; ${quote.inAmount} TTWO base units would buy about ${quote.outAmount}. Used because ${venue.why}`;
   }
 
   async buildSwap(amountIn: bigint) {
-    const hops = await this.route();
+    const venue = await this.venue();
+    if (venue.kind === "jupiter") return this.buildJupiterSwap(amountIn);
+    const hops = venue.hops;
     const amount = new BN(amountIn.toString());
     const out = await this.sdk.simulateMultiHopSwap({ user: this.treasury, hops, side: "buy", amountIn: amount });
     const expectedOut = BigInt(out.toString());
@@ -260,6 +300,47 @@ export class SolanaChain implements Chain {
     });
     const built = await this.build(instructions, 250_000 * hops.length + 150_000);
     return { ...built, expectedOut, minOut };
+  }
+
+  private async buildJupiterSwap(amountIn: bigint) {
+    const quote = await this.jupiterQuote(amountIn);
+    const expectedOut = BigInt(quote.outAmount);
+    const minOut = BigInt(quote.otherAmountThreshold);
+    if (minOut <= 0n) throw new Error("the swap would buy nothing");
+    const { transaction, lastValidBlockHeight } = await getSwapTransaction(this.jupiter, quote, this.treasury.toBase58());
+    checkSwapTransaction(transaction, this.treasury);
+
+    // Simulate the transaction Jupiter built and check what it would move
+    // BEFORE signing it.
+    const addresses = [this.treasury, this.quoteAta(this.treasury), this.burnAta()];
+    const before = await this.balances();
+    const { value } = await this.connection.simulateTransaction(transaction, {
+      sigVerify: false,
+      commitment: "confirmed",
+      accounts: { encoding: "base64", addresses: addresses.map((a) => a.toBase58()) },
+    });
+    if (value.err) {
+      throw new Error(`the Jupiter swap fails in simulation: ${JSON.stringify(value.err)} ${(value.logs ?? []).slice(-4).join(" | ")}`);
+    }
+    const tokenAfter = (index: number) => {
+      const data = value.accounts?.[index]?.data?.[0];
+      const bytes = data ? Buffer.from(data, "base64") : Buffer.alloc(0);
+      return bytes.length >= 72 ? bytes.readBigUInt64LE(64) : 0n;
+    };
+    checkSwapEffects(
+      { lamports: before.sol, quote: before.quote, coin: before.coin },
+      { lamports: BigInt(value.accounts?.[0]?.lamports ?? 0), quote: tokenAfter(1), coin: tokenAfter(2) },
+      { amountIn, minOut, maxLamports: parseUnits(this.config.maxSwapSolCost, 9) },
+    );
+
+    transaction.sign([this.keypair]);
+    return {
+      signature: bs58.encode(transaction.signatures[0]!),
+      lastValidBlockHeight,
+      raw: transaction.serialize(),
+      expectedOut,
+      minOut,
+    };
   }
 
   async buildBurn(amount: bigint): Promise<Built> {
