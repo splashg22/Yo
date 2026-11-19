@@ -6,92 +6,87 @@
 <title>Dacity Strategy · Dashboard</title>
 <meta name="description" content="Live dashboard for Dacity Strategy: DCTY burned, coin bought back, TTWO paid to holders and the treasury's balances, read straight from Solana in your browser.">
 <meta name="color-scheme" content="dark">
-<meta name="robots" content="index,follow">
-<meta property="og:title" content="Dacity Strategy · Live dashboard">
+<meta property="og:title" content="Dacity Strategy · Dashboard">
 <meta property="og:description" content="DCTY burned, coin bought back, TTWO paid to holders and the treasury's balances, read straight from Solana.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://splashg22.github.io/Yo/dashboard.html">
 <meta property="og:image" content="https://splashg22.github.io/Yo/og.png">
 <meta property="og:image:width" content="1200"><meta property="og:image:height" content="675">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Dacity Strategy · Live dashboard">
+<meta name="twitter:title" content="Dacity Strategy · Dashboard">
 <meta name="twitter:description" content="Every number read from Solana in your browser.">
 <meta name="twitter:image" content="https://splashg22.github.io/Yo/og.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150612'/%3E%3Cpath d='M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0' fill='none' stroke='%23ff1f8f' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230a0307'/%3E%3Cpath d='M5 10a2 2 0 0 1 2-2h18a2 2 0 0 1 2 2v2.6a3.4 3.4 0 0 0 0 6.8V22a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-2.6a3.4 3.4 0 0 0 0-6.8z' fill='%23ff1f8f'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  body { font-size: 15px; }
-  .wrap { max-width: 1180px; }
-  h1 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); font-weight: 300; letter-spacing: -0.03em; margin: 26px 0 4px; line-height: 1.1; } h1 b { font-weight: 800; }
-  .lede { color: var(--muted); margin: 0 0 20px; font-size: 14px; } .lede a { color: var(--accent-2); }
-  .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 18px; }
-  .row3 { display: grid; grid-template-columns: 1.1fr 1fr 1fr; gap: 12px; margin-top: 12px; }
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
-  .chart { height: 150px; position: relative; }
+  .head { position: relative; padding: 150px 0 56px; }
+  .head .sub { max-width: 720px; }
+  .head .actions { display: flex; gap: 14px; margin-top: 28px; flex-wrap: wrap; align-items: center; }
+  .chart { height: 170px; position: relative; }
   .chart svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .chart .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font: 500 11px var(--mono); letter-spacing: 0.1em; text-transform: uppercase; text-align: center; padding: 0 20px; background: repeating-linear-gradient(0deg, transparent 0 29px, var(--hair) 29px 30px); }
-  .axis { font-size: 10px; fill: var(--faint); font-family: var(--mono); letter-spacing: 0.06em; }
-  .legend .r dt i { display: inline-block; width: 9px; height: 9px; margin-right: 8px; vertical-align: 0; }
-  @media (max-width: 980px) { .kpis { grid-template-columns: repeat(2, 1fr); } .row3, .row2 { grid-template-columns: 1fr; } }
-  @media (max-width: 640px) { .kpis { grid-template-columns: 1fr; } .bar nav a:not(.keep) { display: none; } }
+  .chart .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--faint); font-size: 15px; text-align: center; padding: 0 20px; border: 1px dashed var(--line-strong); border-radius: 12px; }
+  .axis { font-size: 11px; fill: var(--faint); font-family: var(--font); }
+  .block { margin-top: 20px; }
+  main { padding-bottom: 40px; }
 </style>
 </head>
 <body>
-<div class="wall" aria-hidden="true"></div>
-
-<header class="bar">
-  <div class="wrap in">
-    <a class="wm" href="./"><svg viewBox="0 0 64 64" aria-hidden="true"><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg><span id="brand-title">Dacity Strategy</span><small>Dashboard</small></a>
-    <nav>
-      <a href="./"><i>§</i>Site</a><a href="./#how"><i>02</i>How</a><a href="./#txs"><i>04</i>History</a>
-      <button class="btn quiet keep" id="refresh" type="button">Refresh</button>
-      <a class="btn fill keep" id="buy" href="#" rel="noopener" hidden>Buy</a>
+<header class="site-header">
+  <div class="container">
+    <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg><span id="brand-title">Dacity Strategy</span></a>
+    <nav class="site-nav">
+      <a href="./">Home</a><a href="./#how">How it works</a><a href="./#faq">FAQ</a>
+      <a class="pill sm keep" id="buy" href="#" rel="noopener" hidden>Buy</a>
     </nav>
   </div>
 </header>
 
-<main class="wrap">
-  <h1>What the treasury has done, <b>live from Solana.</b></h1>
-  <p class="lede">Every number below is read from the blockchain in your browser through a public RPC. Nothing is reported by us. Treasury <a id="treasury-link" class="mono" href="#" rel="noopener"></a></p>
-
-  <div class="tape" aria-live="polite">
-    <span><i class="rec" id="rec"></i><span class="stamp ink" id="badge">Dashboard</span></span>
-    <span><span class="k">Chain</span><span class="v">Solana</span></span>
-    <span><span class="k">Slot</span><span class="v" id="slot">—</span></span>
-    <span class="hide-sm"><span class="k">Refresh</span><span class="v">60s</span></span>
-    <span><span class="v" id="status" style="color:var(--muted)">Connecting…</span></span>
+<main class="container">
+  <div class="head">
+    <div class="room" aria-hidden="true"><div class="wall"></div><div class="floor"></div></div>
+    <h1>Dashboard.</h1>
+    <p class="sub">Read from the Solana blockchain in your browser.</p>
+    <div class="actions"><button class="pill ghost sm" id="refresh" type="button">Refresh</button><a class="text-link" id="treasury-link" href="#" rel="noopener">View the treasury on Solscan →</a></div>
   </div>
 
-  <div class="kpis" id="kpis"></div>
+  <div class="figures four" id="kpis" style="margin-top:0"></div>
 
-  <div class="row3">
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>Treasury now <span class="lbl" id="sol-note"></span></h3><dl class="kv" id="holdings"></dl></div>
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>Supply <span class="lbl">what burning does</span></h3><dl class="kv" id="supply"></dl></div>
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>The split <span class="lbl">where fees went so far</span></h3><div class="ruler" id="ruler"></div><dl class="kv legend" id="legend"></dl><dl class="kv" id="next" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--hair)"></dl></div>
+  <div class="grid grid-3 block" style="margin-top:64px">
+    <div class="panel"><h3>Treasury now<small id="sol-note"></small></h3><dl class="rows" id="holdings"></dl></div>
+    <div class="panel"><h3>Supply</h3><dl class="rows" id="supply"></dl></div>
+    <div class="panel"><h3>The split<small>where fees went</small></h3><div class="bar" id="bar"></div><dl class="rows" id="legend"></dl><dl class="rows" id="next" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line-strong)"></dl></div>
   </div>
 
-  <div class="row2">
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>TTWO paid to holders <span class="lbl">cumulative</span></h3><div class="chart" id="chart-paid"></div></div>
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>DCTY burned <span class="lbl">cumulative</span></h3><div class="chart" id="chart-burned"></div></div>
+  <div class="grid grid-2 block">
+    <div class="panel"><h3>TTWO paid to holders<small>cumulative</small></h3><div class="chart" id="chart-paid"></div></div>
+    <div class="panel"><h3>DCTY burned<small>cumulative</small></h3><div class="chart" id="chart-burned"></div></div>
   </div>
 
-  <div class="row2">
-    <div class="frame" style="overflow-x:auto"><span class="tr"></span><span class="bl"></span><h3>Latest activity <span class="lbl" id="activity-note"></span></h3>
-      <table class="ledger"><thead><tr><th class="hide-sm">When</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table>
-      <p style="margin:14px 0 0"><a class="linkbtn" href="./#txs">Full history and filters →</a></p>
-      <p class="faint" id="books" style="margin:10px 0 0;font-size:.82rem"></p>
-    </div>
-    <div class="frame"><span class="tr"></span><span class="bl"></span><h3>Most paid wallets <span class="lbl">TTWO received</span></h3><dl class="kv" id="top"></dl></div>
+  <div class="panel block">
+    <h3>Treasury history<small id="activity-note"></small></h3>
+    <div class="filters" id="filters" role="group" aria-label="Filter transactions"></div>
+    <div class="table-wrap"><table><thead><tr><th class="hide-sm">When</th><th>Type</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
+    <p style="margin:18px 0 0"><button class="pill ghost sm" id="more" hidden>Show more</button></p>
   </div>
+
+  <div class="panel block"><h3>Most paid wallets<small>TTWO received</small></h3><dl class="rows" id="top"></dl></div>
   <div class="notice" id="error" hidden></div>
-
-  <footer class="fine">
-    <p id="addresses"></p>
-    <p>Data comes from a public Solana RPC and can lag by a few seconds. Refreshes itself every minute. Open the treasury on any explorer to check it. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
-  </footer>
 </main>
+
+<footer class="site-footer">
+  <div class="container">
+    <div class="top">
+      <a class="wordmark" href="./"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M3 9a2 2 0 0 1 2-2h22a2 2 0 0 1 2 2v3.2a3.8 3.8 0 0 0 0 7.6V23a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-3.2a3.8 3.8 0 0 0 0-7.6z" fill="#ff1f8f"/></svg>Dacity Strategy</a>
+      <nav><a href="./#how">How it works</a><a href="./#faq">FAQ</a><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></nav>
+    </div>
+    <div class="legal">
+      <p id="addresses"></p>
+      <p>Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
+    </div>
+  </div>
+</footer>
 
 <script type="module">
   import { classify, fmt, makeRpc, summarize, ata, creatorVaults, cumulative, splitPreview, crossCheck } from "./proof.js";
@@ -108,11 +103,12 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
   const MAX_HISTORY = 2000;
-  const STAMP = { claim: ["ok", "Claim"], buy: ["pink", "Buy"], burn: ["solid", "Burn"], payout: ["blue", "Pay"] };
-  const stampOf = (x) => { const [cls, text] = STAMP[x.kind]; return `<span class="stamp ${cls}">${x.coin === "self" && x.kind === "buy" ? "Buy back" : text}</span>`; };
+  const STRATEGY = ["claim", "buy", "burn", "payout"];
+  const TYPE = { claim: "Claim", buy: "Buy", burn: "Burn", payout: "Payout", other: "Other" };
+  const typeOf = (x) => (x.coin === "self" && x.kind === "buy" ? "Buy back" : TYPE[x.kind]);
 
   let cfg, rpc, name = "coin";
-  const state = { rows: [], live: null, scanning: false, truncated: false };
+  const state = { rows: [], live: null, scanning: false, truncated: false, filter: "strategy", shown: 25 };
   const mintInfo = new Map();
   async function mintOf(mint) {
     const r = await rpc("getAccountInfo", [mint, { encoding: "jsonParsed", commitment: "confirmed" }]);
@@ -126,10 +122,7 @@
     const r = await rpc("getAccountInfo", [await ata(owner, mint, m.program), { encoding: "jsonParsed", commitment: "confirmed" }]);
     return { amount: r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n, decimals: m.decimals };
   }
-  async function readSlot() {
-    try { $("slot").textContent = group(await rpc("getSlot", [{ commitment: "confirmed" }])); } catch {}
-  }
-  const cacheKey = (sig) => `dacity:tx:v2:${sig}`; // bump when classify() changes shape
+  const cacheKey = (sig) => `dacity:tx:v2:${sig}`;
   const revive = (k, v) => (typeof v === "string" && /^-?\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v);
   const readCache = (sig) => { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } };
   const writeCache = (sig, row) => { try { localStorage.setItem(cacheKey(sig), JSON.stringify(row, (k, v) => (typeof v === "bigint" ? `${v}n` : v))); } catch {} };
@@ -139,78 +132,89 @@
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const corners = `<span class="tr"></span><span class="bl"></span>`;
-  const stat = (i, label, value, sub, hot) => `<div class="frame stat${hot ? " hot" : ""}">${corners}<span class="idx">${String(i).padStart(2, "0")}</span><div class="k">${esc(label)}</div><div class="v">${value}</div><div class="s">${sub}</div></div>`;
-  const kv = (pairs) => pairs.map(([k, v]) => `<div class="r"><dt>${k}</dt><dd>${v}</dd></div>`).join("");
+  const figure = (value, label, note) => `<div class="figure"><div class="value">${value}</div><div class="name">${esc(label)}</div><div class="note">${note}</div></div>`;
+  const rows = (pairs) => pairs.map(([k, v]) => `<div class="row"><dt>${k}</dt><dd>${v}</dd></div>`).join("");
   const sk = `<span class="skeleton"></span>`;
+
+  function visible() {
+    if (state.filter === "all") return state.rows;
+    if (state.filter === "strategy") return state.rows.filter((x) => STRATEGY.includes(x.kind));
+    return state.rows.filter((x) => x.kind === state.filter);
+  }
+  function renderTable() {
+    const list = visible();
+    $("tbody").innerHTML = list.slice(0, state.shown).map((x) => {
+      const payees = x.kind === "payout" && x.payouts.length ? `<div class="detail mono">${x.payouts.slice(0, 4).map(([o, a]) => `<a href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a> ${fmt(a, x.qd ?? 0)}`).join(" · ")}${x.payouts.length > 4 ? ` · +${x.payouts.length - 4} more` : ""}</div>` : "";
+      const prefix = x.kind === "burn" ? "" : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
+      return `<tr><td class="nowrap muted hide-sm">${esc(when(x.time))}</td><td class="type">${typeOf(x)}</td><td>${esc(x.text)}${payees}</td><td class="num">${x.amount ? prefix + esc(x.amount) : ""}</td><td class="nowrap"><a class="mono" href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a>${x.err ? ' <span class="red">failed</span>' : ""}</td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="muted" style="padding:18px 0">${state.scanning ? "Reading the chain…" : "No strategy activity yet. The first claim, buy, burn, buyback and payout will appear here the moment they land."}</td></tr>`;
+    $("more").hidden = list.length <= state.shown;
+    const kinds = [["strategy", "Strategy"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"], ["all", "All"]];
+    $("filters").innerHTML = kinds.map(([k, label]) => `<button type="button" data-k="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
+    for (const b of $("filters").querySelectorAll("button")) b.onclick = () => { state.filter = b.dataset.k; state.shown = 25; renderTable(); };
+    $("activity-note").textContent = state.rows.length ? plural(state.rows.length, "transaction") : "";
+  }
+  $("more").onclick = () => { state.shown += 100; renderTable(); };
 
   function render() {
     const { q, b, s: sd } = dec();
     const s = summarize(state.rows);
     const live = state.live;
     $("kpis").innerHTML = [
-      stat(1, "DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`, true),
-      stat(2, `${name} bought back & burned`, `${fmt(s.selfBurned, sd, 0)}<small>${esc(name)}</small>`, cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "starts with the first fee", true),
-      stat(3, "Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
-      stat(4, "Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} already put to work`),
+      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "DCTY burned", `${plural(s.burns, "burn")} · ${fmt(s.spent, q)} TTWO spent`),
+      figure(`${fmt(s.selfBurned, sd, 0)}<small>${esc(name)}</small>`, "Bought back and burned", cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "Starts with the first fee"),
+      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
+      figure(`${fmt(s.claimed, q)}<small>TTWO</small>`, "Fees claimed", `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`),
     ].join("");
 
-    $("holdings").innerHTML = live ? kv([
+    $("holdings").innerHTML = live ? rows([
       ["SOL for network fees", `${fmt(live.sol, 9, 4)}<small>SOL</small>`],
       ["TTWO waiting for the next cycle", `${fmt(live.quote.amount, q)}<small>TTWO</small>`],
       ["Unclaimed fees in pump's vaults", `${fmt(live.vaulted, q)}<small>TTWO</small>`],
       ["DCTY bought, not yet burned", `${fmt(live.coin.amount, b, 2)}<small>DCTY</small>`],
       ...(cfg.strategyMint ? [[`${esc(name)} bought back, not yet burned`, `${fmt(live.self.amount, sd, 2)}<small>${esc(name)}</small>`]] : []),
-    ]) : kv([["Reading balances", sk]]);
+    ]) : rows([["Reading balances…", sk]]);
     $("sol-note").textContent = live ? (live.sol < 50_000_000n ? "low on SOL" : "") : "";
 
-    $("supply").innerHTML = live ? kv([
+    $("supply").innerHTML = live ? rows([
       ["DCTY supply now", `${fmt(live.supply, b, 0)}`],
       ["DCTY destroyed by this treasury", `${fmt(s.burned, b, 0)}<small>${pct(s.burned, live.supply + s.burned)}</small>`],
       ...(cfg.strategyMint && live.selfSupply != null ? [
         [`${esc(name)} supply now`, `${fmt(live.selfSupply, sd, 0)}`],
         [`${esc(name)} bought back and destroyed`, `${fmt(s.selfBurned, sd, 0)}<small>${pct(s.selfBurned, live.selfSupply + s.selfBurned)}</small>`],
       ] : [[`${esc(name)} supply`, `<span class="faint">after launch</span>`]]),
-    ]) : kv([["Reading supply", sk]]);
+    ]) : rows([["Reading supply…", sk]]);
 
     const split = cfg.split || { burn: 40, buyback: 20, holders: 40 };
-    $("ruler").innerHTML = `<i class="seg a" data-l="${split.burn}%" style="left:0;width:${split.burn}%"></i><i class="seg b" data-l="${split.buyback}%" style="left:${split.burn}%;width:${split.buyback}%"></i><i class="seg c" data-l="${split.holders}%" style="left:${split.burn + split.buyback}%;width:${split.holders}%"></i>`;
-    $("legend").innerHTML = kv([
-      [`<i style="background:var(--accent)"></i>${split.burn}% buys and burns DCTY`, `${fmt(s.spent, q)}<small>TTWO</small>`],
-      [`<i style="background:var(--accent-2)"></i>${split.buyback}% buys ${esc(name)} back and burns it`, `${fmt(s.selfSpent, q)}<small>TTWO</small>`],
-      [`<i style="background:var(--blue)"></i>${split.holders}% paid to holders in TTWO`, `${fmt(s.paid, q)}<small>TTWO</small>`],
+    $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
+    $("legend").innerHTML = rows([
+      [`<span class="swatch" style="background:var(--pink)"></span>${split.burn}% buys and burns DCTY`, `${fmt(s.spent, q)}<small>TTWO</small>`],
+      [`<span class="swatch" style="background:var(--pink-soft)"></span>${split.buyback}% buys ${esc(name)} back and burns it`, `${fmt(s.selfSpent, q)}<small>TTWO</small>`],
+      [`<span class="swatch" style="background:var(--blue)"></span>${split.holders}% paid to holders in TTWO`, `${fmt(s.paid, q)}<small>TTWO</small>`],
       [`Minimum to be paid`, `${esc(group(cfg.minHold))}<small>${esc(cfg.holderSymbol || name)}</small>`],
     ]);
     if (live) {
       const waiting = live.vaulted + live.quote.amount;
       const p = splitPreview(waiting, split);
       $("next").innerHTML = waiting > 0n
-        ? kv([[`<span class="faint">If a cycle ran now</span>`, `${fmt(waiting, q)}<small>TTWO waiting</small>`], ["→ to burn DCTY", `${fmt(p.burn, q)}<small>TTWO</small>`], [`→ to buy ${esc(name)} back`, `${fmt(p.buyback, q)}<small>TTWO</small>`], ["→ to holders", `${fmt(p.payout, q)}<small>TTWO</small>`]])
-        : kv([[`<span class="faint">If a cycle ran now</span>`, `<span class="faint">nothing is waiting yet</span>`]]);
+        ? rows([[`If a cycle ran now`, `${fmt(waiting, q)}<small>TTWO waiting</small>`], ["To burn DCTY", `${fmt(p.burn, q)}<small>TTWO</small>`], [`To buy ${esc(name)} back`, `${fmt(p.buyback, q)}<small>TTWO</small>`], ["To holders", `${fmt(p.payout, q)}<small>TTWO</small>`]])
+        : rows([[`If a cycle ran now`, `<span class="faint">nothing is waiting yet</span>`]]);
     }
 
-    chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO", "var(--blue)");
-    chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY", "var(--accent)");
-
-    const rows = state.rows.filter((x) => x.kind !== "other").slice(0, 12);
-    $("tbody").innerHTML = rows.map((x) => {
-      const cls = x.kind === "burn" ? "burn" : x.sign > 0 ? "in" : "";
-      const prefix = x.kind === "burn" ? "" : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
-      return `<tr><td class="nowrap muted hide-sm">${esc(when(x.time))}</td><td>${stampOf(x)}${esc(x.text)}</td><td class="num ${cls}">${x.amount ? prefix + esc(x.amount) : ""}</td><td class="proof nowrap"><a href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a>${x.err ? ' <span class="bad">failed</span>' : ""}</td></tr>`;
-    }).join("") || `<tr><td colspan="4" class="muted" style="padding:16px 0">${state.scanning ? "Reading the chain…" : "No strategy activity yet. The first claim, buy, burn, buyback and payout will appear here the moment they land."}</td></tr>`;
-    $("activity-note").textContent = state.rows.length ? `${state.rows.length} transactions total` : "";
+    chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO", "#8fd3ff");
+    chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY", "#ff1f8f");
+    renderTable();
 
     const per = new Map();
     for (const x of state.rows) if (x.kind === "payout" && !x.err) for (const [o, a] of x.payouts) per.set(o, (per.get(o) || 0n) + a);
     const top = [...per].sort((a, b) => (a[1] === b[1] ? 0 : a[1] > b[1] ? -1 : 1)).slice(0, 10);
-    $("top").innerHTML = top.length ? kv(top.map(([o, a]) => [`<a class="mono" href="${acctUrl(o)}" rel="noopener" style="color:var(--accent-2)">${esc(short(o))}</a>`, `${fmt(a, q)}<small>TTWO</small>`])) : kv([["Nobody has been paid yet", `<span class="faint">—</span>`]]);
+    $("top").innerHTML = top.length ? rows(top.map(([o, a]) => [`<a class="mono" href="${acctUrl(o)}" rel="noopener" style="color:var(--pink-soft)">${esc(short(o))}</a>`, `${fmt(a, q)}<small>TTWO</small>`])) : rows([["Nobody has been paid yet", `<span class="faint">—</span>`]]);
   }
 
-  /** A cumulative step chart as inline SVG; shows an empty state until there is something to draw. */
   function chart(el, events, pick, decimals, unit, color) {
     const series = cumulative(events, pick);
     if (!series.length) { el.innerHTML = `<div class="empty">Draws itself after the first ${unit === "TTWO" ? "payout" : "burn"}</div>`; return; }
-    const W = 600, H = 150, L = 6, R = 6, T = 10, B = 22;
+    const W = 600, H = 170, L = 6, R = 6, T = 10, B = 22;
     const t0 = series[0].t, t1 = series[series.length - 1].t, span = Math.max(t1 - t0, 1);
     const max = Number(series[series.length - 1].v) || 1;
     const X = (t) => L + ((t - t0) / span) * (W - L - R);
@@ -220,22 +224,16 @@
     d += ` H${W - R}`;
     const area = `${d} V${Y(0n)} Z`;
     const label = (t) => new Date(t * 1000).toISOString().slice(5, 10);
-    const grid = [0.25, 0.5, 0.75].map((f) => `<line x1="${L}" x2="${W - R}" y1="${T + f * (H - T - B)}" y2="${T + f * (H - T - B)}" stroke="rgba(255,228,243,.1)" stroke-dasharray="2 4"/>`).join("");
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${esc(unit)} cumulative">
       <defs><linearGradient id="g-${unit}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".3"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-      ${grid}<line x1="${L}" x2="${W - R}" y1="${Y(0n)}" y2="${Y(0n)}" stroke="rgba(255,228,243,.3)"/>
+      <line x1="${L}" x2="${W - R}" y1="${Y(0n)}" y2="${Y(0n)}" stroke="rgba(255,255,255,.2)"/>
       <path d="${area}" fill="url(#g-${unit})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
       <text class="axis" x="${L}" y="${H - 6}">${label(t0)}</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${label(t1)}</text>
       <text class="axis" x="${W - R}" y="${T + 10}" text-anchor="end" fill="${color}">${fmt(series[series.length - 1].v, decimals, 2)} ${esc(unit)}</text>
     </svg>`;
   }
 
-  function status(kind, text) {
-    $("rec").className = `rec ${kind}`;
-    $("badge").className = `stamp ${kind === "live" ? "ok" : kind === "busy" ? "pink" : "ink"}`;
-    $("badge").textContent = kind === "live" ? "Live" : kind === "busy" ? "Reading" : "Dashboard";
-    $("status").textContent = text;
-  }
+  const status = () => {};
 
   async function loadBalances() {
     const none = { amount: 0n, decimals: null };
@@ -260,15 +258,15 @@
       before = batch[batch.length - 1].signature;
     }
     state.truncated = sigs.length >= MAX_HISTORY;
-    const rows = [], need = [];
-    for (const s of sigs) { const c = readCache(s.signature); if (c) rows.push(c); else need.push(s); }
-    const commit = () => { state.rows = rows.sort((a, b) => (b.time || 0) - (a.time || 0)); render(); };
+    const all = [], need = [];
+    for (const s of sigs) { const c = readCache(s.signature); if (c) all.push(c); else need.push(s); }
+    const commit = () => { state.rows = all.sort((a, b) => (b.time || 0) - (a.time || 0)); render(); };
     commit();
     for (let i = 0; i < need.length; i += 4) {
       const chunk = need.slice(i, i + 4);
       const got = await Promise.all(chunk.map((s) => rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "confirmed" }]).catch(() => null)));
-      got.forEach((t, j) => { if (!t) return; const s = chunk[j]; const row = classify(cfg, s.signature, s.blockTime || t.blockTime, t); writeCache(s.signature, row); rows.push(row); });
-      status("busy", `Reading history · ${rows.length} of ${sigs.length}`);
+      got.forEach((t, j) => { if (!t) return; const s = chunk[j]; const row = classify(cfg, s.signature, s.blockTime || t.blockTime, t); writeCache(s.signature, row); all.push(row); });
+      status(`Reading history · ${all.length} of ${sigs.length}`);
       commit();
       if (i + 4 < need.length) await sleep(250);
     }
@@ -278,35 +276,29 @@
   async function checkBooks() {
     let text;
     try { const r = await fetch("./ledger.jsonl", { cache: "no-store" }); if (!r.ok) throw 0; text = await r.text(); }
-    catch { $("books").textContent = "The bot has not published its own books yet; everything above comes from the chain alone."; return; }
+    catch { return; }
+    $("ledger-link").hidden = false;
     const entries = text.split("\n").filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } });
     const check = crossCheck(entries, state.rows);
     let missing = check.missing;
     if (missing.length) {
-      try {
-        const st = await rpc("getSignatureStatuses", [missing.map((e) => e.signature), { searchTransactionHistory: true }]);
-        missing = missing.filter((e, i) => !st.value[i] || st.value[i].err);
-      } catch {}
+      try { const st = await rpc("getSignatureStatuses", [missing.map((e) => e.signature), { searchTransactionHistory: true }]); missing = missing.filter((e, i) => !st.value[i] || st.value[i].err); } catch {}
     }
-    $("books").innerHTML = missing.length
-      ? `<span class="stamp bad">Mismatch</span> ${plural(missing.length, "entry")} in the bot's books ${missing.length === 1 ? "is" : "are"} not on the chain. <a href="./ledger.jsonl" style="color:var(--accent-2)">Raw ledger</a>`
-      : `<span class="stamp ok">Books match</span> The bot's own books (${plural(check.withSig.length, "transaction")}, ${plural(check.cycles, "cycle")}) all check out against the chain. <a href="./ledger.jsonl" style="color:var(--accent-2)">Raw ledger</a>`;
+    if (missing.length) { $("error").hidden = false; $("error").textContent = `${plural(missing.length, "entry")} in the bot's published books ${missing.length === 1 ? "is" : "are"} not on the chain.`; }
   }
 
   async function refresh() {
     $("refresh").disabled = true;
     $("error").hidden = true;
-    status("busy", "Reading the chain…");
+    status("Reading the chain…");
     try {
-      await Promise.all([readSlot(), loadBalances()]);
+      await loadBalances();
       await loadHistory();
       render();
       await checkBooks();
-      status("live", `Updated ${new Date().toISOString().slice(11, 16)} UTC${state.truncated ? ` · latest ${MAX_HISTORY} transactions` : ""}`);
-    } catch (err) {
-      $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`;
-      status("", "Stopped");
-    } finally { $("refresh").disabled = false; }
+      status(`Read directly from Solana · updated ${new Date().toISOString().slice(11, 16)} UTC${state.truncated ? ` · latest ${MAX_HISTORY} transactions` : ""}`);
+    } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`; status("Stopped"); }
+    finally { $("refresh").disabled = false; }
   }
 
   async function main() {
@@ -316,19 +308,18 @@
     rpc = makeRpc([cfg.rpcUrl, ...FALLBACK_RPCS]);
     name = cfg.strategySymbol || cfg.title || "coin";
     if (cfg.title) { document.title = `${cfg.title} · Dashboard`; $("brand-title").textContent = cfg.title; }
-    $("treasury-link").textContent = cfg.treasury; $("treasury-link").href = acctUrl(cfg.treasury);
+    $("treasury-link").href = acctUrl(cfg.treasury);
     if (cfg.strategyMint) { $("buy").href = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`; $("buy").hidden = false; }
     $("addresses").innerHTML = [["Treasury", cfg.treasury], cfg.strategyMint ? [name, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null]
-      .filter(Boolean).map(([k, v]) => `<span class="addr">${esc(k)} <a href="${acctUrl(v)}" rel="noopener" title="${esc(v)}">${esc(short(v))}</a></span>`).join("");
+      .filter(Boolean).map(([k, v]) => `${esc(k)}: <a class="mono" href="${acctUrl(v)}" rel="noopener">${esc(v)}</a>`).join("<br>");
     await mintOf(cfg.burnMint);
     if (cfg.strategyMint) await mintOf(cfg.strategyMint);
     render();
     await refresh();
     setInterval(refresh, 60_000);
-    setInterval(readSlot, 20_000);
   }
   $("refresh").onclick = refresh;
-  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; status("", "Stopped"); });
+  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; status("Stopped"); });
 </script>
 </body>
 </html>
