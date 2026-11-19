@@ -9,452 +9,369 @@
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23150612'/%3E%3Cpath d='M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0' fill='none' stroke='%23ff1f8f' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <style>
   :root {
-    --bg: #120511; --bg-2: #190a17; --card: #1f0d1c; --line: #3a1a34; --line-2: #55264c;
-    --ink: #fbeef6; --muted: #c197b4; --faint: #8d6683;
+    --bg: #110410; --bg-2: #180a16; --card: #1d0c1a; --card-2: #241029; --line: #35182f; --line-2: #4e2446;
+    --ink: #fbeef6; --muted: #bd93b0; --faint: #83617a;
     --accent: #ff1f8f; --accent-2: #ff6ab8; --accent-ink: #1a0414;
-    --ok: #4ade80; --warn: #fbbf24; --bad: #fb7185;
+    --ok: #4ade80; --warn: #fbbf24; --bad: #fb7185; --blue: #93c5fd;
     --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   }
   * { box-sizing: border-box; }
-  html { background: var(--bg); }
-  body { margin: 0; background: radial-gradient(1200px 500px at 50% -200px, #3a0f31 0%, var(--bg) 60%) fixed, var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
-  a { color: var(--accent-2); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  main { max-width: 1000px; margin: 0 auto; padding: 28px 16px 80px; }
-  header { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-bottom: 8px; }
-  header svg { width: 52px; height: 52px; flex: none; }
-  h1 { font-size: clamp(1.6rem, 4vw, 2.2rem); margin: 0; letter-spacing: -0.01em; }
-  h1 small { display: block; font-size: 0.95rem; font-weight: 500; color: var(--muted); letter-spacing: 0; }
-  h2 { font-size: 1.05rem; margin: 34px 0 10px; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+  html { background: var(--bg); scroll-behavior: smooth; }
+  body { margin: 0; background: radial-gradient(900px 420px at 50% -160px, #3d0e33 0%, var(--bg) 65%) fixed, var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Inter, Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: var(--accent-2); text-decoration: none; } a:hover { text-decoration: underline; }
+  main { max-width: 1000px; margin: 0 auto; padding: 24px 16px 72px; }
+
+  .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
+  .brand svg { width: 46px; height: 46px; flex: none; }
+  h1 { font-size: clamp(1.5rem, 4vw, 2rem); margin: 0; letter-spacing: -0.01em; line-height: 1.15; }
+  h1 small { display: block; font-size: 0.9rem; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-top: 2px; }
+
+  .status { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; font-size: 0.85rem; color: var(--muted); margin: 0 0 12px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); flex: none; }
+  .dot.live { background: var(--ok); box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.15); }
+  .dot.busy { background: var(--accent); animation: pulse 1.2s infinite; }
+  @keyframes pulse { 50% { opacity: 0.35; } }
+  .progress { flex: 1 1 120px; height: 3px; background: var(--line); border-radius: 2px; overflow: hidden; }
+  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .linkbtn { background: none; border: 0; color: var(--accent-2); font: inherit; font-size: 0.85rem; font-weight: 600; cursor: pointer; padding: 0; }
+
+  h2 { font-size: 1.05rem; margin: 28px 0 10px; display: flex; align-items: baseline; gap: 10px; }
   h2 .pill { font-size: 0.72rem; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--line); color: var(--muted); }
-  p.lead { margin: 12px 0 22px; color: var(--muted); max-width: 70ch; }
-  .notice { border: 1px solid var(--line-2); background: var(--bg-2); border-radius: 12px; padding: 12px 14px; color: var(--muted); font-size: 0.92rem; }
-  .notice.bad { border-color: var(--bad); color: var(--ink); }
+  .notice { border: 1px solid var(--line-2); background: var(--bg-2); border-radius: 12px; padding: 12px 14px; color: var(--muted); font-size: 0.92rem; margin: 0 0 14px; }
+  .notice.bad { border-color: #7f1d2d; color: var(--ink); }
   .muted { color: var(--muted); } .faint { color: var(--faint); }
   .mono { font-family: var(--mono); font-size: 0.86em; overflow-wrap: anywhere; }
-  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 12px; }
-  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
-  .tile .label { color: var(--muted); font-size: 0.76rem; text-transform: uppercase; letter-spacing: 0.05em; }
-  .tile .value { font-size: 1.45rem; font-weight: 650; font-variant-numeric: tabular-nums; margin-top: 4px; overflow-wrap: anywhere; }
-  .tile .value.accent { color: var(--accent); }
-  .tile .sub { color: var(--faint); font-size: 0.82rem; margin-top: 2px; }
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 6px 16px; overflow-x: auto; }
+
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .tile { background: linear-gradient(180deg, var(--card-2), var(--card)); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; min-width: 0; }
+  .tile.hero { border-color: #6b1f55; }
+  .tile .label { color: var(--muted); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.06em; }
+  .tile .value { font-size: 1.5rem; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 6px; overflow-wrap: anywhere; line-height: 1.2; }
+  .tile .value small { font-size: 0.65em; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .tile.hero .value { color: var(--accent); }
+  .tile .sub { color: var(--faint); font-size: 0.8rem; margin-top: 6px; }
+  .skeleton { display: inline-block; width: 60%; height: 1em; border-radius: 6px; background: linear-gradient(90deg, var(--line) 25%, var(--line-2) 50%, var(--line) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+
+  .how { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; margin-top: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); font-size: 0.86rem; color: var(--muted); }
+  .how div { padding: 12px 14px; border-right: 1px solid var(--line); }
+  .how div:last-child { border-right: 0; }
+  .how b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--accent); color: var(--accent-ink); font-size: 0.72rem; margin-right: 6px; vertical-align: -3px; }
+  .how strong { color: var(--ink); }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 0 16px; overflow-x: auto; }
   .card.pad { padding: 16px; }
   table { width: 100%; border-collapse: collapse; font-size: 0.92rem; }
-  th { text-align: left; color: var(--muted); font-weight: 500; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; padding: 10px 10px 8px 0; border-bottom: 1px solid var(--line); }
-  td { padding: 10px 10px 10px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { text-align: left; color: var(--faint); font-weight: 600; font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.06em; padding: 12px 12px 10px 0; border-bottom: 1px solid var(--line); }
+  td { padding: 11px 12px 11px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
   tr:last-child td { border-bottom: 0; }
   td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  td.num.in { color: var(--ok); } td.num.out { color: var(--ink); } td.num.burn { color: var(--accent); }
   .nowrap { white-space: nowrap; }
-  .type { display: inline-block; font-size: 0.78rem; font-weight: 600; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; }
-  .type.claim { color: var(--ok); border-color: #1f5a37; }
-  .type.buy { color: var(--accent-2); border-color: #7a2560; }
-  .type.burn { color: var(--accent); border-color: #7a2560; background: #2a0b22; }
-  .type.payout { color: #93c5fd; border-color: #1e3a5f; }
-  .status { font-size: 0.8rem; white-space: nowrap; }
-  .status.ok { color: var(--ok); } .status.bad { color: var(--bad); }
+  .type { display: inline-block; font-size: 0.74rem; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line-2); color: var(--muted); white-space: nowrap; margin-right: 8px; vertical-align: 1px; }
+  .type.claim { color: var(--ok); border-color: #1f5a37; background: #0f2a1a; }
+  .type.buy { color: var(--accent-2); border-color: #7a2560; background: #2a0b22; }
+  .type.burn { color: var(--accent-ink); background: var(--accent); border-color: var(--accent); }
+  .type.payout { color: var(--blue); border-color: #1e3a5f; background: #0f1e33; }
+  .detail { color: var(--faint); font-size: 0.82rem; margin-top: 4px; }
+  .proof { font-size: 0.78rem; white-space: nowrap; }
+  .proof .ok { color: var(--ok); } .proof .bad { color: var(--bad); }
+
   .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
-  input[type=text] { flex: 1 1 320px; min-width: 0; background: var(--bg-2); color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 10px 12px; font: inherit; font-family: var(--mono); font-size: 0.9rem; }
+  input[type=text] { flex: 1 1 320px; min-width: 0; background: var(--bg-2); color: var(--ink); border: 1px solid var(--line-2); border-radius: 10px; padding: 11px 12px; font: inherit; font-family: var(--mono); font-size: 0.9rem; }
   input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
-  button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 10px 16px; font: inherit; font-weight: 650; cursor: pointer; }
-  button.ghost { background: transparent; color: var(--accent-2); border: 1px solid var(--line-2); }
+  button { background: var(--accent); color: var(--accent-ink); border: 0; border-radius: 10px; padding: 11px 18px; font: inherit; font-weight: 700; cursor: pointer; }
+  button.ghost { background: transparent; color: var(--accent-2); border: 1px solid var(--line-2); font-weight: 600; }
   button:disabled { opacity: 0.5; cursor: default; }
-  .rules { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-  .rule { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
-  .rule .n { color: var(--accent); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; }
-  .rule b { display: block; margin: 4px 0 2px; }
-  .rule span { color: var(--muted); font-size: 0.92rem; }
-  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: 0.92rem; }
-  dt { color: var(--muted); } dd { margin: 0; min-width: 0; }
-  .progress { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; margin: 10px 0 0; }
-  .progress i { display: block; height: 100%; width: 0; background: var(--accent); transition: width .3s; }
+  .wallet-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 14px; }
+  .wallet-tiles .tile .value { font-size: 1.25rem; }
   .filters { display: flex; gap: 6px; flex-wrap: wrap; margin: 0 0 10px; }
-  .filters button { padding: 5px 11px; font-size: 0.82rem; font-weight: 600; }
-  .filters button[aria-pressed=false] { background: transparent; color: var(--muted); border: 1px solid var(--line-2); }
-  footer { margin-top: 48px; color: var(--faint); font-size: 0.85rem; }
-  footer p { margin: 6px 0; }
-  @media (max-width: 640px) { dl { grid-template-columns: 1fr; gap: 2px; } dt { margin-top: 8px; } td, th { padding-right: 8px; } }
+  .filters button { padding: 6px 12px; font-size: 0.82rem; }
+  .filters button[aria-pressed=false] { background: transparent; color: var(--muted); border: 1px solid var(--line-2); font-weight: 600; }
+  .filters button .c { opacity: 0.6; font-weight: 500; margin-left: 4px; }
+  footer { margin-top: 36px; color: var(--faint); font-size: 0.82rem; border-top: 1px solid var(--line); padding-top: 16px; }
+  footer p { margin: 6px 0; overflow-wrap: anywhere; }
+  footer .addr { margin-right: 14px; white-space: nowrap; }
+
+  @media (max-width: 860px) { .tiles, .how { grid-template-columns: repeat(2, 1fr); } .how div:nth-child(2) { border-right: 0; } .how div:nth-child(-n+2) { border-bottom: 1px solid var(--line); } }
+  @media (max-width: 560px) {
+    .tiles, .wallet-tiles, .how { grid-template-columns: 1fr; }
+    .how div { border-right: 0; border-bottom: 1px solid var(--line); } .how div:last-child { border-bottom: 0; }
+    td, th { padding-right: 8px; } .hide-sm { display: none; }
+  }
 </style>
 </head>
 <body>
 <main>
-  <header>
+  <div class="brand">
     <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#1b0717"/><path d="M14 50 32 12l18 38M21 50l11-24 11 24M26 50a6 6 0 0 0 12 0" fill="none" stroke="#ff1f8f" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <h1 id="title">Dacity Strategy <small>Buys and burns DCTY. Pays holders in TTWO. Proven on-chain.</small></h1>
-  </header>
-  <p class="lead">Everything on this page is read by your browser straight from the Solana blockchain. Nothing is typed in by us. Every line links to its transaction, so you can check it on any explorer.</p>
+    <h1 id="title">Dacity Strategy <small>Buys and burns DCTY. Pays holders in TTWO. Read live from the Solana blockchain by your browser.</small></h1>
+  </div>
 
   <div id="setup" class="notice" hidden></div>
   <div id="error" class="notice bad" hidden></div>
 
-  <h2>Right now <span class="pill" id="scan-pill">connecting…</span></h2>
+  <div class="status"><span class="dot" id="dot"></span><span id="status-text">Connecting…</span><span class="progress" id="progress" hidden><i></i></span><button class="linkbtn" id="refresh" hidden>Refresh</button></div>
   <div class="tiles" id="tiles"></div>
-  <div class="progress" id="progress" hidden><i></i></div>
 
-  <h2>How it works</h2>
-  <div class="rules">
-    <div class="rule"><div class="n">STEP 1</div><b>Fees come in</b><span>Every trade of the strategy coin on pump.fun pays a creator fee in TTWO (tokenized Take-Two stock) to the treasury wallet.</span></div>
-    <div class="rule"><div class="n">STEP 2</div><b>Split in half</b><span>Each claim is split 50 / 50. Half buys DCTY, half is set aside for holders. Nothing is kept.</span></div>
-    <div class="rule"><div class="n">STEP 3</div><b>Buy and burn DCTY</b><span>The first half buys DacityCoin on the open market and burns it, permanently removing it from supply.</span></div>
-    <div class="rule"><div class="n">STEP 4</div><b>Pay holders in TTWO</b><span>The second half is sent in TTWO to every wallet holding at least <strong id="minhold">…</strong> of the strategy coin, in proportion to its balance. No claiming needed.</span></div>
+  <div class="how">
+    <div><b>1</b> Trades of the strategy coin pay a creator fee in TTWO to the treasury.</div>
+    <div><b>2</b> Every claim is split 50 / 50. Nothing is kept.</div>
+    <div><b>3</b> Half buys DCTY on the open market and burns it.</div>
+    <div><b>4</b> Half is sent in TTWO to wallets holding at least <strong id="minhold">…</strong>, pro rata. Nothing to claim.</div>
   </div>
 
-  <h2>Check your wallet</h2>
+  <h2 id="wallet">Check your wallet</h2>
   <div class="card pad">
     <form class="row" id="wallet-form">
-      <input type="text" id="wallet" placeholder="Paste a Solana wallet address" autocomplete="off" spellcheck="false" aria-label="Wallet address">
+      <input type="text" id="wallet-input" placeholder="Paste a Solana wallet address" autocomplete="off" spellcheck="false" aria-label="Wallet address">
       <button type="submit" id="wallet-btn">Check</button>
     </form>
-    <div id="wallet-result" style="margin-top:12px"></div>
+    <div id="wallet-result"></div>
   </div>
 
-  <h2>Every transaction <span class="pill" id="tx-count"></span></h2>
+  <h2 id="txs">Every transaction <span class="pill" id="tx-count"></span></h2>
   <div class="filters" id="filters" role="group" aria-label="Filter transactions"></div>
-  <div class="card"><table id="txs"><thead><tr><th>When</th><th>What</th><th>Details</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody></tbody></table></div>
+  <div class="card"><table><thead><tr><th class="hide-sm">When</th><th>Activity</th><th class="num">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
   <div class="row" style="margin-top:12px"><button class="ghost" id="more" hidden>Show more</button></div>
 
-  <h2>Published books vs. the chain</h2>
-  <div class="card pad" id="ledger"><span class="muted">Loading…</span></div>
-
-  <h2>Addresses</h2>
-  <div class="card pad"><dl id="addresses"></dl></div>
+  <div class="card pad" id="ledger" style="margin-top:14px"><span class="muted">Checking the bot's published books against the chain…</span></div>
 
   <footer>
-    <p>How to verify this yourself: open the treasury on an explorer and read its history. The transactions listed here are that history. DCTY burns reduce the DCTY supply, which the explorer also shows.</p>
-    <p>Data comes from a public Solana RPC and may lag the chain by a few seconds. Amounts are shown exactly as recorded on-chain. Nothing on this page is financial advice.</p>
-    <p id="repo"></p>
+    <p id="addresses"></p>
+    <p>Verify it yourself: open the treasury on any explorer. Its history is this page. Data comes from a public Solana RPC and can lag by a few seconds. Not financial advice. <span id="repo"></span></p>
   </footer>
 </main>
 
-<script>
-(() => {
-  "use strict";
+<script type="module">
+  import { BASE58, PUMP_PROGRAM, classify, fmt, makeRpc, receivedBy, summarize, toBase, ata } from "./proof.js";
+
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const short = (a) => (a && a.length > 12 ? `${a.slice(0, 4)}…${a.slice(-4)}` : a || "");
-  const tx = (sig) => `https://solscan.io/tx/${encodeURIComponent(sig)}`;
-  const acct = (a) => `https://solscan.io/account/${encodeURIComponent(a)}`;
+  const txUrl = (sig) => `https://solscan.io/tx/${encodeURIComponent(sig)}`;
+  const acctUrl = (a) => `https://solscan.io/account/${encodeURIComponent(a)}`;
   const when = (t) => (t ? new Date(t * 1000).toISOString().replace("T", " ").slice(0, 16) + " UTC" : "pending");
-  const BASE58 = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-  const PROGRAMS = {
-    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P": "pump",
-    "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA": "pump pool",
-    "JUP6LkbZbjS1jKKwapdHNy74zcZ3tLUZoi5QNyVTaV4": "Jupiter",
-  };
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-  function fmt(amount, decimals, places = 4) {
-    const neg = amount < 0n; const abs = neg ? -amount : amount;
-    const base = 10n ** BigInt(decimals);
-    const whole = (abs / base).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
-    const frac = (abs % base).toString().padStart(decimals, "0").slice(0, places).replace(/0+$/, "");
-    const text = `${whole}${frac ? "." + frac : ""}`;
-    return neg && text !== "0" ? `-${text}` : text;
-  }
-
-  // ---- RPC ---------------------------------------------------------------
-  let cfg;
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
-  let rpcUrls = [];
-  async function rpc(method, params, attempt = 0, which = 0) {
-    const url = rpcUrls[which];
-    let res;
-    try { res = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }) }); }
-    catch (err) { if (which + 1 < rpcUrls.length) return rpc(method, params, 0, which + 1); throw new Error(`cannot reach the RPC (${err.message})`); }
-    if (res.status === 429 || res.status >= 500) {
-      if (attempt < 5) { await sleep(700 * 2 ** attempt); return rpc(method, params, attempt + 1, which); }
-      if (which + 1 < rpcUrls.length) return rpc(method, params, 0, which + 1);
-      throw new Error(`the RPC is rate-limiting this page (HTTP ${res.status}); reload in a minute`);
-    }
-    let body; try { body = await res.json(); } catch { body = { error: { message: `HTTP ${res.status}` } }; }
-    if (body.error) {
-      const m = body.error.message || "RPC error";
-      if (/429|too many|rate/i.test(m) && attempt < 5) { await sleep(700 * 2 ** attempt); return rpc(method, params, attempt + 1, which); }
-      if (which + 1 < rpcUrls.length && (res.status === 403 || res.status === 401 || /forbidden|token|plan|key/i.test(m))) return rpc(method, params, 0, which + 1);
-      throw new Error(m);
-    }
-    return body.result;
-  }
+  const MAX_HISTORY = 2000;
+  const LABELS = { claim: "Claim", buy: "Buy DCTY", burn: "Burn DCTY", payout: "Pay holders", other: "Other" };
+  const STRATEGY = ["claim", "buy", "burn", "payout"];
 
-  // ---- Addresses: base58 and associated token accounts ----------------------
-  // Free public RPCs refuse "indexed" lookups such as getTokenAccountsByOwner,
-  // so the page derives each wallet's associated token account itself and
-  // reads that one account, which every RPC allows.
-  const ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-  function b58decode(s) {
-    let n = 0n; for (const c of s) { const i = ALPHABET.indexOf(c); if (i < 0) throw new Error("bad base58"); n = n * 58n + BigInt(i); }
-    const hex = n.toString(16).padStart(2, "0"); const body = hex.length % 2 ? "0" + hex : hex;
-    const bytes = body === "00" && n === 0n ? [] : body.match(/../g).map((h) => parseInt(h, 16));
-    let zeros = 0; for (const c of s) { if (c !== "1") break; zeros++; }
-    return Uint8Array.from([...new Array(zeros).fill(0), ...bytes]);
-  }
-  function b58encode(bytes) {
-    let n = 0n; for (const b of bytes) n = (n << 8n) + BigInt(b);
-    let out = ""; while (n > 0n) { out = ALPHABET[Number(n % 58n)] + out; n /= 58n; }
-    for (const b of bytes) { if (b !== 0) break; out = "1" + out; }
-    return out;
-  }
-  const P = (1n << 255n) - 19n;
-  const modpow = (b, e, m) => { let r = 1n; b %= m; while (e > 0n) { if (e & 1n) r = (r * b) % m; b = (b * b) % m; e >>= 1n; } return r; };
-  const D = (P - (121665n * modpow(121666n, P - 2n, P)) % P) % P; // -121665/121666
-  /** True when the 32 bytes decompress to a point on ed25519 (a wallet can sign for it). */
-  function onCurve(bytes) {
-    let y = 0n; for (let i = 31; i >= 0; i--) y = (y << 8n) + BigInt(bytes[i]);
-    y &= (1n << 255n) - 1n; if (y >= P) return false;
-    const y2 = (y * y) % P; const u = (y2 + P - 1n) % P; const v = (D * y2 + 1n) % P;
-    if (u === 0n) return true;
-    const x2 = (u * modpow(v, P - 2n, P)) % P;
-    return modpow(x2, (P - 1n) / 2n, P) === 1n;
-  }
-  const ATA_PROGRAM = "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL";
-  async function sha256(bytes) { return new Uint8Array(await crypto.subtle.digest("SHA-256", bytes)); }
-  async function ata(owner, mint, tokenProgram) {
-    const seeds = [b58decode(owner), b58decode(tokenProgram), b58decode(mint)];
-    const tail = new TextEncoder().encode("ProgramDerivedAddress"); const prog = b58decode(ATA_PROGRAM);
-    for (let bump = 255; bump >= 0; bump--) {
-      const data = new Uint8Array(32 * 4 + 1 + tail.length); let o = 0;
-      for (const s of seeds) { data.set(s, o); o += 32; }
-      data[o++] = bump; data.set(prog, o); o += 32; data.set(tail, o);
-      const h = await sha256(data); if (!onCurve(h)) return b58encode(h);
-    }
-    throw new Error("no program address");
-  }
+  let cfg, rpc;
+  const state = { rows: [], filter: "strategy", shown: 25, live: null, truncated: false, scanning: false };
+
+  // ---- Chain reads --------------------------------------------------------------
   const mintInfo = new Map();
   async function mintOf(mint) {
     if (mintInfo.has(mint)) return mintInfo.get(mint);
     const r = await rpc("getAccountInfo", [mint, { encoding: "jsonParsed", commitment: "confirmed" }]);
     if (!r.value || !r.value.data.parsed) throw new Error(`${short(mint)} is not a token mint`);
     const info = { program: r.value.owner, decimals: r.value.data.parsed.info.decimals, supply: BigInt(r.value.data.parsed.info.supply) };
-    mintInfo.set(mint, info); return info;
+    mintInfo.set(mint, info);
+    return info;
   }
   async function tokenBalance(owner, mint) {
     const m = await mintOf(mint);
     const r = await rpc("getAccountInfo", [await ata(owner, mint, m.program), { encoding: "jsonParsed", commitment: "confirmed" }]);
-    const amt = r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n;
-    return { amount: amt, decimals: m.decimals };
+    return { amount: r.value && r.value.data.parsed ? BigInt(r.value.data.parsed.info.tokenAmount.amount) : 0n, decimals: m.decimals };
   }
-
-  // ---- Transaction parsing ----------------------------------------------
-  // Everything below is derived from the transaction as the chain stores it.
   const cacheKey = (sig) => `dacity:tx:${sig}`;
-  function readCache(sig) { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } }
-  function writeCache(sig, row) { try { localStorage.setItem(cacheKey(sig), JSON.stringify(row, (k, v) => (typeof v === "bigint" ? `${v}n` : v))); } catch {} }
   const revive = (k, v) => (typeof v === "string" && /^-?\d+n$/.test(v) ? BigInt(v.slice(0, -1)) : v);
+  const readCache = (sig) => { try { const s = localStorage.getItem(cacheKey(sig)); return s ? JSON.parse(s, revive) : null; } catch { return null; } };
+  const writeCache = (sig, row) => { try { localStorage.setItem(cacheKey(sig), JSON.stringify(row, (k, v) => (typeof v === "bigint" ? `${v}n` : v))); } catch {} };
 
-  function parseTx(sig, blockTime, t) {
-    const meta = t.meta || {}; const msg = t.transaction.message;
-    const keys = msg.accountKeys.map((k) => (typeof k === "string" ? k : k.pubkey));
-    const treasury = cfg.treasury;
-    const rows = (list) => (list || []);
-    const owned = (list, mint) => rows(list).filter((r) => r.owner === treasury && r.mint === mint).reduce((a, r) => a + BigInt(r.uiTokenAmount.amount), 0n);
-    const decimalsOf = (mint) => { const r = rows(meta.postTokenBalances).concat(rows(meta.preTokenBalances)).find((x) => x.mint === mint); return r ? r.uiTokenAmount.decimals : null; };
-    const ownerOfIndex = (i) => { const r = rows(meta.postTokenBalances).concat(rows(meta.preTokenBalances)).find((x) => x.accountIndex === i); return r ? r.owner : null; };
-    const mintOfIndex = (i) => { const r = rows(meta.postTokenBalances).concat(rows(meta.preTokenBalances)).find((x) => x.accountIndex === i); return r ? r.mint : null; };
+  // ---- Rendering ------------------------------------------------------------------
+  const decimals = () => ({ q: state.live?.quote.decimals ?? state.rows.find((r) => r.qd != null)?.qd ?? 0, b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6 });
+  const tile = (label, value, sub, hero) => `<div class="tile${hero ? " hero" : ""}"><div class="label">${esc(label)}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
 
-    const all = [];
-    for (const ix of msg.instructions || []) all.push(ix);
-    for (const inner of meta.innerInstructions || []) for (const ix of inner.instructions || []) all.push(ix);
-    const programs = new Set(all.map((ix) => ix.programId).filter(Boolean));
-    const venues = [...programs].map((p) => PROGRAMS[p]).filter(Boolean);
-
-    let burned = 0n; const payouts = new Map(); let payoutMint = null;
-    for (const ix of all) {
-      const p = ix.parsed; if (!p || !p.info) continue;
-      const info = p.info; const authority = info.authority || info.multisigAuthority;
-      if ((p.type === "burn" || p.type === "burnChecked") && authority === treasury && (info.mint === cfg.burnMint || info.mint === undefined)) {
-        burned += BigInt(info.tokenAmount ? info.tokenAmount.amount : info.amount);
-      }
-      if ((p.type === "transfer" || p.type === "transferChecked") && authority === treasury && info.destination) {
-        const di = keys.indexOf(info.destination);
-        const mint = info.mint || mintOfIndex(di);
-        if (mint === cfg.burnMint) continue;
-        const to = ownerOfIndex(di); if (!to || to === treasury) continue;
-        payoutMint = mint;
-        payouts.set(to, (payouts.get(to) || 0n) + BigInt(info.tokenAmount ? info.tokenAmount.amount : info.amount));
-      }
-    }
-
-    const burnDelta = owned(meta.postTokenBalances, cfg.burnMint) - owned(meta.preTokenBalances, cfg.burnMint);
-    // The quote token (TTWO) is set by `npm run web`, which reads it from the coin on-chain.
-    // Before that, fall back to whatever non-DCTY token the treasury paid out here.
-    const quoteMint = cfg.quoteMint || payoutMint || null;
-    const quoteDelta = quoteMint ? owned(meta.postTokenBalances, quoteMint) - owned(meta.preTokenBalances, quoteMint) : 0n;
-    const lamports = (meta.postBalances && meta.preBalances) ? BigInt(meta.postBalances[0] - meta.preBalances[0]) : 0n;
-    const paid = [...payouts.values()].reduce((a, b) => a + b, 0n);
-
-    let kind = "other", text = "", amount = "";
-    const qd = quoteMint ? decimalsOf(quoteMint) : null, bd = decimalsOf(cfg.burnMint);
-    if (burned > 0n) { kind = "burn"; text = "DCTY destroyed for good"; amount = `-${fmt(burned, bd ?? 6, 2)} DCTY`; }
-    else if (burnDelta > 0n && quoteDelta < 0n) { kind = "buy"; text = `Bought DCTY with TTWO${venues.length ? ` via ${venues.join(" + ")}` : ""}`; amount = `${fmt(-quoteDelta, qd ?? 0)} TTWO → ${fmt(burnDelta, bd ?? 6, 2)} DCTY`; }
-    else if (payouts.size > 0) { kind = "payout"; text = `${payouts.size} holder${payouts.size === 1 ? "" : "s"} paid${programs.has("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P") ? " (fees claimed in the same transaction)" : ""}`; amount = `-${fmt(paid, qd ?? 0)} TTWO`; }
-    else if (quoteDelta > 0n && (programs.has("6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P") || programs.has("pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA"))) { kind = "claim"; text = "Creator fees claimed into the treasury"; amount = `+${fmt(quoteDelta, qd ?? 0)} TTWO`; }
-    else if (quoteDelta !== 0n || burnDelta !== 0n) { kind = "other"; text = "Token movement"; amount = [quoteDelta ? `${quoteDelta > 0n ? "+" : ""}${fmt(quoteDelta, qd ?? 0)} TTWO` : "", burnDelta ? `${burnDelta > 0n ? "+" : ""}${fmt(burnDelta, bd ?? 6, 2)} DCTY` : ""].filter(Boolean).join(", "); }
-    else { kind = "other"; text = venues.length ? `Interaction with ${venues.join(", ")}` : "SOL / account activity"; amount = lamports ? `${lamports > 0n ? "+" : ""}${fmt(lamports, 9)} SOL` : ""; }
-
-    return { sig, time: blockTime, kind, text, amount, err: !!meta.err, quoteMint, quoteDelta, burnDelta, burned, paid, payouts: [...payouts.entries()], qd, bd };
-  }
-
-  // ---- Page state --------------------------------------------------------
-  const state = { rows: [], filter: "all", shown: 60, quoteDecimals: null, burnDecimals: null, ledger: null };
-
-  function tile(label, value, sub, accent) { return `<div class="tile"><div class="label">${esc(label)}</div><div class="value${accent ? " accent" : ""}">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ""}</div>`; }
-
-  function renderTiles(live) {
-    const r = state.rows.filter((x) => !x.err);
-    const bd = state.burnDecimals ?? 6, qd = state.quoteDecimals ?? 0;
-    const burned = r.filter((x) => x.kind === "burn").reduce((a, x) => a + x.burned, 0n);
-    const paid = r.filter((x) => x.kind === "payout").reduce((a, x) => a + x.paid, 0n);
-    const claimed = r.filter((x) => x.kind === "claim").reduce((a, x) => a + x.quoteDelta, 0n);
-    const spent = r.filter((x) => x.kind === "buy").reduce((a, x) => a - x.quoteDelta, 0n);
-    const recipients = new Set(r.filter((x) => x.kind === "payout").flatMap((x) => x.payouts.map((p) => p[0]))).size;
-    const tiles = [
-      tile("DCTY burned", fmt(burned, bd, 0), `${r.filter((x) => x.kind === "burn").length} burn${r.filter((x) => x.kind === "burn").length === 1 ? "" : "s"} · bought with ${fmt(spent, qd)} TTWO`, true),
-      tile("TTWO paid to holders", fmt(paid, qd), `${recipients} wallet${recipients === 1 ? "" : "s"} · ${r.filter((x) => x.kind === "payout").length} payout transaction${r.filter((x) => x.kind === "payout").length === 1 ? "" : "s"}`),
-      tile("Fees claimed", `${fmt(claimed, qd)} <span class="faint" style="font-size:.8em">TTWO</span>`, `${r.filter((x) => x.kind === "claim").length} claim${r.filter((x) => x.kind === "claim").length === 1 ? "" : "s"}`),
-    ];
-    if (live) {
-      tiles.push(tile("Treasury holds now", `${fmt(live.quote.amount, live.quote.decimals ?? qd)} <span class="faint" style="font-size:.8em">TTWO</span>`, `${fmt(live.coin.amount, live.coin.decimals ?? bd, 2)} DCTY waiting to burn · ${fmt(live.sol, 9, 3)} SOL for fees`));
-      if (live.supply) tiles.push(tile("DCTY supply now", fmt(BigInt(live.supply.amount), live.supply.decimals, 0), "falls with every burn"));
-    }
-    $("tiles").innerHTML = tiles.join("");
+  function renderTiles() {
+    const { q, b } = decimals();
+    const s = summarize(state.rows);
+    const live = state.live;
+    const sk = `<span class="skeleton"></span>`;
+    $("tiles").innerHTML = [
+      tile("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, live ? `supply now ${fmt(live.supply, b, 0)} · ${plural(s.burns, "burn")}` : plural(s.burns, "burn"), true),
+      tile("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
+      tile("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, `${plural(s.claims, "claim")} · ${fmt(s.spent, q)} TTWO spent on DCTY`),
+      tile("Treasury holds", live ? `${fmt(live.quote.amount, q)}<small>TTWO</small>` : sk, live ? `${fmt(live.coin.amount, b, 2)} DCTY waiting to burn · ${fmt(live.sol, 9, 3)} SOL for fees` : "reading balances…"),
+    ].join("");
   }
 
   function renderFilters() {
-    const kinds = [["all", "All"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"]];
-    $("filters").innerHTML = kinds.map(([k, label]) => { const n = k === "all" ? state.rows.length : state.rows.filter((x) => x.kind === k).length; return `<button type="button" data-k="${k}" aria-pressed="${state.filter === k}">${label} <span class="faint">${n}</span></button>`; }).join("");
-    for (const b of $("filters").querySelectorAll("button")) b.onclick = () => { state.filter = b.dataset.k; state.shown = 60; renderFilters(); renderTable(); };
+    const count = (k) => (k === "all" ? state.rows.length : k === "strategy" ? state.rows.filter((x) => STRATEGY.includes(x.kind)).length : state.rows.filter((x) => x.kind === k).length);
+    const kinds = [["strategy", "Strategy"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"], ["all", "All"]];
+    $("filters").innerHTML = kinds.map(([k, label]) => `<button type="button" data-k="${k}" aria-pressed="${state.filter === k}">${label}<span class="c">${count(k)}</span></button>`).join("");
+    for (const b of $("filters").querySelectorAll("button")) b.onclick = () => { state.filter = b.dataset.k; state.shown = 25; renderFilters(); renderTable(); };
+  }
+
+  function visibleRows() {
+    if (state.filter === "all") return state.rows;
+    if (state.filter === "strategy") return state.rows.filter((x) => STRATEGY.includes(x.kind));
+    return state.rows.filter((x) => x.kind === state.filter);
   }
 
   function renderTable() {
-    const rows = state.rows.filter((x) => state.filter === "all" || x.kind === state.filter);
-    const labels = { claim: "Claim", buy: "Buy DCTY", burn: "Burn DCTY", payout: "Pay holders", other: "Other" };
-    $("txs").querySelector("tbody").innerHTML = rows.slice(0, state.shown).map((x) => {
-      const details = x.kind === "payout" && x.payouts.length
-        ? `${esc(x.text)}<div class="faint mono" style="margin-top:3px">${x.payouts.slice(0, 5).map(([o, a]) => `<a href="${acct(o)}" rel="noopener">${esc(short(o))}</a> ${fmt(a, x.qd ?? 0)}`).join(" · ")}${x.payouts.length > 5 ? ` · +${x.payouts.length - 5} more` : ""}</div>`
-        : esc(x.text);
-      return `<tr><td class="nowrap muted">${esc(when(x.time))}</td><td><span class="type ${x.kind}">${labels[x.kind]}</span></td><td>${details}</td><td class="num">${esc(x.amount)}</td><td><a class="mono" href="${tx(x.sig)}" rel="noopener">${esc(short(x.sig))}</a><div class="status ${x.err ? "bad" : "ok"}">${x.err ? "failed on chain" : "✓ confirmed"}</div></td></tr>`;
-    }).join("") || `<tr><td colspan="5" class="muted">No transactions yet.</td></tr>`;
-    $("tx-count").textContent = `${rows.length}`;
+    const rows = visibleRows();
+    $("tbody").innerHTML = rows.slice(0, state.shown).map((x) => {
+      const payees = x.kind === "payout" && x.payouts.length
+        ? `<div class="detail mono">${x.payouts.slice(0, 4).map(([o, a]) => `<a href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a> ${fmt(a, x.qd ?? 0)}`).join(" · ")}${x.payouts.length > 4 ? ` · +${x.payouts.length - 4} more` : ""}</div>`
+        : "";
+      const cls = x.kind === "burn" ? "burn" : x.sign > 0 ? "in" : "out";
+      const prefix = x.kind === "burn" ? "🔥 " : x.sign > 0 ? "+" : x.sign < 0 ? "−" : "";
+      return `<tr>
+        <td class="nowrap muted hide-sm">${esc(when(x.time))}</td>
+        <td><span class="type ${x.kind}">${LABELS[x.kind]}</span>${esc(x.text)}${payees}</td>
+        <td class="num ${cls}">${x.amount ? prefix + esc(x.amount) : ""}</td>
+        <td class="proof"><a class="mono" href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a><div class="${x.err ? "bad" : "ok"}">${x.err ? "failed on chain" : "✓ confirmed"}</div></td>
+      </tr>`;
+    }).join("") || `<tr><td colspan="4" class="muted" style="padding:18px 0">${state.scanning ? "Reading the chain…" : state.filter === "strategy" && state.rows.length ? "No strategy activity yet. The first claim, buy, burn and payout will appear here." : "No transactions yet."}</td></tr>`;
+    $("tx-count").textContent = rows.length ? `${rows.length}` : "";
     $("more").hidden = rows.length <= state.shown;
   }
   $("more").onclick = () => { state.shown += 100; renderTable(); };
 
-  // ---- Wallet check ------------------------------------------------------
+  function setStatus(kind, text, pct) {
+    $("dot").className = `dot ${kind}`;
+    $("status-text").textContent = text;
+    $("progress").hidden = pct == null;
+    if (pct != null) $("progress").querySelector("i").style.width = `${pct}%`;
+  }
+  const renderAll = () => { renderTiles(); renderFilters(); renderTable(); };
+
+  // ---- Wallet check ----------------------------------------------------------------
   $("wallet-form").onsubmit = async (e) => {
     e.preventDefault();
-    const addr = $("wallet").value.trim(); const out = $("wallet-result");
-    if (!BASE58.test(addr)) { out.innerHTML = `<span class="muted">That is not a Solana address.</span>`; return; }
-    $("wallet-btn").disabled = true; out.innerHTML = `<span class="muted">Reading the chain…</span>`;
+    const addr = $("wallet-input").value.trim();
+    const out = $("wallet-result");
+    if (!BASE58.test(addr)) { out.innerHTML = `<p class="muted" style="margin:12px 0 0">That is not a Solana address.</p>`; return; }
+    $("wallet-btn").disabled = true;
+    out.innerHTML = `<p class="muted" style="margin:12px 0 0">Reading the chain…</p>`;
     try {
       const held = await tokenBalance(addr, cfg.holderMint);
-      const dec = held.decimals ?? 6;
-      const minHold = BigInt(Math.round(Number(cfg.minHold) * 10 ** dec));
-      const got = state.rows.filter((x) => x.kind === "payout" && !x.err).flatMap((x) => x.payouts.filter((p) => p[0] === addr).map((p) => ({ sig: x.sig, time: x.time, amount: p[1], qd: x.qd })));
+      const minHold = toBase(cfg.minHold, held.decimals);
+      const got = receivedBy(state.rows, addr);
       const total = got.reduce((a, g) => a + g.amount, 0n);
-      const qualifies = held.amount >= minHold && held.amount > 0n;
+      const qd = got[0]?.decimals ?? decimals().q;
+      const qualifies = held.amount > 0n && held.amount >= minHold && addr !== cfg.treasury;
       out.innerHTML = `
-        <dl>
-          <dt>Holds</dt><dd><b>${fmt(held.amount, dec)}</b> ${esc(cfg.holderSymbol || "strategy coin")}</dd>
-          <dt>Qualifies right now</dt><dd>${qualifies ? `<span style="color:var(--ok)">Yes</span>` : `<span style="color:var(--warn)">No</span>`} <span class="muted">(needs at least ${esc(cfg.minHold)}${addr === cfg.treasury ? "; the treasury never pays itself" : ""})</span></dd>
-          <dt>Received so far</dt><dd><b>${fmt(total, got[0]?.qd ?? state.quoteDecimals ?? 0)}</b> TTWO in ${got.length} payout${got.length === 1 ? "" : "s"}</dd>
-        </dl>
-        ${got.length ? `<div class="mono faint" style="margin-top:8px">${got.slice(0, 20).map((g) => `<a href="${tx(g.sig)}" rel="noopener">${esc(when(g.time))}</a> +${fmt(g.amount, g.qd ?? 0)}`).join("<br>")}</div>` : ""}`;
-    } catch (err) { out.innerHTML = `<span class="muted">Could not read that wallet: ${esc(err.message)}</span>`; }
-    finally { $("wallet-btn").disabled = false; }
+        <div class="wallet-tiles">
+          ${tile("Holds", `${fmt(held.amount, held.decimals)}<small>${esc(cfg.holderSymbol || "")}</small>`, addr === cfg.treasury ? "this is the treasury itself" : `needs ${esc(cfg.minHold)} to qualify`)}
+          ${tile("Qualifies right now", qualifies ? `<span style="color:var(--ok)">Yes</span>` : `<span style="color:var(--warn)">Not yet</span>`, qualifies ? "will be in the next payout" : "buy or hold more to be included")}
+          ${tile("Received so far", `${fmt(total, qd)}<small>TTWO</small>`, state.scanning ? `${plural(got.length, "payout")} found so far, still reading…` : plural(got.length, "payout"))}
+        </div>
+        ${got.length ? `<div class="detail mono" style="margin-top:10px">${got.slice(0, 15).map((g) => `<a href="${txUrl(g.sig)}" rel="noopener">${esc(when(g.time))}</a> +${fmt(g.amount, g.decimals ?? qd)} TTWO`).join("<br>")}${got.length > 15 ? `<br>… and ${got.length - 15} more` : ""}</div>` : ""}`;
+    } catch (err) {
+      out.innerHTML = `<p class="muted" style="margin:12px 0 0">Could not read that wallet: ${esc(err.message)}</p>`;
+    } finally { $("wallet-btn").disabled = false; }
   };
 
-  // ---- Ledger cross-check -------------------------------------------------
+  // ---- The bot's books vs. the chain ------------------------------------------------
   async function checkLedger() {
     let text;
-    try { const r = await fetch("./ledger.jsonl", { cache: "no-store" }); if (!r.ok) throw 0; text = await r.text(); } catch { $("ledger").innerHTML = `<span class="muted">The bot's ledger is not published next to this page yet. The table above comes from the chain alone, so nothing is missing.</span>`; return; }
+    try { const r = await fetch("./ledger.jsonl", { cache: "no-store" }); if (!r.ok) throw 0; text = await r.text(); }
+    catch { $("ledger").innerHTML = `<span class="muted">The bot's ledger is not published next to this page yet. The table above comes from the chain alone, so nothing is missing.</span>`; return; }
     const entries = text.split("\n").filter((l) => l.trim()).map((l) => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
     const withSig = entries.filter((e) => e.signature && ["claim", "swap", "burn", "payout"].includes(e.type));
     const onChain = new Set(state.rows.filter((x) => !x.err).map((x) => x.sig));
-    const missing = withSig.filter((e) => !onChain.has(e.signature));
-    let stillMissing = missing;
+    let missing = withSig.filter((e) => !onChain.has(e.signature));
     if (missing.length) {
       try {
         const st = await rpc("getSignatureStatuses", [missing.map((e) => e.signature), { searchTransactionHistory: true }]);
-        stillMissing = missing.filter((e, i) => !st.value[i] || st.value[i].err);
+        missing = missing.filter((e, i) => !st.value[i] || st.value[i].err);
       } catch {}
     }
     const cycles = entries.reduce((a, e) => Math.max(a, e.cycle || 0), 0);
-    const ok = stillMissing.length === 0;
+    const ok = missing.length === 0;
     $("ledger").innerHTML = `
       <div class="row" style="justify-content:space-between">
-        <div><b style="color:${ok ? "var(--ok)" : "var(--bad)"}">${ok ? "✓ Every ledger entry is on the chain" : `${stillMissing.length} ledger entr${stillMissing.length === 1 ? "y is" : "ies are"} NOT on the chain`}</b>
-        <div class="muted" style="font-size:.9rem">The bot publishes its own books (${withSig.length} transactions over ${cycles} cycle${cycles === 1 ? "" : "s"}). Each one was looked up on-chain just now.</div></div>
-        <a class="ghost" href="./ledger.jsonl" style="font-size:.85rem">Open the raw ledger</a>
+        <div>
+          <b style="color:${ok ? "var(--ok)" : "var(--bad)"}">${ok ? "✓ Every entry in the bot's books is on the chain" : `${plural(missing.length, "entry")} in the books ${missing.length === 1 ? "is" : "are"} NOT on the chain`}</b>
+          <div class="muted" style="font-size:.9rem;margin-top:2px">The bot publishes its own books: ${plural(withSig.length, "transaction")} over ${plural(cycles, "cycle")}. Each one was just looked up on-chain.</div>
+        </div>
+        <a href="./ledger.jsonl" style="font-size:.85rem">Open the raw ledger</a>
       </div>
-      ${stillMissing.length ? `<div class="mono faint" style="margin-top:8px">${stillMissing.slice(0, 10).map((e) => esc(`${e.type} ${e.signature}`)).join("<br>")}</div>` : ""}`;
+      ${missing.length ? `<div class="detail mono" style="margin-top:8px">${missing.slice(0, 10).map((e) => esc(`${e.type} ${e.signature}`)).join("<br>")}</div>` : ""}`;
   }
 
-  // ---- Main --------------------------------------------------------------
-  async function main() {
-    try { const r = await fetch("./config.json", { cache: "no-store" }); if (!r.ok) throw 0; cfg = await r.json(); }
-    catch { $("setup").hidden = false; $("setup").textContent = "This page is not configured yet. Run `npm run web` in the bot folder to create web/config.json next to it."; $("scan-pill").textContent = "not configured"; return; }
-    rpcUrls = [...new Set([cfg.rpcUrl, ...FALLBACK_RPCS].filter(Boolean))];
-    if (cfg.title) { document.title = cfg.title; $("title").firstChild.textContent = cfg.title + " "; }
-    $("minhold").textContent = `${cfg.minHold} ${cfg.holderSymbol || "coins"}`;
-    if (cfg.repoUrl) $("repo").innerHTML = `The bot and this page are open source: <a href="${esc(cfg.repoUrl)}" rel="noopener">${esc(cfg.repoUrl)}</a>. The money rules live in src/split.ts.`;
-    $("addresses").innerHTML = [
-      ["Treasury (creator wallet)", cfg.treasury], ["Strategy coin", cfg.strategyMint], ["Burned: DacityCoin (DCTY)", cfg.burnMint],
-      ["Paid in: TTWO", cfg.quoteMint || "read from the chain"], cfg.holderMint !== cfg.strategyMint ? ["Rewards go to holders of", cfg.holderMint] : null,
-    ].filter(Boolean).map(([k, v]) => `<dt>${esc(k)}</dt><dd class="mono">${BASE58.test(v) ? `<a href="${acct(v)}" rel="noopener">${esc(v)}</a>` : esc(v)}</dd>`).join("");
-
-    renderTiles(null); renderFilters(); renderTable();
-
-    // 1. Live balances.
-    let live = null;
-    try {
-      const [sol, coin] = await Promise.all([rpc("getBalance", [cfg.treasury, { commitment: "confirmed" }]), tokenBalance(cfg.treasury, cfg.burnMint)]);
-      const burnMint = await mintOf(cfg.burnMint);
-      const supply = { amount: burnMint.supply.toString(), decimals: burnMint.decimals };
-      const quote = cfg.quoteMint ? await tokenBalance(cfg.treasury, cfg.quoteMint) : { amount: 0n, decimals: null };
-      live = { sol: BigInt(sol.value), coin, quote, supply };
-      state.burnDecimals = coin.decimals ?? state.burnDecimals;
-      state.quoteDecimals = quote.decimals ?? state.quoteDecimals;
-      renderTiles(live);
-    } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read balances: ${err.message}`; }
-
-    // 2. The treasury's whole history, newest first.
-    $("scan-pill").textContent = "reading history…"; $("progress").hidden = false;
-    const sigs = []; let before; let truncated = false;
-    const MAX_HISTORY = 2000;
+  // ---- Main -------------------------------------------------------------------------
+  async function loadHistory() {
+    state.scanning = true;
+    setStatus("busy", "Reading the treasury's history…", 0);
+    const sigs = [];
+    let before;
     try {
       while (sigs.length < MAX_HISTORY) {
         const batch = await rpc("getSignaturesForAddress", [cfg.treasury, { limit: Math.min(1000, MAX_HISTORY - sigs.length), commitment: "confirmed", ...(before ? { before } : {}) }]);
-        sigs.push(...batch); if (batch.length < 1000) break; before = batch[batch.length - 1].signature;
+        sigs.push(...batch);
+        if (batch.length < 1000) break;
+        before = batch[batch.length - 1].signature;
       }
-      if (sigs.length >= MAX_HISTORY) truncated = true;
+      state.truncated = sigs.length >= MAX_HISTORY;
     } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read the treasury's history: ${err.message}`; }
 
-    const rows = []; let done = 0;
-    const need = sigs.filter((s) => { const c = readCache(s.signature); if (c) { rows.push(c); done++; return false; } return true; });
-    state.rows = rows.sort((a, b) => (b.time || 0) - (a.time || 0)); renderFilters(); renderTable(); renderTiles(live);
+    const rows = [];
+    const need = [];
+    for (const s of sigs) { const c = readCache(s.signature); if (c) rows.push(c); else need.push(s); }
+    const commit = () => { state.rows = rows.sort((a, b) => (b.time || 0) - (a.time || 0)); renderAll(); };
+    commit();
+    let done = rows.length;
     for (let i = 0; i < need.length; i += 4) {
       const chunk = need.slice(i, i + 4);
       const got = await Promise.all(chunk.map((s) => rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "confirmed" }]).catch(() => null)));
       got.forEach((t, j) => {
-        const s = chunk[j]; if (!t) return;
-        const row = parseTx(s.signature, s.blockTime || t.blockTime, t);
-        if (!cfg.quoteMint && row.kind !== "other" && row.quoteMint) cfg.quoteMint = row.quoteMint;
-        if (row.qd != null) state.quoteDecimals = row.qd; if (row.bd != null) state.burnDecimals = row.bd;
-        writeCache(s.signature, row); rows.push(row);
+        if (!t) return;
+        const s = chunk[j];
+        const row = classify(cfg, s.signature, s.blockTime || t.blockTime, t);
+        if (!cfg.quoteMint && row.quoteMint) cfg.quoteMint = row.quoteMint;
+        writeCache(s.signature, row);
+        rows.push(row);
       });
       done += chunk.length;
-      $("progress").querySelector("i").style.width = `${Math.round((done / Math.max(sigs.length, 1)) * 100)}%`;
-      $("scan-pill").textContent = `reading history… ${done}/${sigs.length}`;
-      state.rows = rows.sort((a, b) => (b.time || 0) - (a.time || 0)); renderFilters(); renderTable(); renderTiles(live);
+      setStatus("busy", `Reading the treasury's history… ${done} of ${sigs.length}`, Math.round((done / Math.max(sigs.length, 1)) * 100));
+      commit();
       if (i + 4 < need.length) await sleep(250);
     }
-    $("progress").hidden = true;
-    $("scan-pill").textContent = truncated ? `live · the ${sigs.length} most recent transactions; totals cover only these` : `live · ${sigs.length} transaction${sigs.length === 1 ? "" : "s"} read from the chain`;
-    if (!live || !live.quote.decimals) { if (cfg.quoteMint) { try { const q = await tokenBalance(cfg.treasury, cfg.quoteMint); if (live) { live.quote = q; renderTiles(live); } } catch {} } }
+    state.scanning = false;
+    const now = new Date().toISOString().slice(11, 16);
+    setStatus("live", state.truncated ? `Live · the ${sigs.length} most recent transactions (totals cover only these) · updated ${now} UTC` : `Live · ${plural(sigs.length, "transaction")} read from the chain · updated ${now} UTC`, null);
+    $("refresh").hidden = false;
+    renderAll();
+  }
+
+  async function loadBalances() {
+    try {
+      const [sol, coin] = await Promise.all([rpc("getBalance", [cfg.treasury, { commitment: "confirmed" }]), tokenBalance(cfg.treasury, cfg.burnMint)]);
+      const quote = cfg.quoteMint ? await tokenBalance(cfg.treasury, cfg.quoteMint) : { amount: 0n, decimals: null };
+      state.live = { sol: BigInt(sol.value), coin, quote, supply: (await mintOf(cfg.burnMint)).supply };
+      renderTiles();
+    } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read balances: ${err.message}`; }
+  }
+
+  async function main() {
+    try { const r = await fetch("./config.json", { cache: "no-store" }); if (!r.ok) throw 0; cfg = await r.json(); }
+    catch {
+      $("setup").hidden = false;
+      $("setup").textContent = "This page is not configured yet. Run `npm run web` in the bot folder to create web/config.json next to it.";
+      setStatus("", "Not configured", null); renderAll(); return;
+    }
+    rpc = makeRpc([cfg.rpcUrl, ...FALLBACK_RPCS]);
+    if (cfg.title) { document.title = cfg.title; $("title").firstChild.textContent = cfg.title + " "; }
+    $("minhold").textContent = `${cfg.minHold} ${cfg.holderSymbol || "of the strategy coin"}`;
+    if (cfg.repoUrl) $("repo").innerHTML = `Source: <a href="${esc(cfg.repoUrl)}" rel="noopener">${esc(cfg.repoUrl.replace(/^https?:\/\//, ""))}</a> (the money rules are in src/split.ts).`;
+    $("addresses").innerHTML = [
+      ["Treasury", cfg.treasury], ["Strategy coin", cfg.strategyMint], ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
+      cfg.holderMint !== cfg.strategyMint ? ["Rewarded holders of", cfg.holderMint] : null,
+    ].filter(Boolean).map(([k, v]) => `<span class="addr">${esc(k)} <a class="mono" href="${acctUrl(v)}" rel="noopener" title="${esc(v)}">${esc(short(v))}</a></span>`).join("");
+    renderAll();
+    await loadBalances();
+    await loadHistory();
+    if (!cfg.quoteMint === false && state.live && state.live.quote.decimals == null && cfg.quoteMint) await loadBalances();
     await checkLedger();
   }
-  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; });
-})();
+  $("refresh").onclick = async () => { $("refresh").hidden = true; await loadBalances(); await loadHistory(); await checkLedger(); };
+  main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; setStatus("", "Stopped", null); });
 </script>
 </body>
 </html>
