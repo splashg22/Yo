@@ -21,10 +21,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
 <style>
-  .lines { list-style: none; margin: 44px 0 0; padding: 0; display: grid; gap: 14px; max-width: 560px; }
-  .lines li { display: flex; align-items: baseline; gap: 18px; font-size: 20px; color: var(--muted); }
-  .lines b { font-size: 34px; font-weight: 700; color: var(--text); letter-spacing: -0.03em; min-width: 3.2ch; }
-  .steps5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px; margin-top: 52px; text-align: left; }
+  .steps5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: 28px; margin-top: 72px; text-align: left; }
   .steps5 .n { font-size: 13px; font-weight: 600; letter-spacing: 0.14em; color: var(--faint); }
   .steps5 h3 { margin: 8px 0 6px; }
   .steps5 p { margin: 0; color: var(--muted); font-size: 15px; }
@@ -57,15 +54,14 @@
     </div>
   </section>
 
-  <section class="screen" id="how">
-    <div class="room" aria-hidden="true"><div class="wall"></div><div class="glow"></div></div>
+  <section class="screen center" id="how">
     <div class="container">
       <h2>One Rule. <span class="grey">Every Cycle.</span></h2>
-      <ul class="lines">
-        <li><b class="pct-burn">40%</b> buys DCTY and burns it</li>
-        <li><b class="pct-buyback">20%</b> buys this coin back and burns it</li>
-        <li><b class="pct-holders">40%</b> is paid to holders in TTWO</li>
-      </ul>
+      <div class="tickets">
+        <div class="ticket pink"><div class="pct pct-burn">40%</div><div class="what">buys <b>DCTY</b> and burns it</div></div>
+        <div class="ticket white"><div class="pct pct-buyback">20%</div><div class="what">buys <b>this coin</b> back and burns it</div></div>
+        <div class="ticket blue"><div class="pct pct-holders">40%</div><div class="what">paid to holders in <b>TTWO</b></div></div>
+      </div>
       <div class="steps5">
         <div><div class="n">01</div><h3>Claim</h3><p>Trading fees arrive in TTWO.</p></div>
         <div><div class="n">02</div><h3>Split</h3><p>Divided by the rule above.</p></div>
@@ -76,8 +72,7 @@
     </div>
   </section>
 
-  <section class="screen center" id="proof" data-live>
-    <div class="room" aria-hidden="true"><div class="wall"></div><div class="floor"></div><div class="glow"></div></div>
+  <section class="screen center photo-wall" id="proof" data-live>
     <div class="container">
       <h2>On-Chain.</h2>
       <div class="figures four" id="tiles"></div>
@@ -139,16 +134,16 @@
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const figure = (value, name, note) => `<div class="figure"><div class="value">${value}</div><div class="name">${esc(name)}</div>${note ? `<div class="note">${note}</div>` : ""}</div>`;
+  const figure = (value, name, note, c = "white") => `<div class="figure ${c}"><div class="value">${value}</div><div class="name">${esc(name)}</div>${note ? `<div class="note">${note}</div>` : ""}</div>`;
 
   function renderTiles() {
     const { q, b, s: sd } = decimals();
     const s = summarize(state.rows);
     const name = esc(cfg.strategySymbol || "coin");
     $("tiles").innerHTML = [
-      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "Burned"),
+      figure(`${fmt(s.burned, b, 0)}<small>DCTY</small>`, "Burned", "", "pink"),
       figure(`${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, "Bought back and burned"),
-      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", plural(s.recipients, "wallet")),
+      figure(`${fmt(s.paid, q)}<small>TTWO</small>`, "Paid to holders", plural(s.recipients, "wallet"), "blue"),
       figure(`${fmt(s.claimed, q)}<small>TTWO</small>`, "Fees claimed"),
     ].join("");
   }

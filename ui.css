@@ -2,7 +2,7 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap");
 
 :root {
-  --bg: #130712; --surface: rgba(255, 255, 255, 0.035);
+  --bg: #110610; --surface: rgba(255, 255, 255, 0.035);
   --text: #ffffff; --muted: #b9adb4; --faint: #7d6f77;
   --line: rgba(255, 255, 255, 0.1); --line-strong: rgba(255, 255, 255, 0.2);
   --grid: rgba(255, 190, 225, 0.08);
@@ -22,11 +22,15 @@ img { max-width: 100%; display: block; }
 .mono { font-family: var(--mono); font-size: 0.88em; overflow-wrap: anywhere; }
 .green { color: var(--green); } .red { color: var(--red); }
 
-/* Backdrop: a faint wall of rounded tiles with a magenta glow, continuing the photograph. */
+/* The scene from the photograph: plum sky, neon horizon, a wall of rounded tiles, a reflective floor. */
 .room { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: -1; }
-.room .wall { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='44' height='44'%3E%3Crect x='3' y='3' width='38' height='38' rx='8' fill='none' stroke='%23ffffff' stroke-opacity='.9'/%3E%3C/svg%3E"); background-size: 44px 44px; opacity: 0.045; -webkit-mask-image: radial-gradient(80% 70% at 50% 60%, #000 30%, transparent 100%); mask-image: radial-gradient(80% 70% at 50% 60%, #000 30%, transparent 100%); }
-.room .floor { display: none; }
-.room .glow { position: absolute; left: 50%; top: 0; width: 120%; height: 60%; transform: translateX(-50%); background: radial-gradient(60% 100% at 50% 0%, rgba(255, 31, 143, 0.28), rgba(120, 20, 90, 0.12) 50%, transparent 100%); }
+.room .glow { position: absolute; left: 0; right: 0; top: 0; height: 100%; background: linear-gradient(180deg, #2b0c2c 0%, #1c0719 34%, #130712 100%); }
+.room .glow::before { content: ""; position: absolute; left: 0; right: 0; top: 46%; height: 2px; background: linear-gradient(90deg, transparent, #ff5fb0 15%, #ff8fc8 50%, #ff5fb0 85%, transparent); box-shadow: 0 0 18px 2px rgba(255, 60, 160, 0.6), 0 0 60px 10px rgba(255, 31, 143, 0.35); }
+.room .glow::after { content: ""; position: absolute; left: 0; right: 0; top: 10%; height: 36%; background: radial-gradient(60% 100% at 50% 100%, rgba(255, 31, 143, 0.32), transparent 70%); }
+.room .wall { position: absolute; left: 0; right: 0; top: 46%; height: 36%; background-color: #1d0a1b; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64'%3E%3Crect x='3' y='3' width='58' height='58' rx='12' fill='%23261027' stroke='%23381a37' stroke-width='1.5'/%3E%3Crect x='6' y='6' width='52' height='18' rx='9' fill='%23ffffff' fill-opacity='.025'/%3E%3C/svg%3E"); background-size: 64px 64px; background-position: center top; border-top: 1px solid rgba(255, 120, 190, 0.35); -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.room .wall::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(255, 31, 143, 0.22), rgba(255, 31, 143, 0) 40%); }
+.room .floor { display: block; position: absolute; left: 0; right: 0; top: 82%; bottom: 0; background: linear-gradient(180deg, #170a17, #0f0610); }
+.room .floor::before { content: ""; position: absolute; left: 10%; right: 10%; top: 0; height: 60%; background: linear-gradient(180deg, rgba(255, 60, 160, 0.14), transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); mask-image: linear-gradient(90deg, transparent, #000 30%, #000 70%, transparent); }
 
 /* Header */
 .site-header { position: absolute; top: 0; left: 0; right: 0; z-index: 10; }
@@ -69,10 +73,25 @@ p { margin: 0 0 16px; }
 .hero .sub { margin-left: auto; margin-right: auto; max-width: 600px; color: #e7d6e1; }
 .hero .actions { justify-content: center; }
 
+/* The three shares as the three photographed tickets. */
+.tickets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 24px; margin-top: 54px; }
+.ticket { position: relative; aspect-ratio: 3 / 4; border-radius: 22px; overflow: hidden; background: #140712 center / cover no-repeat; box-shadow: 0 30px 60px -30px rgba(0, 0, 0, 0.9); }
+.ticket.pink { background-image: url("./art/ticket-pink.jpg"); } .ticket.white { background-image: url("./art/ticket-white.jpg"); } .ticket.blue { background-image: url("./art/ticket-blue.jpg"); }
+.ticket::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(17, 6, 16, 0.55), rgba(17, 6, 16, 0) 45%); }
+.ticket .pct { position: relative; padding: 30px 24px 0; font-size: clamp(2.6rem, 4.4vw, 3.6rem); font-weight: 700; letter-spacing: -0.04em; line-height: 1; color: #fff; }
+.ticket .what { position: relative; padding: 8px 24px 0; font-size: 16px; color: #e9d9e3; }
+.ticket .what b { color: #fff; font-weight: 600; }
+
+/* A photographed backdrop behind a screen. */
+.screen.photo-wall { background: #140712 url("./art/wall.jpg") center 40% / cover no-repeat; }
+.screen.photo-wall::before { content: ""; position: absolute; inset: 0; background: linear-gradient(rgba(17, 6, 16, 0.92), rgba(17, 6, 16, 0.35) 40%, rgba(17, 6, 16, 0.35) 70%, rgba(17, 6, 16, 0.95)); pointer-events: none; }
+.screen.photo-wall .container { position: relative; }
+
 /* Plain figures in a row */
 .figures { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-top: 56px; }
 .figures.four { grid-template-columns: repeat(4, 1fr); }
-.figure .value { font-size: clamp(2.4rem, 4.4vw, 3.6rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.figure .value { font-size: clamp(2.4rem, 4.4vw, 3.6rem); font-weight: 700; letter-spacing: -0.03em; line-height: 1; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; color: #fff; text-shadow: 0 0 18px var(--c, rgba(255,255,255,.5)), 0 0 46px var(--c, rgba(255,255,255,.25)); }
+.figure.pink { --c: var(--pink); } .figure.white { --c: #fff0f7; } .figure.blue { --c: var(--blue); }
 .figure .value small { font-size: 0.4em; font-weight: 500; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
 .figure .name { margin-top: 12px; font-size: 16px; color: var(--text); font-weight: 500; }
 .figure .note { margin-top: 4px; font-size: 14px; color: var(--faint); }
@@ -86,7 +105,7 @@ p { margin: 0 0 16px; }
 .steps strong { color: var(--text); font-weight: 600; }
 
 /* Thin panels (dashboard) */
-.panel { border: 1px solid var(--line); border-radius: 16px; padding: 26px; background: var(--surface); }
+.panel { border: 1px solid rgba(255, 120, 190, 0.22); border-radius: 18px; padding: 26px; background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)); box-shadow: 0 0 40px -24px rgba(255, 31, 143, 0.6), inset 0 1px 0 rgba(255, 255, 255, 0.06); }
 .panel h3 { margin-bottom: 18px; } .panel h3 small { font-weight: 400; color: var(--faint); font-size: 14px; margin-left: 8px; }
 .grid { display: grid; gap: 20px; } .grid-2 { grid-template-columns: 1fr 1fr; } .grid-3 { grid-template-columns: repeat(3, 1fr); }
 .rows { margin: 0; }
@@ -141,6 +160,7 @@ input[type=text]:focus { outline: none; border-color: rgba(255, 255, 255, 0.5); 
 
 @media (max-width: 900px) {
   .figures, .figures.four { grid-template-columns: 1fr 1fr; }
+  .tickets { grid-template-columns: 1fr; max-width: 380px; margin-left: auto; margin-right: auto; }
   .steps { grid-template-columns: 1fr; }
   .grid-2, .grid-3 { grid-template-columns: 1fr; }
   .hero { min-height: 0; display: block; padding-bottom: 360px; background-position: center bottom; background-size: 140% auto; }
