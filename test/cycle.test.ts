@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   BooksMismatchError,
+  LowSolError,
   PendingUnresolvedError,
   runDryCycle,
   runLiveCycle,
@@ -11,7 +12,7 @@ import { bookedQuote } from "../src/state.js";
 import { CrashError, FakeChain, MemoryLedger, MemoryStore, MINTS } from "./fakes.js";
 
 const LIMITS: Limits = {
-  dryRun: false, minHold: 1000n, maxSwapPerCycle: 1_000_000n, minClaim: 0n, minSwap: 0n,
+  dryRun: false, minHold: 1000n, minSol: 0n, maxSwapPerCycle: 1_000_000n, minClaim: 0n, minSwap: 0n,
   minDistribute: 0n, minPayout: 0n, payoutsPerTx: 2,
 };
 
@@ -104,6 +105,15 @@ describe("a live cycle", () => {
     await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(BooksMismatchError);
     expect(chain.sent.length).toBe(sentBefore);
     expect(JSON.stringify(store.saved)).toBe(savedBefore);
+  });
+
+  it("skips the cycle without sending anything when the treasury is low on SOL", async () => {
+    const { chain, store, deps } = world({ minSol: 50_000_000n });
+    chain.sol = 10_000_000n;
+    chain.vault = 1000n;
+    await expect(runLiveCycle(deps)).rejects.toBeInstanceOf(LowSolError);
+    expect(chain.sent).toEqual([]);
+    expect(store.saves).toBe(0);
   });
 
   it("returns an undeliverable payout to the pool and still pays everyone else", async () => {

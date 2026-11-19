@@ -26,7 +26,7 @@ Do this on the always-on machine that will run the bot.
 
 ```bash
 npm install
-npm test                # 50 tests
+npm test                # 62 tests
 npm run typecheck
 npm run setup:wallet    # creates the treasury wallet OUTSIDE this folder, prints its address
 ```
@@ -52,6 +52,8 @@ with `DRY_RUN=true` and is ignored by git.
 | `npm run cycle`          | One cycle. With `DRY_RUN=true` it only simulates.                |
 | `npm run verify [cycle]` | Re-checks every transaction of a cycle (default: the latest) on-chain and compares the amounts with the ledger. |
 | `npm run loop`           | A cycle every `LOOP_INTERVAL_SECONDS`, until stopped.            |
+| `npm run holders`        | Read-only preview of who qualifies and what each would receive; writes `data/holders.csv`. |
+| `npm run report`         | Builds a public stats page (`data/report.html`) and `data/summary.json` from the ledger. |
 
 A dry run sends nothing and writes nothing. It reports what a live cycle
 would do and three checks: (a) a TTWO → DCTY swap route exists, (b) a TTWO
@@ -91,6 +93,18 @@ These live in `src/split.ts`. Paying a holder who has never held TTWO costs
 the treasury about 0.002 SOL of account rent, once per holder;
 `MIN_PAYOUT_TTWO` holds back shares too small to be worth it.
 
+## Extras
+
+- **Low-SOL guard.** A live cycle is skipped, and nothing is sent, while the
+  treasury has less than `MIN_SOL_BALANCE` (default 0.05 SOL).
+- **Alerts.** Set `DISCORD_WEBHOOK_URL` and/or `TELEGRAM_BOT_TOKEN` +
+  `TELEGRAM_CHAT_ID` and the loop posts a short message after every cycle that
+  moved money, and when something goes wrong (the same error is sent once, not
+  every cycle). A failed alert never affects a cycle.
+- **Public stats page.** `data/report.html` is one self-contained file (totals
+  burned and paid, recent transactions with explorer links, top recipients).
+  The loop refreshes it after every live cycle; host it anywhere static.
+
 ## The swap
 
 `SWAP_VENUE=auto` uses pump's own router when DCTY can be bought directly with
@@ -126,7 +140,9 @@ src/cycle.ts    one cycle, live or dry; crash recovery
 src/chain.ts    Solana + pump SDK calls
 src/jupiter.ts  Jupiter swap + the checks before signing
 src/holders.ts  holder snapshot
-src/cli.ts      status | cycle | loop | verify
+src/notify.ts   Discord / Telegram alerts
+src/report.ts   public stats page
+src/cli.ts      status | cycle | loop | verify | holders | report
 scripts/        guided setup (wallet, .env)
 deploy/         pm2 + systemd configs, backup script
 ```

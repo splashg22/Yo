@@ -9,3 +9,6 @@ data/state.json
 data/state.json.bak
 data/state.json.tmp
 data/.lock
+data/report.html
+data/summary.json
+data/holders.csv

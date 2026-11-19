@@ -26,6 +26,11 @@ export interface Config {
   jupiterApiUrl: string;
   jupiterApiKey: string | null;
   maxSwapSolCost: string;
+  minSolBalance: string;
+  discordWebhookUrl: string | null;
+  telegramBotToken: string | null;
+  telegramChatId: string | null;
+  reportTitle: string;
 }
 
 type Env = Record<string, string | undefined>;
@@ -107,5 +112,10 @@ export function parseConfig(env: Env): Config {
     jupiterApiUrl: env.JUPITER_API_URL?.trim() || "https://api.jup.ag/swap/v1",
     jupiterApiKey: env.JUPITER_API_KEY?.trim() || null,
     maxSwapSolCost: amount(env, "MAX_SWAP_SOL_COST", "0.02"),
+    minSolBalance: amount(env, "MIN_SOL_BALANCE", "0.05"),
+    discordWebhookUrl: env.DISCORD_WEBHOOK_URL?.trim() || null,
+    telegramBotToken: env.TELEGRAM_BOT_TOKEN?.trim() || null,
+    telegramChatId: env.TELEGRAM_CHAT_ID?.trim() || null,
+    reportTitle: env.REPORT_TITLE?.trim() || "DA City strategy",
   };
 }

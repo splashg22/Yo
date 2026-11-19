@@ -7,14 +7,19 @@ import { SolanaChain, loadKeypair } from "./chain.js";
 import { parseConfig, type Config } from "./config.js";
 import {
   BooksMismatchError,
+  LowSolError,
   PendingUnresolvedError,
   runDryCycle,
   runLiveCycle,
   type Check,
   type Deps,
   type Limits,
+  type LiveReport,
 } from "./cycle.js";
 import { FileLedger } from "./ledger.js";
+import { Notifier, formatCycleMessage } from "./notify.js";
+import { parseLedger, renderHtml, summarize, type Units } from "./report.js";
+import { allocate, eligibleHolders, splitClaim } from "./split.js";
 import { FileStateStore, bookedQuote, reconcile, type Reconciliation } from "./state.js";
 
 const say = (line = "") => console.log(line);
@@ -30,6 +35,7 @@ async function setup(config: Config) {
   const limits: Limits = {
     dryRun: config.dryRun,
     minHold: parseUnits(config.minHold, info.holderDecimals),
+    minSol: parseUnits(config.minSolBalance, 9),
     maxSwapPerCycle: parseUnits(config.maxSwapPerCycle, info.quoteDecimals),
     minClaim: parseUnits(config.minClaim, info.quoteDecimals),
     minSwap: parseUnits(config.minSwap, info.quoteDecimals),
@@ -92,7 +98,7 @@ async function status(config: Config) {
 
 const mark = (check: Check) => ({ pass: "PASS", fail: "FAIL", not_tested: "NOT TESTED" })[check.result];
 
-async function cycleOnce(config: Config, ctx: Ctx) {
+async function cycleOnce(config: Config, ctx: Ctx): Promise<LiveReport | null> {
   const { deps, ttwo, burnCoin, limits } = ctx;
   if (config.dryRun) {
     const report = await runDryCycle(deps, Keypair.generate().publicKey.toBase58());
@@ -100,6 +106,7 @@ async function cycleOnce(config: Config, ctx: Ctx) {
     say();
     printBooks(ctx, report.reconciliation);
     if (report.pendingStatus) say(`  A transaction from an earlier live run is ${report.pendingStatus}.`);
+    if (report.lowSol) say(`  SOL                   LOW — ${formatUnits(report.held.sol, 9)} SOL is below MIN_SOL_BALANCE (${config.minSolBalance}); a live cycle would be skipped`);
     say();
     say(`Fees waiting to claim: ${ttwo(report.fees)}`);
     say(`  Claim                 ${mark(report.claim)} — ${report.claim.detail}`);
@@ -114,7 +121,7 @@ async function cycleOnce(config: Config, ctx: Ctx) {
     say(`      swap simulation           ${mark(report.swap)} — ${report.swap.detail}`);
     say(`  (b) TTWO payout to a wallet   ${mark(report.payout)} — ${report.payout.detail}`);
     say(`  (c) holder snapshot           ${mark(report.snapshot)} — ${report.snapshot.detail}`);
-    return;
+    return null;
   }
 
   const lock = path.join(ctx.dataDir, ".lock");
@@ -131,6 +138,7 @@ async function cycleOnce(config: Config, ctx: Ctx) {
     for (const tx of report.signatures) say(`  ${tx.kind.padEnd(7)} ${tx.outcome.padEnd(10)} https://solscan.io/tx/${tx.signature}`);
     for (const s of report.skipped) say(`  skipped ${s.owner} (${ttwo(BigInt(s.amount))} returned to the pool): ${s.reason}`);
     for (const note of report.notes) say(`  note: ${note}`);
+    return report;
   } finally {
     fs.rmSync(lock, { force: true });
   }
@@ -186,7 +194,59 @@ async function verify(config: Config, cycleArg?: string) {
   if (problems > 0) process.exit(2);
 }
 
+function writeReport(config: Config, ctx: Ctx): string | null {
+  const file = path.join(ctx.dataDir, "ledger.jsonl");
+  if (!fs.existsSync(file)) return null;
+  const units: Units = {
+    quoteDecimals: ctx.info.quoteDecimals, burnDecimals: ctx.info.burnDecimals, quoteSymbol: "TTWO", burnSymbol: "DCTY",
+  };
+  const summary = summarize(parseLedger(fs.readFileSync(file, "utf8")), units);
+  const out = path.join(ctx.dataDir, "report.html");
+  fs.writeFileSync(out, renderHtml(summary, units, {
+    title: config.reportTitle, treasury: ctx.chain.treasury.toBase58(), generated: new Date().toISOString(),
+  }));
+  fs.writeFileSync(
+    path.join(ctx.dataDir, "summary.json"),
+    JSON.stringify(summary, (_key, value: unknown) => (typeof value === "bigint" ? value.toString() : value), 2),
+  );
+  return out;
+}
+
+/** Public stats page + summary.json, built from the ledger. */
+async function report(config: Config) {
+  const out = writeReport(config, await setup(config));
+  say(out ? `Wrote ${out} and summary.json next to it.` : "There is no ledger yet: no live cycle has run.");
+}
+
+/** Read-only preview of who would be paid and how much. Writes data/holders.csv. */
+async function holders(config: Config) {
+  const ctx = await setup(config);
+  const { chain, limits, deps, ttwo } = ctx;
+  const state = deps.store.load(chain.mints());
+  const [snapshot, fees] = await Promise.all([chain.snapshotHolders(), chain.pendingFees()]);
+  const qualifying = eligibleHolders(snapshot.balances, limits.minHold, snapshot.excluded);
+  const pool = BigInt(state.payoutPool) + splitClaim(fees).payout;
+  const { payouts } = allocate(pool, qualifying, limits.minPayout);
+  const share = new Map(payouts.map((p) => [p.owner, p.amount]));
+  const total = qualifying.reduce((a, h) => a + h.amount, 0n);
+  say(`${snapshot.balances.size} holders found via ${snapshot.source}; ${qualifying.length} hold at least ${config.minHold}; ${snapshot.excluded.size} excluded.`);
+  say(`If a cycle ran now, ${ttwo(pool)} would be shared between ${payouts.length} of them.`);
+  for (const h of qualifying.slice(0, 20)) {
+    const percent = total > 0n ? Number((h.amount * 10_000n) / total) / 100 : 0;
+    say(`  ${h.owner}  ${formatUnits(h.amount, ctx.info.holderDecimals).padStart(18)}  ${percent.toFixed(2).padStart(6)}%  ${ttwo(share.get(h.owner) ?? 0n)}`);
+  }
+  if (qualifying.length > 20) say(`  … and ${qualifying.length - 20} more`);
+  const csv = ["wallet,balance,would_receive_ttwo"]
+    .concat(qualifying.map((h) => `${h.owner},${formatUnits(h.amount, ctx.info.holderDecimals)},${formatUnits(share.get(h.owner) ?? 0n, ctx.info.quoteDecimals)}`));
+  fs.mkdirSync(ctx.dataDir, { recursive: true });
+  const out = path.join(ctx.dataDir, "holders.csv");
+  fs.writeFileSync(out, `${csv.join("\n")}\n`);
+  say(`Full list written to ${out}`);
+}
+
 async function loop(config: Config) {
+  const notifier = new Notifier(config, fetch, (message) => console.error(message));
+  if (notifier.enabled) say("Alerts are on.");
   let stopping = false;
   for (const signal of ["SIGINT", "SIGTERM"] as const) {
     process.on(signal, () => {
@@ -197,15 +257,24 @@ async function loop(config: Config) {
   while (!stopping) {
     say(`--- ${new Date().toISOString()} ---`);
     try {
-      await cycleOnce(config, await setup(config));
+      const ctx = await setup(config);
+      const result = await cycleOnce(config, ctx);
+      notifier.clearError();
+      if (result) {
+        writeReport(config, ctx);
+        const message = formatCycleMessage(result, ctx.info);
+        if (message) await notifier.send(message);
+      }
     } catch (error) {
       if (error instanceof BooksMismatchError) {
         // Never keep trading on books that do not add up.
+        await notifier.send(`STOPPED: ${error.message} The bot will not restart by itself.`);
         console.error(error.message);
         console.error("Stopping the loop. Nothing was sent. Find out why before restarting.");
         process.exit(2);
       }
       console.error(`cycle failed: ${(error as Error).message}`);
+      await notifier.error((error as Error).message);
     }
     for (let waited = 0; waited < config.loopIntervalSeconds && !stopping; waited++) {
       await new Promise((resolve) => setTimeout(resolve, 1000));
@@ -220,11 +289,13 @@ async function main() {
   else if (command === "cycle") await cycleOnce(config, await setup(config));
   else if (command === "loop") await loop(config);
   else if (command === "verify") await verify(config, process.argv[3]);
-  else throw new Error("usage: tsx src/cli.ts status | cycle | loop | verify [cycle]");
+  else if (command === "report") await report(config);
+  else if (command === "holders") await holders(config);
+  else throw new Error("usage: tsx src/cli.ts status | cycle | loop | verify [cycle] | report | holders");
 }
 
 main().catch((error: unknown) => {
-  if (error instanceof BooksMismatchError || error instanceof PendingUnresolvedError) {
+  if (error instanceof BooksMismatchError || error instanceof PendingUnresolvedError || error instanceof LowSolError) {
     console.error(error.message);
     process.exit(2);
   }

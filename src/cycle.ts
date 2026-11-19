@@ -68,6 +68,8 @@ export interface Chain {
 export interface Limits {
   dryRun: boolean;
   minHold: bigint;
+  /** Lamports. A live cycle is skipped below this. */
+  minSol: bigint;
   maxSwapPerCycle: bigint;
   minClaim: bigint;
   minSwap: bigint;
@@ -90,6 +92,12 @@ export interface Deps {
 export class BooksMismatchError extends Error {
   constructor(readonly reconciliation: Reconciliation) {
     super(`Books and treasury disagree: ${reconciliation.problems.join("; ")}`);
+  }
+}
+
+export class LowSolError extends Error {
+  constructor(readonly held: bigint, readonly needed: bigint) {
+    super(`The treasury has ${held} lamports of SOL, below MIN_SOL_BALANCE (${needed}). Nothing was sent; top it up.`);
   }
 }
 
@@ -237,6 +245,7 @@ export async function runLiveCycle(deps: Deps): Promise<LiveReport> {
   const held = await chain.balances();
   const check = reconcile(state, held.quote, held.coin);
   if (!check.ok) throw new BooksMismatchError(check);
+  if (held.sol < limits.minSol) throw new LowSolError(held.sol, limits.minSol);
 
   state = { ...state, cycle: state.cycle + 1 };
   store.save(state);
@@ -347,6 +356,7 @@ export interface DryReport {
   pendingStatus: TxStatus | null;
   held: { sol: bigint; quote: bigint; coin: bigint };
   reconciliation: Reconciliation;
+  lowSol: boolean;
   fees: bigint;
   claim: Check;
   wouldSplit: { burn: bigint; payout: bigint };
@@ -456,7 +466,7 @@ export async function runDryCycle(deps: Deps, probeWallet: string): Promise<DryR
   }
 
   return {
-    mode: "dry", state, pendingStatus, held, reconciliation, fees, claim, wouldSplit, wouldSwap,
+    mode: "dry", state, pendingStatus, held, reconciliation, lowSol: held.sol < limits.minSol, fees, claim, wouldSplit, wouldSwap,
     expectedBurn, route, swap, snapshot, holdersSeen, qualifying, wouldPay, payoutPool, payout,
   };
 }

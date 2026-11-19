@@ -10,6 +10,8 @@
     "cycle": "tsx src/cli.ts cycle",
     "loop": "tsx src/cli.ts loop",
     "verify": "tsx src/cli.ts verify",
+    "report": "tsx src/cli.ts report",
+    "holders": "tsx src/cli.ts holders",
     "setup:wallet": "tsx scripts/setup.ts wallet",
     "setup:env": "tsx scripts/setup.ts env"
   },
