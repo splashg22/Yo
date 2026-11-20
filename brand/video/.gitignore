@@ -1,0 +1,8 @@
+node_modules/
+out/frame-*.png
+# the final MP4 and thumbnail are committed on purpose
+# Higgsfield originals (HEVC 10-bit, ~110 MB); the re-encoded copies in public/footage are what the render uses
+footage/raw/
+out/render.log
+# raw job responses and logs (carry the account's CDN paths); footage/jobs.md has every id and cost
+footage/jobs/

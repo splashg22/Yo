@@ -1,0 +1,25 @@
+{
+  "name": "dacity-explainer-video",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Motion-design walkthrough of the Dacity Strategy website, built with Remotion.",
+  "scripts": {
+    "studio": "remotion studio src/index.tsx",
+    "render": "node render.mjs",
+    "capture": "node sync-site.mjs && node capture-ui.mjs && node capture-boxes.mjs",
+    "still": "node still.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "^4.0.545",
+    "@remotion/cli": "^4.0.545",
+    "@remotion/renderer": "^4.0.545",
+    "@types/react": "^18.3.31",
+    "@types/react-dom": "^18.3.7",
+    "puppeteer-core": "^23.11.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "remotion": "^4.0.545",
+    "typescript": "^5.9.3"
+  }
+}

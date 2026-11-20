@@ -1,0 +1,21 @@
+/* Overrides for rendering the site's CSS inside Remotion: the frame is a fixed 1920 × 1080 viewport,
+   nothing may animate on its own clock, and nothing scrolls. */
+html, body { margin: 0; overflow: hidden; }
+*, *::before, *::after { animation: none !important; transition: none !important; }
+.frame { position: absolute; inset: 0; overflow: hidden; background: var(--ink); color: var(--text); font: 400 15px/1.5 var(--font); -webkit-font-smoothing: antialiased; }
+.page { position: absolute; left: 0; top: 0; width: 1920px; }
+.abs { position: absolute; }
+.wrap1200 { width: 1200px; }
+/* The site's wall (same gradients as .scene::before in ui.css), as a layer the scenes can fade. */
+.wall { position: absolute; inset: 0; background: var(--wall); -webkit-mask-image: var(--wall-fade); mask-image: var(--wall-fade); pointer-events: none; }
+/* Captions share the site's section-head type. */
+.cap h2 { margin: 0; font-size: 44px; font-weight: 300; line-height: 1.08; letter-spacing: -0.03em; }
+.cap h2 span { color: var(--muted); }
+.cap h2 b { font-weight: 800; }
+.cap p { margin: 10px 0 0; color: var(--muted); font-size: 17px; line-height: 1.5; max-width: 52ch; }
+.cap p a { color: var(--text); font-weight: 600; }
+/* Kinetic type */
+.kin { font-weight: 300; font-size: 72px; line-height: 1.04; letter-spacing: -0.045em; }
+.kin b { font-weight: 800; }
+.kin .w { display: inline-block; white-space: pre; }
+/* The split bar's labels reuse the dashboard's own classes (#split .k/.p/.v in ui.css). */

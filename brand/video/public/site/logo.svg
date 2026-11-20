@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="Dacity Strategy">
+  <defs>
+    <clipPath id="m-d"><path d="M12 6h18a26 26 0 0 1 0 52H12z"/></clipPath>
+    <linearGradient id="m-top" x1="0" y1="6.0" x2="0" y2="24.72" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd1e8"/><stop offset=".62" stop-color="#ff2d95"/><stop offset="1" stop-color="#ff2d95"/></linearGradient>
+    <linearGradient id="m-bot" x1="0" y1="39.28" x2="0" y2="58.0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#3ee8ff"/><stop offset="1" stop-color="#8ff3ff"/></linearGradient>
+  </defs>
+  <g clip-path="url(#m-d)">
+    <rect x="0" y="6.0" width="64" height="18.72" fill="url(#m-top)"/>
+    <rect x="0" y="27.32" width="64" height="9.36" fill="#b65cff"/>
+    <rect x="0" y="39.28" width="64" height="18.72" fill="url(#m-bot)"/>
+  </g>
+</svg>

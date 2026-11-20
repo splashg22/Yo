@@ -1,0 +1,512 @@
+{
+  "capturedAt": "2026-11-20T01:34:37.027Z",
+  "base": "https://splashg22.github.io/Yo/",
+  "home": {
+    "sizes": {
+      "home-nav": {
+        "w": 441,
+        "h": 44
+      },
+      "home-h1": {
+        "w": 672,
+        "h": 165
+      },
+      "home-side": {
+        "w": 480,
+        "h": 153
+      },
+      "home-cycle-head": {
+        "w": 1200,
+        "h": 82
+      },
+      "home-numbers-head": {
+        "w": 1200,
+        "h": 82
+      },
+      "home-tiles": {
+        "w": 1200,
+        "h": 145
+      },
+      "home-addresses": {
+        "w": 1200,
+        "h": 166
+      },
+      "home-footer": {
+        "w": 1280,
+        "h": 66
+      },
+      "home-ring": {
+        "w": 1920,
+        "h": 560
+      },
+      "home-cycle-card-0": {
+        "w": 677,
+        "h": 558
+      },
+      "home-wheel-0": {
+        "w": 483,
+        "h": 460
+      },
+      "home-cycle-card-1": {
+        "w": 677,
+        "h": 533
+      },
+      "home-wheel-1": {
+        "w": 483,
+        "h": 460
+      },
+      "home-cycle-card-2": {
+        "w": 677,
+        "h": 533
+      },
+      "home-wheel-2": {
+        "w": 483,
+        "h": 460
+      },
+      "home-cycle-card-3": {
+        "w": 677,
+        "h": 533
+      },
+      "home-wheel-3": {
+        "w": 483,
+        "h": 460
+      },
+      "home-cycle-card-4": {
+        "w": 677,
+        "h": 533
+      },
+      "home-wheel-4": {
+        "w": 483,
+        "h": 460
+      }
+    },
+    "h1": "Every fee works\nfor holders.",
+    "lede": "Dacity Strategy turns pump.fun creator fees into DCTY burns, buybacks of its own coin and TTWO payouts to holders. Automatically, every cycle, on-chain.",
+    "tiles": [
+      {
+        "label": "Treasury",
+        "value": "0TTWO",
+        "status": "Not launched yet"
+      },
+      {
+        "label": "SOL balance",
+        "value": "0SOL",
+        "status": "Low: network fees need SOL"
+      },
+      {
+        "label": "DCTY burned",
+        "value": "0DCTY",
+        "status": "Supply now 945,627,948"
+      },
+      {
+        "label": "Paid to holders",
+        "value": "0TTWO",
+        "status": "0 wallets · 0 payouts"
+      }
+    ],
+    "wheel": [
+      "Fees come in",
+      "40% burns DCTY",
+      "20% buys back",
+      "40% to holders",
+      "Every cycle"
+    ],
+    "cycleTexts": [
+      "<b>Every trade earns a fee.</b> Dacity Strategy launches as a pump.fun coin paired with TTWO, tokenized Take-Two stock. Its creator fees arrive in TTWO and the bot claims them every cycle.",
+      "<b>40% buys and burns DCTY.</b> DacityCoin is bought on the open market and destroyed. Supply only goes down.",
+      "<b>20% buys Dacity Strategy back.</b> Bought on its own market and burned. Scarcer every cycle.",
+      "<b>40% is paid to holders.</b> Sent in TTWO to every wallet holding at least 1,000,000 coins. Nothing to claim.",
+      "<b>Claim, swap, burn, pay. Repeat.</b> Each step is a public Solana transaction. The dashboard reads them straight from the chain."
+    ]
+  },
+  "dashboard": {
+    "sizes": {
+      "dash-nav": {
+        "w": 461,
+        "h": 44
+      },
+      "dash-head": {
+        "w": 1200,
+        "h": 60
+      },
+      "dash-overview": {
+        "w": 1200,
+        "h": 178
+      },
+      "dash-kpis": {
+        "w": 1200,
+        "h": 145
+      },
+      "dash-history-head": {
+        "w": 1200,
+        "h": 82
+      },
+      "dash-history": {
+        "w": 1200,
+        "h": 283
+      },
+      "dash-addresses": {
+        "w": 1200,
+        "h": 166
+      },
+      "dash-footer": {
+        "w": 1280,
+        "h": 43
+      }
+    },
+    "updated": "Updated 01:34 UTC",
+    "overview": [
+      {
+        "label": "Treasury",
+        "value": "0",
+        "unit": "TTWO",
+        "sub": "<b>0 TTWO</b> unclaimed in pump.fun's vaults<span class=\"item-line\">0 DCTY bought, not yet burned</span>"
+      },
+      {
+        "label": "SOL balance",
+        "value": "0",
+        "unit": "SOL",
+        "sub": "<span class=\"warn\">Low.</span> Network fees and new holder accounts need SOL."
+      },
+      {
+        "label": "Supply",
+        "value": "945,627,948",
+        "unit": "DCTY",
+        "sub": "<b>0.00%</b> destroyed by this treasury<span class=\"item-line\">Dacity Strategy supply appears after launch</span>"
+      }
+    ],
+    "kpis": [
+      {
+        "label": "DCTY burned",
+        "value": "0",
+        "unit": "DCTY",
+        "sub": "0 burns · 0 TTWO spent"
+      },
+      {
+        "label": "Bought back and burned",
+        "value": "0",
+        "unit": "Dacity Strategy",
+        "sub": "Starts with the first fee"
+      },
+      {
+        "label": "Paid to holders",
+        "value": "0",
+        "unit": "TTWO",
+        "sub": "0 wallets · 0 payouts"
+      },
+      {
+        "label": "Fees claimed",
+        "value": "0",
+        "unit": "TTWO",
+        "sub": "0 claims · 0% put to work"
+      }
+    ],
+    "filters": [
+      {
+        "label": "Strategy",
+        "pressed": true
+      },
+      {
+        "label": "Claims",
+        "pressed": false
+      },
+      {
+        "label": "Buys",
+        "pressed": false
+      },
+      {
+        "label": "Burns",
+        "pressed": false
+      },
+      {
+        "label": "Payouts",
+        "pressed": false
+      },
+      {
+        "label": "Other",
+        "pressed": false
+      },
+      {
+        "label": "All",
+        "pressed": false
+      }
+    ],
+    "tableHead": [
+      "When",
+      "Type",
+      "Activity",
+      "Amount",
+      "Proof"
+    ],
+    "tableBody": "No activity yet. The first claim, buy, burn, buyback and payout will appear here.",
+    "rowCount": 0,
+    "activityNote": "",
+    "addresses": [
+      {
+        "k": "Treasury",
+        "v": "7ZGiZyFjBEKNS5qGhtfonJdKmhvechrHK1HW3P4uRjqP"
+      },
+      {
+        "k": "DCTY",
+        "v": "9hjBLBrc7WZW2H8UQvBAvG5WiTZotXUv2Bdcn4f4pump"
+      },
+      {
+        "k": "TTWO",
+        "v": "TTWofwAge91oFhZs7kpQdyrVRkmevgM88xijGvQFbKo"
+      }
+    ],
+    "footer": "Home\nGitHub"
+  },
+  "boxes": {
+    "home": {
+      "nav": {
+        "x": 739.3,
+        "y": 16,
+        "w": 441.4,
+        "h": 44
+      },
+      "logo": {
+        "x": 739.3,
+        "y": 16,
+        "w": 44,
+        "h": 44
+      },
+      "navDashboard": {
+        "x": 869.6,
+        "y": 20,
+        "w": 105,
+        "h": 36
+      },
+      "navHow": {
+        "x": 977.7,
+        "y": 20,
+        "w": 116.7,
+        "h": 36
+      },
+      "h1": {
+        "x": 360,
+        "y": 164,
+        "w": 672,
+        "h": 164.6
+      },
+      "side": {
+        "x": 1080,
+        "y": 175.6,
+        "w": 480,
+        "h": 153
+      },
+      "lede": {
+        "x": 1080,
+        "y": 175.6,
+        "w": 480,
+        "h": 79
+      },
+      "btnDash": {
+        "x": 1080,
+        "y": 274.6,
+        "w": 201.1,
+        "h": 44
+      },
+      "btnHow": {
+        "x": 1293.1,
+        "y": 274.6,
+        "w": 121.6,
+        "h": 44
+      },
+      "ring": {
+        "x": 0,
+        "y": 368.6,
+        "w": 1920,
+        "h": 560
+      },
+      "ringCaption": {
+        "x": 320,
+        "y": 855.1,
+        "w": 1280,
+        "h": 59.5
+      },
+      "cycleHead": {
+        "x": 360,
+        "y": 1024.6,
+        "w": 1200,
+        "h": 81.5
+      },
+      "wheel": {
+        "x": 360,
+        "y": 1187.1,
+        "w": 483.3,
+        "h": 460
+      },
+      "cycleCard": {
+        "x": 883.3,
+        "y": 1138.1,
+        "w": 676.7,
+        "h": 557.9
+      },
+      "cyclePhoto": {
+        "x": 884.3,
+        "y": 1139.1,
+        "w": 674.7,
+        "h": 379.5
+      },
+      "cycleCta": {
+        "x": 906.3,
+        "y": 1629,
+        "w": 201.1,
+        "h": 44
+      },
+      "numbersHead": {
+        "x": 360,
+        "y": 1792,
+        "w": 1200,
+        "h": 81.5
+      },
+      "tiles": {
+        "x": 360,
+        "y": 1905.5,
+        "w": 1200,
+        "h": 144.8
+      },
+      "addresses": {
+        "x": 360,
+        "y": 2070.3,
+        "w": 1200,
+        "h": 166
+      },
+      "footer": {
+        "x": 320,
+        "y": 2332.3,
+        "w": 1280,
+        "h": 65.8
+      },
+      "__page": {
+        "h": 2438
+      }
+    },
+    "dashboard": {
+      "nav": {
+        "x": 729.4,
+        "y": 16,
+        "w": 461.1,
+        "h": 44
+      },
+      "logo": {
+        "x": 729.4,
+        "y": 16,
+        "w": 44,
+        "h": 44
+      },
+      "refresh": {
+        "x": 1087.5,
+        "y": 20,
+        "w": 99.1,
+        "h": 36
+      },
+      "head": {
+        "x": 360,
+        "y": 144,
+        "w": 1200,
+        "h": 60.4
+      },
+      "updated": {
+        "x": 1268.8,
+        "y": 182,
+        "w": 123.8,
+        "h": 21
+      },
+      "treasuryLink": {
+        "x": 1410.6,
+        "y": 182,
+        "w": 149.4,
+        "h": 21
+      },
+      "overview": {
+        "x": 360,
+        "y": 236.4,
+        "w": 1200,
+        "h": 178
+      },
+      "ovSupply": {
+        "x": 1188.7,
+        "y": 292.9,
+        "w": 342.3,
+        "h": 44
+      },
+      "kpis": {
+        "x": 360,
+        "y": 434.4,
+        "w": 1200,
+        "h": 144.8
+      },
+      "historyHead": {
+        "x": 360,
+        "y": 675.2,
+        "w": 1200,
+        "h": 81.5
+      },
+      "history": {
+        "x": 360,
+        "y": 788.7,
+        "w": 1200,
+        "h": 282.5
+      },
+      "filters": {
+        "x": 387,
+        "y": 849.7,
+        "w": 1146,
+        "h": 36
+      },
+      "chipStrategy": {
+        "x": 387,
+        "y": 849.7,
+        "w": 82.1,
+        "h": 36
+      },
+      "chipAll": {
+        "x": 840.2,
+        "y": 849.7,
+        "w": 43.7,
+        "h": 36
+      },
+      "table": {
+        "x": 387,
+        "y": 899.7,
+        "w": 1146,
+        "h": 134.5
+      },
+      "tbody": {
+        "x": 387,
+        "y": 940.2,
+        "w": 1146,
+        "h": 94
+      },
+      "addresses": {
+        "x": 360,
+        "y": 1091.2,
+        "w": 1200,
+        "h": 166
+      },
+      "addrTreasury": {
+        "x": 360,
+        "y": 1091.2,
+        "w": 1200,
+        "h": 50
+      },
+      "copyTreasury": {
+        "x": 1444.1,
+        "y": 1100.2,
+        "w": 58.9,
+        "h": 32
+      },
+      "footer": {
+        "x": 320,
+        "y": 1353.2,
+        "w": 1280,
+        "h": 43.4
+      },
+      "__page": {
+        "h": 1436
+      }
+    }
+  }
+}
