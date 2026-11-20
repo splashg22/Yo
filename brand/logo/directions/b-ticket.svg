@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Dacity Strategy mark: the Ticket">
+  <!-- Direction B: the Ticket. The glass ticket from the artwork, drawn as one neon outline with two
+       side notches; two perforation lines split it 40 / 20 / 40 from the top. -->
+  <defs>
+    <linearGradient id="b-neon" x1="0" y1="4" x2="0" y2="60" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ff2d95"/><stop offset=".5" stop-color="#b65cff"/><stop offset="1" stop-color="#3ee8ff"/></linearGradient>
+    <mask id="b-notch"><rect width="64" height="64" fill="#fff"/><circle cx="14" cy="32" r="5.5" fill="#000"/><circle cx="50" cy="32" r="5.5" fill="#000"/></mask>
+  </defs>
+  <g mask="url(#b-notch)">
+    <rect x="16" y="4" width="32" height="56" rx="7" fill="rgba(255,45,149,.10)" stroke="url(#b-neon)" stroke-width="3.2"/>
+  </g>
+  <circle cx="14" cy="32" r="5.5" fill="none" stroke="url(#b-neon)" stroke-width="3.2" stroke-dasharray="17.3 17.3" stroke-dashoffset="-4.3" transform="rotate(-90 14 32)"/>
+  <circle cx="50" cy="32" r="5.5" fill="none" stroke="url(#b-neon)" stroke-width="3.2" stroke-dasharray="17.3 17.3" stroke-dashoffset="-4.3" transform="rotate(90 50 32)"/>
+  <line x1="22" y1="26.4" x2="42" y2="26.4" stroke="#ff2d95" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 3.3"/>
+  <line x1="22" y1="37.6" x2="42" y2="37.6" stroke="#3ee8ff" stroke-width="2" stroke-linecap="round" stroke-dasharray="2 3.3"/>
+</svg>

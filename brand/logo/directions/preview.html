@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,200..900&display=swap">
+<style>
+  html,body{margin:0;background:#0b0308;color:#fff4fa;font-family:"DM Sans",system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+  .sheet{width:1600px;padding:48px 56px 56px;box-sizing:border-box}
+  h1{font-weight:300;font-size:30px;letter-spacing:-.03em;margin:0 0 6px}
+  h1 b{font-weight:800}
+  .sub{color:rgba(255,228,243,.68);margin:0 0 36px;font-size:15px}
+  .row{display:grid;grid-template-columns:150px 1fr 1fr 1fr 1fr;gap:20px;align-items:stretch;margin-bottom:22px}
+  .name{display:flex;flex-direction:column;justify-content:center;gap:6px}
+  .name b{font-size:22px;letter-spacing:-.03em}
+  .name span{font-size:13px;color:rgba(255,228,243,.68);line-height:1.4}
+  .cell{border-radius:18px;display:flex;align-items:center;justify-content:center;gap:28px;min-height:230px;position:relative;overflow:hidden}
+  .dark{background:#0b0308;box-shadow:inset 0 0 0 1px rgba(255,225,243,.14)}
+  .light{background:#fff4fa}
+  .wall{background:#0b0308}
+  .wall::before{content:"";position:absolute;inset:0;background:linear-gradient(#0b0308 2px,transparent 2px) 0 0/10px 10px,linear-gradient(90deg,#0b0308 2px,transparent 2px) 0 0/10px 10px,radial-gradient(70% 70% at 50% -10%,rgba(255,45,149,.8),rgba(255,45,149,.15) 60%,transparent),rgba(255,225,243,.04)}
+  .cell>*{position:relative}
+  .tiny{display:flex;flex-direction:column;align-items:center;gap:18px}
+  .tiny .pair{display:flex;gap:18px;align-items:center}
+  .avatar{width:64px;height:64px;border-radius:50%;background:#170810;display:grid;place-items:center;box-shadow:inset 0 0 0 1px rgba(255,225,243,.12)}
+  .light .avatar{background:#fff;box-shadow:inset 0 0 0 1px rgba(28,7,19,.1)}
+  .tab{display:flex;align-items:center;gap:8px;height:28px;padding:0 12px 0 8px;border-radius:8px;background:#2a0f1f;font-size:12px;color:#fff4fa}
+  .light .tab{background:#eadfe6;color:#1c0713}
+  .lock{display:flex;align-items:center;gap:16px}
+  .word{display:flex;flex-direction:column;line-height:1}
+  .word b{font-weight:800;font-size:34px;letter-spacing:-.04em}
+  .word small{font-weight:500;font-size:11px;letter-spacing:.34em;margin-top:6px;color:#3ee8ff}
+  .light .word b{color:#1c0713}
+  .light .word small{color:#c20a6c}
+  .label{position:absolute;left:14px;top:12px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,228,243,.5)}
+  .light .label{color:rgba(28,7,19,.45)}
+  .foot{margin-top:10px;font-size:13px;color:rgba(255,228,243,.55)}
+</style></head>
+<body><div class="sheet">
+<h1>Dacity Strategy, <b>three logo directions.</b></h1>
+<p class="sub">Each mark is vector, built from the site's own colours and motifs. Columns: the mark large, the lockup, on light, and at favicon and avatar size.</p>
+<div id="rows"></div>
+<p class="foot">Colours from ui.css: pink #ff2d95, violet #b65cff, cyan #3ee8ff, plum #0b0308, pale pink #ffe1f3. Type: DM Sans 800 wordmark, 500 tracked label.</p>
+</div>
+<script>
+const D=[["a-sunset-d","A · Sunset D","The approved banded D, redrawn: a sun setting into the horizon, sliced 40 / 20 / 40 into the three destinations."],
+["b-ticket","B · Ticket","The glass ticket from the artwork as one neon outline with side notches, perforated 40 / 20 / 40."],
+["c-cycle","C · Cycle","One ring in three arcs, 40 / 20 / 40, with a gap before each so it keeps turning; a sun-dot in the centre."]];
+const svg=(n,s)=>`<img src="./${n}.svg" width="${s}" height="${s}" alt="">`;
+document.getElementById('rows').innerHTML=D.map(([n,t,d])=>`<div class="row">
+ <div class="name"><b>${t}</b><span>${d}</span></div>
+ <div class="cell wall"><span class="label">Mark</span>${svg(n,150)}</div>
+ <div class="cell dark"><span class="label">Lockup</span><div class="lock">${svg(n,64)}<div class="word"><b>Dacity</b><small>STRATEGY</small></div></div></div>
+ <div class="cell light"><span class="label">On light</span><div class="lock">${svg(n,64)}<div class="word"><b>Dacity</b><small>STRATEGY</small></div></div></div>
+ <div class="cell dark"><span class="label">32 px and avatar</span><div class="tiny"><div class="pair"><span class="tab">${svg(n,16)} Dacity Strategy</span>${svg(n,32)}</div><div class="avatar">${svg(n,40)}</div></div></div>
+</div>`).join('');
+</script></body></html>

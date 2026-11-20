@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Dacity Strategy mark: the Cycle">
+  <!-- Direction C: the Cycle. One ring made of three arcs, 40 / 20 / 40 of the circumference, with a
+       small gap before each so it reads as a loop that keeps going; a sun-dot sits in the centre. -->
+  <defs>
+    <linearGradient id="c-sun" x1="0" y1="26" x2="0" y2="38" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#ffd1e8"/><stop offset="1" stop-color="#ff2d95"/></linearGradient>
+  </defs>
+  <!-- r = 24, circumference 150.8; arcs 40% = 60.3, 20% = 30.2, 40% = 60.3, each shortened by a 4.5 gap -->
+  <g fill="none" stroke-width="7" stroke-linecap="round" transform="rotate(-90 32 32)">
+    <circle cx="32" cy="32" r="24" stroke="#ff2d95" stroke-dasharray="55.8 95"/>
+    <circle cx="32" cy="32" r="24" stroke="#b65cff" stroke-dasharray="25.7 125.1" stroke-dashoffset="-60.3"/>
+    <circle cx="32" cy="32" r="24" stroke="#3ee8ff" stroke-dasharray="55.8 95" stroke-dashoffset="-90.5"/>
+  </g>
+  <circle cx="32" cy="32" r="6" fill="url(#c-sun)"/>
+</svg>
