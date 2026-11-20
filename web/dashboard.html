@@ -50,23 +50,6 @@
     </div>
   </section>
 
-  <section class="section" id="fees">
-    <div class="wrap">
-      <div class="section-head"><h2><span>Where the fees</span> <b>went.</b></h2><p>The split is fixed. These panels show how much has gone each way so far and what the next cycle would do with what is waiting.</p></div>
-      <div class="grid cols-2">
-        <div class="panel" style="animation-delay:.1s">
-          <div class="panel-head"><h3>Fee split</h3><span class="caption" id="split-caption"></span></div>
-          <div id="bar" role="img" aria-label="Fee split"></div>
-          <div id="split"></div>
-        </div>
-        <div class="panel" style="animation-delay:.15s">
-          <div class="panel-head"><h3>Next cycle</h3><span class="caption">if it ran now</span></div>
-          <dl class="rows" id="next"></dl>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="section" id="history">
     <div class="wrap">
       <div class="section-head"><h2><span>Every</span> <b>transaction.</b></h2><p>The treasury's full history, classified from what each transaction did on-chain. Each row links to Solscan.</p></div>
@@ -84,10 +67,10 @@
   </section>
 </main>
 
-<footer class="footer"><div class="wrap"><p>Data comes from a public Solana RPC and can lag by a few seconds. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p><nav aria-label="Footer"><a href="./">Home</a><span id="repo"></span></nav></div></footer>
+<footer class="footer"><div class="wrap"><nav aria-label="Footer"><a href="./">Home</a><span id="repo"></span></nav></div></footer>
 
 <script type="module">
-  import { classify, fmt, makeRpc, summarize, ata, creatorVaults, splitPreview, crossCheck } from "./proof.js";
+  import { classify, fmt, makeRpc, summarize, ata, creatorVaults, crossCheck } from "./proof.js";
   import { countUp } from "./motion.js";
 
   const $ = (id) => document.getElementById(id);
@@ -178,26 +161,11 @@
   }
   $("more").onclick = () => { state.shown += 100; renderTable(); };
 
-  /** The split panel: percentages from config.json, amounts so far from the rows (zeros before any). */
-  function renderSplit(s = summarize(state.rows), q = dec().q) {
-    const split = cfg.split;
-    $("split-caption").textContent = `${split.burn} / ${split.buyback} / ${split.holders}`;
-    $("bar").setAttribute("aria-label", `Fee split: ${split.burn}% burns DCTY, ${split.buyback}% buys the coin back, ${split.holders}% to holders`);
-    $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
-    $("split").innerHTML = [
-      ["DCTY burn", `pct-burn`, split.burn, fmt(s.spent, q)],
-      ["Buyback and burn", `pct-buyback`, split.buyback, fmt(s.selfSpent, q)],
-      ["Paid to holders", `pct-holders`, split.holders, fmt(s.paid, q)],
-    ].map(([k, c, p, v]) => `<div><div class="k">${k}</div><div class="p ${c}">${p}%</div><div class="v">${v} <small>TTWO so far</small></div></div>`).join("");
-  }
-
   function render() {
     ensureSkeletons();
     const { q, b, s: sd } = dec();
     const s = summarize(state.rows);
     const live = state.live;
-    const split = cfg.split;
-
     if (live) {
       setValue($("ov-treasury"), amount(fmt(live.quote.amount, q), "TTWO"));
       $("ovs-treasury").innerHTML = `<b>${fmt(live.vaulted, q)} TTWO</b> unclaimed in pump.fun's vaults<span class="item-line">${fmt(live.coin.amount, b, 2)} DCTY${cfg.strategyMint ? ` and ${fmt(live.self.amount, sd, 2)} ${esc(name)}` : ""} bought, not yet burned</span>`;
@@ -210,19 +178,6 @@
     setValue($("kpi-self"), amount(fmt(s.selfBurned, sd, 0), name)); $("kpis-self").textContent = cfg.strategyMint ? `${plural(s.selfBurns, "burn")} · ${fmt(s.selfSpent, q)} TTWO spent` : "Starts with the first fee";
     setValue($("kpi-paid"), amount(fmt(s.paid, q), "TTWO")); $("kpis-paid").textContent = `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`;
     setValue($("kpi-claimed"), amount(fmt(s.claimed, q), "TTWO")); $("kpis-claimed").textContent = `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`;
-
-    renderSplit(s, q);
-    if (live) {
-      const waiting = live.vaulted + live.quote.amount;
-      const p = splitPreview(waiting, split);
-      $("next").innerHTML = rows([
-        ["TTWO waiting", `${fmt(waiting, q)}<small>TTWO</small>`],
-        ["To burn DCTY", `${fmt(p.burn, q)}<small>TTWO</small>`],
-        [`To buy ${esc(name)} back`, `${fmt(p.buyback, q)}<small>TTWO</small>`],
-        ["To holders", `${fmt(p.payout, q)}<small>TTWO</small>`],
-        ["Minimum to be paid", `${group(cfg.minHold)}<small>${esc(cfg.holderSymbol || "coins")}</small>`],
-      ]);
-    }
 
     renderTable();
   }
@@ -314,8 +269,6 @@
     $("addresses").innerHTML = [["Treasury", cfg.treasury], cfg.strategyMint ? [name, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null]
       .filter(Boolean).map(addrRow).join("");
     ensureSkeletons();
-    renderSplit();
-    $("next").innerHTML = rows([["TTWO waiting", sk], ["To burn DCTY", sk], [`To buy ${esc(name)} back`, sk], ["To holders", sk], ["Minimum to be paid", `${group(cfg.minHold)}<small>${esc(cfg.holderSymbol || "coins")}</small>`]]);
     await mintOf(cfg.burnMint);
     if (cfg.strategyMint) await mintOf(cfg.strategyMint);
     await refresh();
