@@ -24,10 +24,10 @@
 </head>
 <body>
 <div class="scene" aria-hidden="true"></div>
-<a class="skip" href="#overview">Skip to content</a>
+<a class="skip" href="#treasury">Skip to content</a>
 <header class="header">
   <nav class="pill-nav" aria-label="Main">
-    <a class="logo surface" href="./" aria-label="Dacity Strategy, home"><img src="./logo.svg" alt="" width="22" height="22"></a>
+    <a class="logo surface" id="brand-home" href="./" aria-label="Dacity Strategy, home"><img src="./logo.svg" alt="" width="22" height="22"></a>
     <div class="bar surface">
       <a class="hide-sm" href="./">Home</a>
       <a href="./dashboard.html" aria-current="page">Dashboard</a>
@@ -39,49 +39,55 @@
 </header>
 
 <main class="main page">
-  <div class="page-head rise d1">
-    <div><h1>The treasury, <b>live.</b></h1><p class="lede">Every number below is read from Solana in your browser and refreshes every minute.</p></div>
-    <div class="meta"><span id="updated"></span><a id="treasury-link" href="#" rel="noopener">Treasury on Solscan ↗</a></div>
-  </div>
-
-  <div class="notice" id="error" hidden role="alert"></div>
-
-  <div class="panel" id="overview"></div>
-
-  <div class="grid cols-4 block" id="kpis"></div>
-
-  <div class="grid cols-2 block">
-    <div class="panel" style="animation-delay:.1s">
-      <div class="panel-head"><h3>Fee split</h3><span class="caption" id="split-caption"></span></div>
-      <div id="bar" role="img" aria-label="Fee split"></div>
-      <div id="split"></div>
+  <section class="section" id="treasury">
+    <div class="wrap">
+      <div class="section-head"><h1><span>The treasury,</span> <b>live.</b></h1><div class="meta"><span id="updated"></span><a id="treasury-link" href="#" rel="noopener">Treasury on Solscan ↗</a></div></div>
+      <div class="notice" id="error" hidden role="alert"></div>
+      <div class="panel" id="overview"></div>
+      <div class="grid cols-4 block" id="kpis"></div>
     </div>
-    <div class="panel" style="animation-delay:.15s">
-      <div class="panel-head"><h3>Next cycle</h3><span class="caption">if it ran now</span></div>
-      <dl class="rows" id="next"></dl>
+  </section>
+
+  <section class="section" id="fees">
+    <div class="wrap">
+      <div class="section-head"><h2><span>Where the fees</span> <b>went.</b></h2><p>The split is fixed. These panels show how much has gone each way so far and what the next cycle would do with what is waiting.</p></div>
+      <div class="grid cols-2">
+        <div class="panel" style="animation-delay:.1s">
+          <div class="panel-head"><h3>Fee split</h3><span class="caption" id="split-caption"></span></div>
+          <div id="bar" role="img" aria-label="Fee split"></div>
+          <div id="split"></div>
+        </div>
+        <div class="panel" style="animation-delay:.15s">
+          <div class="panel-head"><h3>Next cycle</h3><span class="caption">if it ran now</span></div>
+          <dl class="rows" id="next"></dl>
+        </div>
+      </div>
+      <div class="grid cols-2 block">
+        <div class="panel" style="animation-delay:.2s"><div class="panel-head"><h3>TTWO paid to holders</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-paid"></div></div>
+        <div class="panel" style="animation-delay:.25s"><div class="panel-head"><h3>DCTY burned</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-burned"></div></div>
+      </div>
     </div>
-  </div>
+  </section>
 
-  <div class="grid cols-2 block">
-    <div class="panel" style="animation-delay:.2s"><div class="panel-head"><h3>TTWO paid to holders</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-paid"></div></div>
-    <div class="panel" style="animation-delay:.25s"><div class="panel-head"><h3>DCTY burned</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-burned"></div></div>
-  </div>
-
-  <div class="grid wide-2 block">
-    <div class="panel" style="animation-delay:.3s">
-      <div class="panel-head"><h3>Treasury history</h3><span class="caption" id="activity-note"></span></div>
-      <div id="filters" role="group" aria-label="Filter transactions"></div>
-      <div class="table-wrap"><table><thead><tr><th class="hide-sm">When</th><th>Type</th><th>Activity</th><th class="amt">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
-      <button class="btn btn-outline btn-sm" id="more" hidden>Load more</button>
-      <p class="caption" id="books" style="margin:14px 0 0"><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></p>
+  <section class="section" id="history">
+    <div class="wrap">
+      <div class="section-head"><h2><span>Every</span> <b>transaction.</b></h2><p>The treasury's full history, classified from what each transaction did on-chain. Each row links to Solscan.</p></div>
+      <div class="grid wide-2">
+        <div class="panel" style="animation-delay:.3s">
+          <div class="panel-head"><h3>Treasury history</h3><span class="caption" id="activity-note"></span></div>
+          <div id="filters" role="group" aria-label="Filter transactions"></div>
+          <div class="table-wrap"><table><thead><tr><th class="hide-sm">When</th><th>Type</th><th>Activity</th><th class="amt">Amount</th><th>Proof</th></tr></thead><tbody id="tbody"></tbody></table></div>
+          <button class="btn btn-outline btn-sm" id="more" hidden>Load more</button>
+          <p class="caption" id="books" style="margin:14px 0 0"><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></p>
+        </div>
+        <div class="panel" style="animation-delay:.35s"><div class="panel-head"><h3>Most paid wallets</h3><span class="caption">TTWO received</span></div><dl class="rows" id="top-wallets"></dl></div>
+      </div>
+      <p class="addrs" id="addresses"></p>
     </div>
-    <div class="panel" style="animation-delay:.35s"><div class="panel-head"><h3>Most paid wallets</h3><span class="caption">TTWO received</span></div><dl class="rows" id="top-wallets"></dl></div>
-  </div>
-
-  <p class="addrs" id="addresses"></p>
+  </section>
 </main>
 
-<footer class="footer"><span id="repo"></span>Data comes from a public Solana RPC and can lag by a few seconds. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</footer>
+<footer class="footer"><div class="wrap"><p>Data comes from a public Solana RPC and can lag by a few seconds. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p><nav aria-label="Footer"><a href="./">Home</a><span id="repo"></span></nav></div></footer>
 
 <script type="module">
   import { classify, fmt, makeRpc, summarize, ata, creatorVaults, cumulative, splitPreview, crossCheck } from "./proof.js";
@@ -101,10 +107,11 @@
   const MAX_HISTORY = 2000;
   const STRATEGY = ["claim", "buy", "burn", "payout"];
   const TYPE = { claim: "Claim", buy: "Buy", burn: "Burn", payout: "Payout", other: "Other" };
+  const KINDS = [["strategy", "Strategy"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"], ["all", "All"]];
   const tagOf = (x) => { const self = x.coin === "self"; const cls = self && x.kind === "buy" ? "buyback" : x.kind; const text = self && x.kind === "buy" ? "Buy back" : TYPE[x.kind]; return `<span class="tag ${cls}">${text}</span>`; };
 
   let cfg, rpc, name = "coin";
-  const state = { rows: [], live: null, scanning: false, truncated: false, filter: "strategy", shown: 25 };
+  const state = { rows: [], live: null, scanning: false, truncated: false, filter: "strategy", shown: 25, refreshing: false };
   const mintInfo = new Map();
   async function mintOf(mint) {
     const r = await rpc("getAccountInfo", [mint, { encoding: "jsonParsed", commitment: "confirmed" }]);
@@ -129,9 +136,10 @@
     s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
   const amount = (v, unit) => `<span class="num">${v}</span>${unit ? `<small>${esc(unit)}</small>` : ""}`;
-  /** Writes into a value element and animates only when the text changed. */
+  /** Writes into a value element and animates only when the target changed. */
   function setValue(el, html) {
-    if (!el || el.innerHTML === html) return;
+    if (!el || el.dataset.target === html) return;
+    el.dataset.target = html;
     el.innerHTML = html;
     el.classList.remove("tick"); void el.offsetWidth; el.classList.add("tick");
     const num = el.querySelector(".num"); if (num) countUp(num);
@@ -143,6 +151,8 @@
     if ($("ov-treasury")) return;
     $("overview").innerHTML = ["treasury", "sol", "supply"].map((k, i) => `<div class="item"><div class="label">${["Treasury", "SOL balance", "Supply"][i]}</div><div class="value" id="ov-${k}">${sk}</div><div class="sub" id="ovs-${k}"></div></div>`).join("");
     $("kpis").innerHTML = ["burned", "self", "paid", "claimed"].map((k, i) => `<div class="tile" style="animation-delay:${i * 60 + 60}ms"><div class="label">${["DCTY burned", "Bought back and burned", "Paid to holders", "Fees claimed"][i]}</div><div class="value" id="kpi-${k}">${sk}</div><div class="sub" id="kpis-${k}"></div></div>`).join("");
+    $("filters").innerHTML = KINDS.map(([k, label]) => `<button type="button" class="chip" data-k="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
+    for (const b of $("filters").querySelectorAll("button")) b.onclick = () => { state.filter = b.dataset.k; state.shown = 25; renderTable(); };
   }
 
   function visible() {
@@ -158,9 +168,7 @@
       return `<tr><td class="hide-sm" style="white-space:nowrap">${esc(when(x.time))}</td><td>${tagOf(x)}</td><td>${esc(x.text)}${payees}</td><td class="amt">${x.amount ? prefix + esc(x.amount) : ""}</td><td class="sig"><a href="${txUrl(x.sig)}" rel="noopener">${esc(short(x.sig))}</a>${x.err ? ' <span class="bad">failed</span>' : ""}</td></tr>`;
     }).join("") || `<tr><td colspan="5" class="table-empty">${state.scanning ? "Reading the chain…" : "No activity yet. The first claim, buy, burn, buyback and payout will appear here."}</td></tr>`;
     $("more").hidden = list.length <= state.shown;
-    const kinds = [["strategy", "Strategy"], ["claim", "Claims"], ["buy", "Buys"], ["burn", "Burns"], ["payout", "Payouts"], ["other", "Other"], ["all", "All"]];
-    $("filters").innerHTML = kinds.map(([k, label]) => `<button type="button" class="chip" data-k="${k}" aria-pressed="${state.filter === k}">${label}</button>`).join("");
-    for (const b of $("filters").querySelectorAll("button")) b.onclick = () => { state.filter = b.dataset.k; state.shown = 25; renderTable(); };
+    for (const b of $("filters").querySelectorAll("button")) b.setAttribute("aria-pressed", String(b.dataset.k === state.filter));
     $("activity-note").textContent = state.rows.length ? plural(state.rows.length, "transaction") : "";
   }
   $("more").onclick = () => { state.shown += 100; renderTable(); };
@@ -170,6 +178,7 @@
     const { q, b, s: sd } = dec();
     const s = summarize(state.rows);
     const live = state.live;
+    const split = cfg.split;
 
     if (live) {
       setValue($("ov-treasury"), amount(fmt(live.quote.amount, q), "TTWO"));
@@ -184,8 +193,8 @@
     setValue($("kpi-paid"), amount(fmt(s.paid, q), "TTWO")); $("kpis-paid").textContent = `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`;
     setValue($("kpi-claimed"), amount(fmt(s.claimed, q), "TTWO")); $("kpis-claimed").textContent = `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`;
 
-    const split = cfg.split || { burn: 40, buyback: 20, holders: 40 };
     $("split-caption").textContent = `${split.burn} / ${split.buyback} / ${split.holders}`;
+    $("bar").setAttribute("aria-label", `Fee split: ${split.burn}% burns DCTY, ${split.buyback}% buys the coin back, ${split.holders}% to holders`);
     $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
     $("split").innerHTML = [
       ["DCTY burn", `pct-burn`, split.burn, fmt(s.spent, q)],
@@ -200,7 +209,7 @@
         ["To burn DCTY", `${fmt(p.burn, q)}<small>TTWO</small>`],
         [`To buy ${esc(name)} back`, `${fmt(p.buyback, q)}<small>TTWO</small>`],
         ["To holders", `${fmt(p.payout, q)}<small>TTWO</small>`],
-        ["Minimum to be paid", `${group(cfg.minHold)}<small>${esc(cfg.holderSymbol || name)}</small>`],
+        ["Minimum to be paid", `${group(cfg.minHold)}<small>${esc(cfg.holderSymbol || "coins")}</small>`],
       ]);
     }
 
@@ -262,13 +271,14 @@
     state.truncated = sigs.length >= MAX_HISTORY;
     const all = [], need = [];
     for (const s of sigs) { const c = readCache(s.signature); if (c) all.push(c); else need.push(s); }
-    const commit = () => { state.rows = all.sort((a, b) => (b.time || 0) - (a.time || 0)); render(); };
-    commit();
+    let lastPaint = 0;
+    const commit = (force) => { state.rows = all.sort((a, b) => (b.time || 0) - (a.time || 0)); const now = performance.now(); if (force || now - lastPaint > 900) { lastPaint = now; render(); } };
+    commit(true);
     for (let i = 0; i < need.length; i += 4) {
       const chunk = need.slice(i, i + 4);
       const got = await Promise.all(chunk.map((s) => rpc("getTransaction", [s.signature, { encoding: "jsonParsed", maxSupportedTransactionVersion: 0, commitment: "confirmed" }]).catch(() => null)));
       got.forEach((t, j) => { if (!t) return; const s = chunk[j]; const row = classify(cfg, s.signature, s.blockTime || t.blockTime, t); writeCache(s.signature, row); all.push(row); });
-      commit();
+      commit(i + 4 >= need.length);
       if (i + 4 < need.length) await sleep(250);
     }
     state.scanning = false;
@@ -288,7 +298,11 @@
     if (missing.length) { $("error").hidden = false; $("error").textContent = `${plural(missing.length, "entry")} in the bot's published books ${missing.length === 1 ? "is" : "are"} not on the chain.`; }
   }
 
+  let nextTimer = 0;
   async function refresh() {
+    if (state.refreshing) return;
+    state.refreshing = true;
+    clearTimeout(nextTimer);
     $("refresh").disabled = true; $("refresh").setAttribute("aria-busy", "true");
     $("error").hidden = true;
     try {
@@ -298,16 +312,21 @@
       await checkBooks();
       $("updated").textContent = `Updated ${new Date().toISOString().slice(11, 16)} UTC${state.truncated ? ` · latest ${MAX_HISTORY} transactions` : ""}`;
     } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read the chain: ${err.message}`; }
-    finally { $("refresh").disabled = false; $("refresh").setAttribute("aria-busy", "false"); }
+    finally {
+      $("refresh").disabled = false; $("refresh").setAttribute("aria-busy", "false");
+      state.refreshing = false;
+      nextTimer = setTimeout(refresh, 60_000);
+    }
   }
 
   async function main() {
     const r = await fetch("./config.json", { cache: "no-store" });
     if (!r.ok) throw new Error("config.json is missing");
     cfg = await r.json();
+    if (!cfg.split || !cfg.treasury || !cfg.burnMint) throw new Error("config.json is missing the split or the addresses");
     rpc = makeRpc([cfg.rpcUrl, ...FALLBACK_RPCS]);
     name = cfg.strategySymbol || cfg.title || "coin";
-    if (cfg.title) document.title = `${cfg.title} · Dashboard`;
+    if (cfg.title) { document.title = `${cfg.title} · Dashboard`; $("brand-home").setAttribute("aria-label", `${cfg.title}, home`); }
     $("treasury-link").href = acctUrl(cfg.treasury);
     if (cfg.strategyMint) { $("buy").href = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`; $("buy").hidden = false; }
     if (cfg.repoUrl) $("repo").innerHTML = `<a href="${esc(cfg.repoUrl)}" rel="noopener">GitHub</a>`;
@@ -317,7 +336,6 @@
     await mintOf(cfg.burnMint);
     if (cfg.strategyMint) await mintOf(cfg.strategyMint);
     await refresh();
-    setInterval(refresh, 60_000);
   }
   $("refresh").onclick = refresh;
   main().catch((err) => { $("error").hidden = false; $("error").textContent = err.message; });
