@@ -4,7 +4,7 @@
    Vice City colours: hot pink, cyan, violet on near-black plum. */
 /* DM Sans is loaded from the HTML head (parallel with this file). While it arrives, a metric-matched
    system fallback keeps the layout where it will end up, so the swap does not move anything. */
-@font-face { font-family: "DM Sans Fallback"; src: local("Helvetica Neue"), local("Arial"); size-adjust: 97%; ascent-override: 96%; descent-override: 28%; line-gap-override: 0%; }
+@font-face { font-family: "DM Sans Fallback"; src: local("Helvetica Neue"), local("Arial"); size-adjust: 102%; ascent-override: 93%; descent-override: 27%; line-gap-override: 0%; }
 
 :root {
   --pink: #ff2d95; --pink-hi: #ff5fae; --pink-deep: #d10070; --cyan: #3ee8ff; --violet: #b65cff;
