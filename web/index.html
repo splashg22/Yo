@@ -25,6 +25,7 @@
 </head>
 <body>
 <div class="scene" aria-hidden="true"></div>
+<div class="veil" aria-hidden="true"></div>
 <a class="skip" href="#main">Skip to content</a>
 <header class="header">
   <nav class="pill-nav" aria-label="Main">
@@ -95,6 +96,14 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const plural = (n, word) => `${n} ${word}${n === 1 ? "" : "s"}`;
+
+  // Copy buttons on the address rows.
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest(".addr .copy"); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.v); } catch { const r = document.createRange(); r.selectNodeContents(b.closest(".addr").querySelector("code")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    b.textContent = "Copied"; b.setAttribute("data-done", ""); clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = "Copy"; b.removeAttribute("data-done"); }, 1400);
+  });
+  const addrRow = ([k, v]) => `<div class="addr"><span class="k">${esc(k)}</span><code>${esc(v)}</code><button type="button" class="copy" data-v="${esc(v)}" aria-label="Copy the ${esc(k)} address">Copy</button><a class="out" href="${acctUrl(v)}" rel="noopener" aria-label="${esc(k)} on Solscan">↗</a></div>`;
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
   const MAX_HISTORY = 2000;
 
@@ -149,7 +158,7 @@
     $("treasury-link").href = acctUrl(cfg.treasury);
     if (cfg.repoUrl) { $("repo").innerHTML = `<a href="${esc(cfg.repoUrl)}" rel="noopener">GitHub</a>`; $("repo-nav").href = cfg.repoUrl; $("repo-nav").hidden = false; }
     $("addresses").innerHTML = [["Treasury", cfg.treasury], launched ? [name, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null]
-      .filter(Boolean).map(([k, v]) => `<a class="addr" href="${acctUrl(v)}" rel="noopener" title="${esc(v)}"><span>${esc(k)}</span><code>${esc(short(v))}</code></a>`).join("");
+      .filter(Boolean).map(addrRow).join("");
   }
 
   // Live numbers.

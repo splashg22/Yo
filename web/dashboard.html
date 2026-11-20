@@ -25,6 +25,7 @@
 </head>
 <body>
 <div class="scene" aria-hidden="true"></div>
+<div class="veil" aria-hidden="true"></div>
 <a class="skip" href="#treasury">Skip to content</a>
 <header class="header">
   <nav class="pill-nav" aria-label="Main">
@@ -63,17 +64,13 @@
           <dl class="rows" id="next"></dl>
         </div>
       </div>
-      <div class="grid cols-2 block">
-        <div class="panel" style="animation-delay:.2s"><div class="panel-head"><h3>TTWO paid to holders</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-paid"></div></div>
-        <div class="panel" style="animation-delay:.25s"><div class="panel-head"><h3>DCTY burned</h3><span class="caption">cumulative</span></div><div class="chart" id="chart-burned"></div></div>
-      </div>
     </div>
   </section>
 
   <section class="section" id="history">
     <div class="wrap">
       <div class="section-head"><h2><span>Every</span> <b>transaction.</b></h2><p>The treasury's full history, classified from what each transaction did on-chain. Each row links to Solscan.</p></div>
-      <div class="grid wide-2">
+      <div class="grid">
         <div class="panel" style="animation-delay:.3s">
           <div class="panel-head"><h3>Treasury history</h3><span class="caption" id="activity-note"></span></div>
           <div id="filters" role="group" aria-label="Filter transactions"></div>
@@ -81,9 +78,8 @@
           <button class="btn btn-outline btn-sm" id="more" hidden>Load more</button>
           <p class="caption" id="books" style="margin:14px 0 0"><a href="./ledger.jsonl" id="ledger-link" hidden>Raw ledger</a></p>
         </div>
-        <div class="panel" style="animation-delay:.35s"><div class="panel-head"><h3>Most paid wallets</h3><span class="caption">TTWO received</span></div><dl class="rows" id="top-wallets"></dl></div>
       </div>
-      <p class="addrs" id="addresses"></p>
+      <div class="addresses" id="addresses"></div>
     </div>
   </section>
 </main>
@@ -91,7 +87,7 @@
 <footer class="footer"><div class="wrap"><p>Data comes from a public Solana RPC and can lag by a few seconds. Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p><nav aria-label="Footer"><a href="./">Home</a><span id="repo"></span></nav></div></footer>
 
 <script type="module">
-  import { classify, fmt, makeRpc, summarize, ata, creatorVaults, cumulative, splitPreview, crossCheck } from "./proof.js";
+  import { classify, fmt, makeRpc, summarize, ata, creatorVaults, splitPreview, crossCheck } from "./proof.js";
   import { countUp } from "./motion.js";
 
   const $ = (id) => document.getElementById(id);
@@ -104,6 +100,14 @@
   const pct = (part, whole) => (whole > 0n ? `${(Number((part * 10000n) / whole) / 100).toFixed(2)}%` : "0%");
   const group = (n) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  // Copy buttons on the address rows.
+  document.addEventListener("click", async (e) => {
+    const b = e.target.closest(".addr .copy"); if (!b) return;
+    try { await navigator.clipboard.writeText(b.dataset.v); } catch { const r = document.createRange(); r.selectNodeContents(b.closest(".addr").querySelector("code")); const sel = getSelection(); sel.removeAllRanges(); sel.addRange(r); }
+    b.textContent = "Copied"; b.setAttribute("data-done", ""); clearTimeout(b._t); b._t = setTimeout(() => { b.textContent = "Copy"; b.removeAttribute("data-done"); }, 1400);
+  });
+  const addrRow = ([k, v]) => `<div class="addr"><span class="k">${esc(k)}</span><code>${esc(v)}</code><button type="button" class="copy" data-v="${esc(v)}" aria-label="Copy the ${esc(k)} address">Copy</button><a class="out" href="${acctUrl(v)}" rel="noopener" aria-label="${esc(k)} on Solscan">↗</a></div>`;
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
   const MAX_HISTORY = 2000;
   const STRATEGY = ["claim", "buy", "burn", "payout"];
@@ -214,37 +218,7 @@
       ]);
     }
 
-    chart($("chart-paid"), state.rows.filter((x) => x.kind === "payout" && !x.err), (x) => x.paid, q, "TTWO", "#3ee8ff");
-    chart($("chart-burned"), state.rows.filter((x) => x.kind === "burn" && x.coin !== "self" && !x.err), (x) => x.burned, b, "DCTY", "#ff2d95");
     renderTable();
-
-    const per = new Map();
-    for (const x of state.rows) if (x.kind === "payout" && !x.err) for (const [o, a] of x.payouts) per.set(o, (per.get(o) || 0n) + a);
-    const top = [...per].sort((a, b) => (a[1] === b[1] ? 0 : a[1] > b[1] ? -1 : 1)).slice(0, 10);
-    $("top-wallets").innerHTML = top.length ? rows(top.map(([o, a]) => [`<a class="mono" href="${acctUrl(o)}" rel="noopener">${esc(short(o))}</a>`, `${fmt(a, q)}<small>TTWO</small>`])) : rows([["Nobody has been paid yet", `<span class="muted">—</span>`]]);
-  }
-
-  function chart(el, events, pick, decimals, unit, color) {
-    const series = cumulative(events, pick);
-    if (!series.length) { el.innerHTML = `<div class="empty">Draws itself after the first ${unit === "TTWO" ? "payout" : "burn"}</div>`; return; }
-    const W = 600, H = 200, L = 6, R = 6, T = 10, B = 22;
-    const t0 = series[0].t, t1 = series[series.length - 1].t, span = Math.max(t1 - t0, 1);
-    const max = Number(series[series.length - 1].v) || 1;
-    const X = (t) => L + ((t - t0) / span) * (W - L - R);
-    const Y = (v) => T + (1 - Number(v) / max) * (H - T - B);
-    let d = `M${X(t0)},${Y(0n)}`;
-    for (const p of series) d += ` H${X(p.t)} V${Y(p.v)}`;
-    d += ` H${W - R}`;
-    const area = `${d} V${Y(0n)} Z`;
-    const label = (t) => new Date(t * 1000).toISOString().slice(5, 10);
-    const grid = [0.25, 0.5, 0.75].map((f) => `<line x1="${L}" x2="${W - R}" y1="${T + f * (H - T - B)}" y2="${T + f * (H - T - B)}" stroke="rgba(255,225,243,.08)"/>`).join("");
-    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-label="${esc(unit)} cumulative">
-      <defs><linearGradient id="g-${unit}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".28"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
-      ${grid}<line x1="${L}" x2="${W - R}" y1="${Y(0n)}" y2="${Y(0n)}" stroke="rgba(255,225,243,.2)"/>
-      <path d="${area}" fill="url(#g-${unit})"/><path d="${d}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke"/>
-      <text class="axis" x="${L}" y="${H - 6}">${label(t0)}</text><text class="axis" x="${W - R}" y="${H - 6}" text-anchor="end">${label(t1)}</text>
-      <text class="axis" x="${W - R}" y="${T + 10}" text-anchor="end" fill="${color}">${fmt(series[series.length - 1].v, decimals, 2)} ${esc(unit)}</text>
-    </svg>`;
   }
 
   async function loadBalances() {
@@ -332,7 +306,7 @@
     if (cfg.strategyMint) { $("buy").href = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`; $("buy").hidden = false; }
     if (cfg.repoUrl) $("repo").innerHTML = `<a href="${esc(cfg.repoUrl)}" rel="noopener">GitHub</a>`;
     $("addresses").innerHTML = [["Treasury", cfg.treasury], cfg.strategyMint ? [name, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null]
-      .filter(Boolean).map(([k, v]) => `${esc(k)}: <a class="mono" href="${acctUrl(v)}" rel="noopener">${esc(v)}</a>`).join("<br>");
+      .filter(Boolean).map(addrRow).join("");
     ensureSkeletons();
     await mintOf(cfg.burnMint);
     if (cfg.strategyMint) await mintOf(cfg.strategyMint);
