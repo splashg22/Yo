@@ -156,9 +156,9 @@ h1 b { font-weight: 800; }
 .tile .label { font-size: 13px; font-weight: 500; color: var(--muted); }
 .tile .value { margin-top: 10px; font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums lining-nums; overflow-wrap: anywhere; min-height: 1.05em; }
 .tile .value small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
-.tile .status, .tile .sub { margin-top: 8px; font-size: 13px; color: var(--faint); }
+.tile .status, .tile .sub { margin-top: 8px; font-size: 13px; color: var(--faint); min-height: 1.5em; }
 .value.tick { animation: tick 0.7s var(--ease) 1; }
-.skeleton { display: inline-block; width: 50%; height: 1em; border-radius: 6px; vertical-align: middle; background: linear-gradient(90deg, rgba(255, 225, 243, 0.06) 25%, rgba(255, 225, 243, 0.14) 50%, rgba(255, 225, 243, 0.06) 75%); background-size: 200% 100%; animation: skeleton 1.4s linear infinite; }
+.skeleton { display: inline-block; width: 50%; height: 1em; margin: 0.025em 0; border-radius: 6px; vertical-align: middle; background: linear-gradient(90deg, rgba(255, 225, 243, 0.06) 25%, rgba(255, 225, 243, 0.14) 50%, rgba(255, 225, 243, 0.06) 75%); background-size: 200% 100%; animation: skeleton 1.4s linear infinite; }
 .addresses { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .addr { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 999px; background: var(--tile); box-shadow: var(--tile-rim); font-size: 13px; font-weight: 600; max-width: 100%; }
 .addr code { font: 500 12px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -193,7 +193,7 @@ h1 b { font-weight: 800; }
 #overview .label { font-size: 13px; font-weight: 500; color: var(--muted); }
 #overview .value { margin-top: 10px; font-size: 38px; font-weight: 800; letter-spacing: -0.035em; line-height: 1; font-variant-numeric: tabular-nums lining-nums; overflow-wrap: anywhere; }
 #overview .value small { font-size: 14px; font-weight: 500; color: var(--muted); margin-left: 8px; letter-spacing: 0; }
-#overview .sub { margin-top: 10px; font-size: 13px; color: var(--faint); line-height: 1.5; max-width: 40ch; }
+#overview .sub { margin-top: 10px; font-size: 13px; color: var(--faint); line-height: 1.5; max-width: 40ch; min-height: 3em; }
 #overview .sub b { color: var(--muted); font-weight: 600; }
 #overview .sub .item-line { display: block; }
 .rows { margin: 0; }
