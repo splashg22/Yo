@@ -143,21 +143,35 @@ are wrong; find out which before restarting.
 
 Back up `data/` regularly.
 
-## Public proof page
+## Public site
 
-`web/` is a one-page site, in DacityCoin's colours, that proves the strategy
-to holders. It runs entirely in the visitor's browser and reads the Solana
-blockchain directly through a key-free public RPC, so nothing on it has to be
-taken on trust:
+`web/` is the public site: a home page and a dashboard that run entirely in
+the visitor's browser and read the Solana blockchain directly through a
+key-free public RPC, so nothing on them has to be taken on trust.
 
-- live treasury balances and the current DCTY supply;
-- every transaction of the treasury, classified from its on-chain contents as
-  a claim, a DCTY buy, a buyback of the coin, a burn of either, or a holder
-  payout, with a Solscan link each;
-- a **Check your wallet** box: balance, whether the wallet qualifies, and every
-  TTWO payout it has received;
-- a cross-check of the bot's published ledger against the chain, so visitors
-  can see the books are honest.
+The home page (`web/index.html`) has four parts: the headline and a slow 3D
+ring of the project's artwork; **One rule, every cycle**, an option wheel that
+walks through the cycle (fees in, the burn, the buyback, the payout, repeat)
+with a card for each step; **Every number, on-chain**, four live tiles
+(treasury TTWO, SOL, DCTY burned, TTWO paid) and the addresses; and the
+disclaimer. The percentages and the minimum hold come from `config.json`,
+never from the markup.
+
+`web/dashboard.html` is the dashboard: treasury, SOL and supply in one
+overview row, the split and what the next cycle would do, cumulative charts,
+the treasury's full history with filters and Solscan links, the most paid
+wallets, and a check of the published books against the chain. It refreshes
+itself every minute.
+
+The look follows one reference closely: a dark plum room lit from above in
+hot pink, a floating pill navigation, light display type with one bold
+phrase, pale-pink buttons, frames for numbers. `web/ui.css` holds all of it;
+`web/ring.js` is the ring and the wheel, `web/motion.js` the count-up and
+reveal helpers, `web/proof.js` the chain reading and classification. The
+artwork is generated on Higgsfield: masters in `brand/art` (4K, with 8K
+upscales in `brand/art/8k`), the web crops in `web/art/ring` (720 px squares)
+and `web/art/cycle` (1280x720). `web/logo.svg` is the approved Sunset D mark
+from `brandkit/`. `brand/` holds the Twitter kit and `brand/render.sh`.
 
 Publish it:
 
@@ -172,16 +186,9 @@ the default PublicNode one works from browsers. Set `REPO_URL` to show a
 source link in the footer, `HOLDER_SYMBOL` to name your coin and
 `PUBLIC_SITE_URL` so alerts link to the dashboard. Before the coin exists,
 `web/config.json` is kept by hand with `strategyMint` and `holderMint` set to
-`null`: the page then runs as a live dashboard of the treasury (real zeros,
-live DCTY supply) and hides the buy and wallet-check parts. `npm run web`
-replaces it with the full version once `.env` has the coin.
-
-`web/dashboard.html` is the stand-alone dashboard: totals, the treasury's
-balances including fees still in pump's creator vaults, supply before and
-after burning, where the split has gone, cumulative charts, latest activity,
-the most paid wallets and a check of the published books against the chain.
-It refreshes itself every minute. `brand/` holds the Twitter kit (avatar,
-header, announcement card, copy sheet) and `brand/render.sh` to regenerate it.
+`null`: the pages then show the treasury as it is (real zeros, live DCTY
+supply) and hide the buy buttons. `npm run web` replaces it with the full
+version once `.env` has the coin.
 
 `deploy/publish-web.sh` copies only `web/` into a commit on the `gh-pages`
 branch and pushes it; nothing else in the repository (never `.env`, keys or

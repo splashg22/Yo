@@ -1,0 +1,26 @@
+[
+  {
+    "created_at": "2026-11-19T23:07:52.526074Z",
+    "display_name": "Recraft V4.1",
+    "id": "1e7bef11-b0cf-44e2-8a09-e0c1891969ed",
+    "job_type": "recraft_v4_1",
+    "min_result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_230752_1e7bef11-b0cf-44e2-8a09-e0c1891969ed_min.webp",
+    "params": {
+      "aspect_ratio": "1:1",
+      "background_color": "#0B0617",
+      "batch_size": 1,
+      "colors": [
+        "#FF2D95",
+        "#7B2CFF",
+        "#2DE2FF"
+      ],
+      "height": 1024,
+      "model_type": "vector",
+      "prompt": "Lettermark logo symbol of a single bold capital letter D whose round bowl is a setting sun cut by three horizontal negative-space stripes of increasing thickness toward the bottom, the straight stem of the D kept solid, the sun bowl filled with a vertical vector gradient from the locked primary tone at the top to the locked second accent tone at the bottom while the stem stays in the locked primary tone, geometric construction with a perfectly circular bowl and sharp stripe edges, one unified silhouette that still reads as a D at sixteen pixels, centered and isolated with even margin on the locked background. Flat vector design with the specified locked vector gradient, no shadows, no texture, no text. Clean editable vector paths, SVG-friendly, minimal anchor points.",
+      "resolution": "2k",
+      "width": 1024
+    },
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3DEBLWje0uCWzTdvsqD5E9So3Gx/hf_20261119_230752_1e7bef11-b0cf-44e2-8a09-e0c1891969ed.svg",
+    "status": "completed"
+  }
+]

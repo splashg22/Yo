@@ -4,92 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Dacity Strategy</title>
-<meta name="description" content="Dacity Strategy turns pump.fun trading fees into DCTY burns, buybacks and TTWO payouts. Automatically, on-chain.">
+<meta name="description" content="Dacity Strategy turns pump.fun creator fees into DCTY burns, buybacks and TTWO payouts to holders. Every step is a public Solana transaction.">
 <meta name="color-scheme" content="dark">
+<meta name="theme-color" content="#0b0308">
 <meta property="og:title" content="Dacity Strategy">
-<meta property="og:description" content="Every fee works for holders. 40% burns DCTY, 20% buys the coin back and burns it, 40% pays holders in TTWO.">
+<meta property="og:description" content="Every fee works for holders. 40% burns DCTY, 20% buys the coin back, 40% is paid to holders in TTWO.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://splashg22.github.io/Yo/">
 <meta property="og:image" content="https://splashg22.github.io/Yo/og.png">
-<meta property="og:image:width" content="1200"><meta property="og:image:height" content="675">
+<meta property="og:image:width" content="1200"><meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Dacity Strategy">
-<meta name="twitter:description" content="Every fee works for holders. 40% burns DCTY, 20% buys the coin back and burns it, 40% pays holders in TTWO.">
+<meta name="twitter:description" content="Every fee works for holders.">
 <meta name="twitter:image" content="https://splashg22.github.io/Yo/og.png">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230c0509'/%3E%3Crect x='5' y='8' width='7' height='18' rx='3.5' fill='%23ff2d95'/%3E%3Crect x='14' y='5' width='4' height='16' rx='2' fill='%23ffd1e8'/%3E%3Crect x='20' y='8' width='7' height='18' rx='3.5' fill='%23ff6ab8'/%3E%3C/svg%3E">
+<link rel="icon" href="./logo.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="./ui.css">
-<style>
-  .hero { text-align: center; padding: 96px 0 24px; }
-  .hero h1 { max-width: 14em; margin: 0 auto 16px; }
-  .hero .lead { max-width: 560px; margin: 0 auto 28px; }
-  .hero .actions { justify-content: center; }
-</style>
 </head>
 <body>
-<div class="ambient" aria-hidden="true"></div>
-<header class="site-header">
-  <div class="container">
-    <a class="brand" href="#top"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="8" height="20" rx="4" fill="#ff2d95"/><rect x="14" y="3" width="4" height="18" rx="2" fill="#ffd1e8"/><rect x="21" y="7" width="8" height="20" rx="4" fill="#ff6ab8"/></svg><span id="nav-title">Dacity Strategy</span></a>
-    <nav class="site-nav">
-      <a href="#how">How it works</a><a href="#proof" data-live>On-chain</a><a href="./dashboard.html" class="keep">Dashboard</a>
-      <a class="btn btn-primary btn-sm keep" id="buy-nav" href="#" rel="noopener" hidden>Buy</a>
-    </nav>
-  </div>
+<div class="scene" aria-hidden="true"></div>
+<a class="skip" href="#main">Skip to content</a>
+<header class="header">
+  <nav class="pill-nav" aria-label="Main">
+    <a class="logo surface" href="./" aria-label="Dacity Strategy, home"><img src="./logo.svg" alt="" width="22" height="22"></a>
+    <div class="bar surface">
+      <a href="./" aria-current="page">Home</a>
+      <a href="./dashboard.html">Dashboard</a>
+      <a class="hide-sm" href="#cycle">How it works</a>
+      <a class="hide-sm" id="repo-nav" href="#" rel="noopener" hidden>GitHub</a>
+      <a class="primary" id="buy-nav" href="#" rel="noopener" hidden>Buy</a>
+    </div>
+  </nav>
 </header>
 
-<main id="top">
-  <section class="hero container">
-    <h1>Every fee works for holders.</h1>
-    <p class="lead"><span id="title">Dacity Strategy</span> turns pump.fun trading fees into DCTY burns, buybacks and TTWO payouts. Automatically, on-chain.</p>
-    <div class="actions">
-      <a class="btn btn-primary" href="./dashboard.html">Open the Dashboard</a>
-      <a class="btn btn-primary" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun</a>
-      <a class="btn" href="#how">How it works</a>
+<main class="main" id="main">
+  <section class="hero">
+    <div class="hero-copy">
+      <h1 class="rise d1">Every fee works <br> <b>for holders.</b></h1>
+      <p class="lede rise d2"><span id="title">Dacity Strategy</span> turns <b>pump.fun creator fees</b> into DCTY burns, buybacks<br> and TTWO payouts. Automatically, on-chain.</p>
+      <div class="actions rise d3">
+        <a class="btn btn-ghost" href="#cycle">How it works</a>
+        <a class="btn btn-primary" id="dash-hero" href="./dashboard.html">Open the dashboard <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        <a class="btn btn-primary" id="buy-hero" href="#" rel="noopener" hidden>Buy on pump.fun</a>
+      </div>
+    </div>
+    <div class="ring" id="ring" role="region" aria-roledescription="carousel" aria-label="Dacity Strategy artwork" tabindex="0"></div>
+  </section>
+
+  <section class="section" id="cycle">
+    <h2><span>One rule,</span> <b>every cycle.</b></h2>
+    <div class="cycle-grid">
+      <div class="wheel" id="wheel" role="listbox" aria-label="The cycle, step by step" tabindex="0"></div>
+      <div class="cycle-card">
+        <div class="cycle-photo" id="cycle-photo"></div>
+        <div class="cycle-body">
+          <p class="cycle-text" id="cycle-text"></p>
+          <a class="btn btn-primary" id="cycle-cta" href="./dashboard.html">Open the dashboard <svg class="btn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg></a>
+        </div>
+      </div>
     </div>
   </section>
 
-  <div class="container"><div id="error" class="notice" hidden></div></div>
-
-  <section id="how" class="section container">
-    <div class="section-head"><h2>How it works</h2><p>Every fee the coin earns is split by one fixed rule. Nothing is kept.</p></div>
-    <div class="grid cols-3">
-      <div class="card stat big glow"><div class="label">DCTY burn</div><div class="value pct-burn">40%</div><div class="sub">Buys DacityCoin on the open market and burns it.</div></div>
-      <div class="card stat big"><div class="label">Buyback and burn</div><div class="value pct-buyback">20%</div><div class="sub">Buys <span class="self-name">this coin</span> on its own market and burns it.</div></div>
-      <div class="card stat big"><div class="label">Paid to holders</div><div class="value pct-holders">40%</div><div class="sub">Sent in TTWO to every wallet holding at least <span id="minhold">the minimum</span>.</div></div>
-    </div>
-    <div class="grid cols-5" style="margin-top:var(--gap)">
-      <div class="card step"><div class="n">01</div><h3>Claim</h3><p>Trading fees arrive in TTWO.</p></div>
-      <div class="card step"><div class="n">02</div><h3>Split</h3><p>Divided by the rule above.</p></div>
-      <div class="card step"><div class="n">03</div><h3>Burn</h3><p>DCTY bought and destroyed.</p></div>
-      <div class="card step"><div class="n">04</div><h3>Buy back</h3><p>This coin bought and destroyed.</p></div>
-      <div class="card step"><div class="n">05</div><h3>Pay</h3><p>TTWO lands in holders' wallets.</p></div>
-    </div>
-  </section>
-
-  <section id="proof" class="section container" data-live>
-    <div class="section-head"><h2>On-chain</h2><p>Read from Solana in your browser. Nothing is reported by us.</p></div>
-    <div class="grid cols-4" id="tiles"></div>
-    <div class="actions" style="margin-top:var(--gap)"><a class="btn btn-primary" href="./dashboard.html">Open the Dashboard</a><a id="treasury-link" href="#" rel="noopener">Treasury on Solscan →</a></div>
+  <section class="section numbers" id="numbers" data-live>
+    <h2><span>Every number,</span> <b>on-chain.</b></h2>
+    <div class="tiles" id="tiles"></div>
+    <div class="notice" id="error" hidden role="alert"></div>
+    <div class="addresses" id="addresses"></div>
+    <p class="note">Read from a public Solana RPC in your browser. <a id="treasury-link" href="#" rel="noopener">Treasury on Solscan ↗</a></p>
   </section>
 </main>
 
-<footer class="site-footer">
-  <div class="container">
-    <div class="top">
-      <a class="brand" href="#top"><svg class="logo" viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="7" width="8" height="20" rx="4" fill="#ff2d95"/><rect x="14" y="3" width="4" height="18" rx="2" fill="#ffd1e8"/><rect x="21" y="7" width="8" height="20" rx="4" fill="#ff6ab8"/></svg>Dacity Strategy</a>
-      <nav><a href="#how">How it works</a><a href="./dashboard.html">Dashboard</a><span id="repo"></span></nav>
-    </div>
-    <div class="legal">
-      <p id="addresses"></p>
-      <p>Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</p>
-    </div>
-  </div>
-</footer>
+<footer class="footer"><span id="repo"></span>Independent project. Not affiliated with Take-Two Interactive, the TTWO issuer or pump.fun. Not financial advice.</footer>
 
 <script type="module">
   import { classify, fmt, makeRpc, summarize, ata } from "./proof.js";
+  import { countUp } from "./motion.js";
+  import { ring, wheel } from "./ring.js";
 
   const $ = (id) => document.getElementById(id);
   const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
@@ -101,8 +92,51 @@
   const FALLBACK_RPCS = ["https://solana-rpc.publicnode.com"];
   const MAX_HISTORY = 2000;
 
+  // The artwork ring: Higgsfield renders made for this project.
+  ring($("ring"), [
+    { src: "./art/ring/bay.jpg", title: "The bay", subtitle: "Dusk over the water" },
+    { src: "./art/ring/ticket-pink.jpg", title: "Pink ticket", subtitle: "The DCTY burn" },
+    { src: "./art/ring/grid.jpg", title: "The grid", subtitle: "Horizon at night" },
+    { src: "./art/ring/ticket-white.jpg", title: "White ticket", subtitle: "The buyback" },
+    { src: "./art/ring/palms.jpg", title: "Palms", subtitle: "Crescent moon" },
+    { src: "./art/ring/ticket-blue.jpg", title: "Blue ticket", subtitle: "Paid to holders" },
+    { src: "./art/ring/sky.jpg", title: "The sky", subtitle: "Peach to indigo" },
+    { src: "./art/ring/tickets.jpg", title: "Three tickets", subtitle: "One rule" },
+    { src: "./art/ring/wall.jpg", title: "The wall", subtitle: "Lit from above" },
+    { src: "./art/ring/paper.jpg", title: "Paper ticket", subtitle: "The first draft" },
+  ], { size: matchMedia("(max-width: 760px)").matches ? 164 : 220 });
+
+  // One rule, every cycle: the option wheel drives the card.
+  let split = { burn: 40, buyback: 20, holders: 40 };
+  let coinName = "this coin";
+  let minText = "the minimum";
+  const steps = () => [
+    { label: "Fees come in", img: "bay", badge: `<img src="./logo.svg" alt="">`, cls: "", text: `<b>Every trade earns a fee.</b> ${esc(coinName)} is a pump.fun coin paired with TTWO, tokenized Take-Two stock. Its creator fees arrive in TTWO and the bot claims them every cycle.` },
+    { label: `${split.burn}% burns DCTY`, img: "ticket-pink", badge: `${split.burn}%`, cls: "pink", text: `<b>${split.burn}% buys and burns DCTY.</b> DacityCoin is bought on the open market and destroyed. Supply only goes down.` },
+    { label: `${split.buyback}% buys back`, img: "ticket-white", badge: `${split.buyback}%`, cls: "white", text: `<b>${split.buyback}% buys ${esc(coinName)} back.</b> Bought on its own market and burned. Scarcer every cycle.` },
+    { label: `${split.holders}% to holders`, img: "ticket-blue", badge: `${split.holders}%`, cls: "cyan", text: `<b>${split.holders}% is paid to holders.</b> Sent in TTWO to every wallet holding at least <span id="minhold">${esc(minText)}</span>. Nothing to claim.` },
+    { label: "Every cycle", img: "grid", badge: "", cls: "", text: `<b>Claim, swap, burn, pay. Repeat.</b> Each step is a public Solana transaction. The dashboard reads them straight from the chain.` },
+  ];
+  let wheelCtl = null;
+  function buildCycle() {
+    const list = steps();
+    $("cycle-photo").innerHTML = list.map((s, i) => `<img src="./art/cycle/${s.img}.jpg" alt="" loading="${i ? "lazy" : "eager"}" draggable="false">`).join("") + `<div class="cycle-badge" id="cycle-badge"></div>`;
+    const imgs = [...$("cycle-photo").querySelectorAll("img")];
+    const show = (i) => {
+      imgs.forEach((im, k) => im.classList.toggle("is-on", k === i));
+      const badge = $("cycle-badge");
+      badge.className = `cycle-badge ${list[i].cls}`; badge.innerHTML = list[i].badge; badge.hidden = !list[i].badge;
+      const text = $("cycle-text"); text.innerHTML = list[i].text;
+      text.style.animation = "none"; void text.offsetWidth; text.style.animation = "";
+    };
+    const current = wheelCtl ? wheelCtl.index : 0;
+    wheelCtl = wheel($("wheel"), list.map((s) => s.label), { onSelect: show });
+    if (current) wheelCtl.select(current, false);
+  }
+  buildCycle();
+
   let cfg, rpc;
-  const state = { rows: [], live: null };
+  const state = { rows: [], live: null, loaded: false };
   const mintInfo = new Map();
   async function mintOf(mint) {
     if (mintInfo.has(mint)) return mintInfo.get(mint);
@@ -125,21 +159,35 @@
   const decimals = () => ({
     q: state.live?.quote.decimals ?? state.rows.find((r) => r.qd != null)?.qd ?? 0,
     b: state.live?.coin.decimals ?? state.rows.find((r) => r.bd != null)?.bd ?? 6,
-    s: state.live?.self.decimals ?? state.rows.find((r) => r.sd != null)?.sd ?? 6,
   });
-  const stat = (label, value, sub, glow) => `<div class="card stat${glow ? " glow" : ""}"><div class="label">${esc(label)}</div><div class="value">${value}</div><div class="sub">${sub}</div></div>`;
+  /** Writes a value into a .value element and animates it only when it actually changed. */
+  function setValue(el, html) {
+    if (!el || el.innerHTML === html) return;
+    el.innerHTML = html;
+    el.classList.remove("tick"); void el.offsetWidth; el.classList.add("tick");
+    const num = el.querySelector(".num"); if (num) countUp(num);
+  }
+  const tile = (id, label, status, i) => `<div class="tile" id="tile-${id}" style="animation-delay:${i * 80}ms"><div class="label">${esc(label)}</div><div class="value" id="val-${id}"><span class="skeleton"></span></div><div class="status" id="st-${id}">${esc(status)}</div></div>`;
+  const amount = (value, unit) => `<span class="num">${value}</span><small>${esc(unit)}</small>`;
 
   function renderTiles() {
-    const { q, b, s: sd } = decimals();
+    const { q, b } = decimals();
     const s = summarize(state.rows);
     const live = state.live;
-    const name = esc(cfg.strategySymbol || "coin");
-    $("tiles").innerHTML = [
-      stat("DCTY burned", `${fmt(s.burned, b, 0)}<small>DCTY</small>`, live ? `Supply now ${fmt(live.supply, b, 0)}` : plural(s.burns, "burn"), true),
-      stat("Bought back and burned", `${fmt(s.selfBurned, sd, 0)}<small>${name}</small>`, cfg.strategyMint ? plural(s.selfBurns, "burn") : "Starts with the first fee"),
-      stat("Paid to holders", `${fmt(s.paid, q)}<small>TTWO</small>`, `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`),
-      stat("Fees claimed", `${fmt(s.claimed, q)}<small>TTWO</small>`, plural(s.claims, "claim")),
-    ].join("");
+    if (!$("tile-treasury")) $("tiles").innerHTML = [tile("treasury", "Treasury", "Reading…", 0), tile("sol", "SOL balance", "Reading…", 1), tile("burned", "DCTY burned", "Reading…", 2), tile("paid", "Paid to holders", "Reading…", 3)].join("");
+    const launched = Boolean(cfg.strategyMint);
+    if (live) {
+      setValue($("val-treasury"), amount(fmt(live.quote.amount, q), "TTWO"));
+      $("st-treasury").textContent = launched ? "Waiting for the next cycle" : "Not launched yet";
+      setValue($("val-sol"), amount(fmt(live.sol, 9, 3), "SOL"));
+      $("st-sol").textContent = live.sol < 50_000_000n ? "Low: network fees need SOL" : "Covers network fees";
+    }
+    if (state.loaded || state.rows.length) {
+      setValue($("val-burned"), amount(fmt(s.burned, b, 0), "DCTY"));
+      $("st-burned").textContent = live ? `Supply now ${fmt(live.supply, b, 0)}` : plural(s.burns, "burn");
+      setValue($("val-paid"), amount(fmt(s.paid, q), "TTWO"));
+      $("st-paid").textContent = `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`;
+    }
   }
 
   async function loadHistory() {
@@ -156,6 +204,7 @@
     const rows = [], need = [];
     for (const s of sigs) { const c = readCache(s.signature); if (c) rows.push(c); else need.push(s); }
     const commit = () => { state.rows = rows.sort((a, b) => (b.time || 0) - (a.time || 0)); renderTiles(); };
+    state.loaded = true;
     commit();
     for (let i = 0; i < need.length; i += 4) {
       const chunk = need.slice(i, i + 4);
@@ -169,27 +218,28 @@
   async function loadBalances() {
     try {
       const none = { amount: 0n, decimals: null };
-      const [coin, self] = await Promise.all([tokenBalance(cfg.treasury, cfg.burnMint), cfg.strategyMint ? tokenBalance(cfg.treasury, cfg.strategyMint) : none]);
+      const [sol, coin] = await Promise.all([rpc("getBalance", [cfg.treasury, { commitment: "confirmed" }]), tokenBalance(cfg.treasury, cfg.burnMint)]);
       const quote = cfg.quoteMint ? await tokenBalance(cfg.treasury, cfg.quoteMint) : none;
-      state.live = { coin, self, quote, supply: (await mintOf(cfg.burnMint)).supply };
+      state.live = { sol: BigInt(sol.value), coin, quote, supply: (await mintOf(cfg.burnMint)).supply };
       renderTiles();
     } catch (err) { $("error").hidden = false; $("error").textContent = `Could not read balances: ${err.message}`; }
   }
 
   async function main() {
     try { const r = await fetch("./config.json", { cache: "no-store" }); if (!r.ok) throw 0; cfg = await r.json(); }
-    catch { for (const el of document.querySelectorAll("[data-live]")) el.hidden = true; $("minhold").textContent = "the minimum"; return; }
+    catch { for (const el of document.querySelectorAll("[data-live]")) el.hidden = true; return; }
     rpc = makeRpc([cfg.rpcUrl, ...FALLBACK_RPCS]);
-    if (cfg.title) { document.title = cfg.title; $("title").textContent = cfg.title; $("nav-title").textContent = cfg.title; }
-    if (cfg.split) for (const key of ["burn", "buyback", "holders"]) for (const el of document.querySelectorAll(`.pct-${key}`)) el.textContent = `${cfg.split[key]}%`;
-    if (cfg.strategySymbol) for (const el of document.querySelectorAll(".self-name")) el.textContent = cfg.strategySymbol;
-    if (cfg.strategyMint) { const buy = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`; for (const id of ["buy-nav", "buy-hero"]) { $(id).href = buy; $(id).hidden = false; } }
-    $("minhold").textContent = `${group(cfg.minHold)} ${cfg.holderSymbol || "coins"}`;
+    if (cfg.title) { document.title = cfg.title; $("title").textContent = cfg.title; }
+    if (cfg.split) split = cfg.split;
+    if (cfg.strategySymbol) coinName = cfg.strategySymbol;
+    minText = `${group(cfg.minHold)} ${cfg.holderSymbol || coinName}`;
+    buildCycle();
+    if (cfg.strategyMint) { const buy = `https://pump.fun/coin/${encodeURIComponent(cfg.strategyMint)}`; for (const id of ["buy-nav", "buy-hero"]) { $(id).href = buy; $(id).hidden = false; } $("dash-hero").classList.replace("btn-primary", "btn-ghost"); }
     $("treasury-link").href = acctUrl(cfg.treasury);
-    if (cfg.repoUrl) $("repo").innerHTML = `<a href="${esc(cfg.repoUrl)}" rel="noopener">Source code</a>`;
+    if (cfg.repoUrl) { $("repo").innerHTML = `<a href="${esc(cfg.repoUrl)}" rel="noopener">GitHub</a>`; $("repo-nav").href = cfg.repoUrl; $("repo-nav").hidden = false; }
     $("addresses").innerHTML = [
-      ["Treasury", cfg.treasury], cfg.strategyMint ? ["Coin", cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
-    ].filter(Boolean).map(([k, v]) => `${esc(k)}: <a class="mono" href="${acctUrl(v)}" rel="noopener">${esc(v)}</a>`).join("<br>");
+      ["Treasury", cfg.treasury], cfg.strategyMint ? [coinName, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null,
+    ].filter(Boolean).map(([k, v]) => `<a class="addr" href="${acctUrl(v)}" rel="noopener"><span>${esc(k)}</span><code>${esc(short(v))}</code></a>`).join("");
     renderTiles();
     await loadBalances();
     await loadHistory();

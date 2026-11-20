@@ -13,3 +13,8 @@ data/report.html
 data/summary.json
 data/holders.csv
 .claude/
+
+# Higgsfield renders: PNG originals stay local, JPEG masters are committed
+brand/art/*.png
+brand/art/8k/*.png
+brand/art/8k/out-*

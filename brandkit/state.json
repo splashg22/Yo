@@ -1,6 +1,18 @@
 {
   "brandbookElements": [],
-  "essentialKitApproved": false,
+  "essentialKitApproved": true,
+  "logo": {
+    "approvalSummary": "Chosen for the Miami rebrand brief: the sunset D, a capital D whose bowl is a striped setting sun in a pink to violet to blue gradient.",
+    "asset": {
+      "id": "vice-1",
+      "path": "/Users/blueberry/Documents/dacity-bot/brandkit/logo-vice/candidate-1.svg"
+    },
+    "geometryFingerprint": "ab53d627fb6f9f87b3e1fa06636c1527f03f5a0b87ccd23a502f2b1ed271f5b1",
+    "name": "Sunset D",
+    "origin": "brandkit_generated",
+    "paletteRevision": 1,
+    "revision": 1
+  },
   "palette": {
     "approvalSummary": "User-declared brand colours: the deep plum, hot pink and sky blue already used on the site.",
     "colors": [
@@ -54,7 +66,7 @@
     "origin": "user_supplied",
     "revision": 1
   },
-  "version": 3,
+  "version": 4,
   "visualAxes": {
     "familiarExperimental": 45,
     "geometricOrganic": 25,
