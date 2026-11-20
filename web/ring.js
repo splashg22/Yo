@@ -60,9 +60,10 @@ export function ring(root, items, { width = 200, height = 266, gap = 44, tilt = 
     digits(i + 1, digitsWide).forEach((d, k) => { reels[k].style.transform = `translateY(${-d}em)`; });
     live.textContent = `${items[i].title}, ${i + 1} of ${m}`;
   };
+  const shown = new Array(n).fill("");
   const paint = () => {
     spinEl.style.transform = `rotateY(${spin.toFixed(2)}deg)`;
-    for (let i = 0; i < n; i++) shades[i].style.opacity = (depth(i * step + spin) * 0.88).toFixed(2);
+    for (let i = 0; i < n; i++) { const o = (depth(i * step + spin) * 0.88).toFixed(2); if (o !== shown[i]) { shown[i] = o; shades[i].style.opacity = o; } }
     caption(frontIndex(spin, n));
   };
   const frame = (t) => {
