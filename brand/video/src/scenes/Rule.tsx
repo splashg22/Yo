@@ -3,7 +3,7 @@ import { interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { Layer } from "../ui/Layer";
 import { Mark } from "../ui/Mark";
 import { Caption } from "../ui/Caption";
-import { SplitBar } from "../ui/Dash";
+import { SplitBar } from "../ui/SplitBar";
 import { SOFT, ease, len, pop } from "../theme";
 
 /** 4 · One fixed rule: the bar draws on 40 / 20 / 40 and the home page's own cycle wheel steps through it. */
@@ -14,7 +14,7 @@ export const Rule: React.FC = () => {
   const ex = ease(f, L - 6, 26);
   const barIn = ease(f, 26, 44);
   const cardIn = pop(f, fps, 64, SOFT), cardO = ease(f, 64, 20);
-  const STEPS = [60, 176, 286];
+  const STEPS = [60, 180, 300];
   const step = f >= STEPS[2] ? 2 : f >= STEPS[1] ? 1 : 0;
   const layerO = (i: number) => {
     const on = i === 0 ? 1 : ease(f, STEPS[i], 20);

@@ -7,12 +7,10 @@ type Clip = { src: string; from: number; to: number; startFrom?: number; rate?: 
 const X = 24; // dissolve length
 const CLIPS: Clip[] = [
   { src: "bay", from: SCENE.hook[0], to: SCENE.hook[1] + TAIL, shade: 0.42, zoom: [1.06, 1] },
-  { src: "grid", from: SCENE.problem[0], to: SCENE.problem[1] + TAIL, shade: 0.55, zoom: [1, 1.05] },
-  { src: "sky", from: SCENE.reveal[0], to: SCENE.reveal[1] + TAIL, rate: 0.9, shade: 0.3 },
+  { src: "grid", from: SCENE.problem[0], to: SCENE.problem[1] + TAIL, rate: 0.95, shade: 0.55, zoom: [1, 1.05] },
+  { src: "sky", from: SCENE.reveal[0], to: SCENE.reveal[1] + TAIL, rate: 0.78, shade: 0.3 },
   { src: "tickets", from: SCENE.rule[0], to: SCENE.rule[1] + TAIL, shade: 0.62, zoom: [1.04, 1] },
-  { src: "sky", from: SCENE.dash[0], to: SCENE.dash[1] + TAIL, rate: 0.7, shade: 0.3 },
-  { src: "bay", from: SCENE.history[0], to: SCENE.history[1] + TAIL, startFrom: s(3.7), rate: 0.97, shade: 0.55, zoom: [1, 1.05] },
-  { src: "tickets", from: SCENE.end[0], to: SCENE.end[1], shade: 0.45, zoom: [1.06, 1] },
+  { src: "bay", from: SCENE.end[0], to: SCENE.end[1], startFrom: s(2.5), shade: 0.5, zoom: [1.06, 1] },
 ];
 
 const ClipLayer: React.FC<{ c: Clip }> = ({ c }) => {

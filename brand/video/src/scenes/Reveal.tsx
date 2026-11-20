@@ -3,7 +3,7 @@ import { interpolate, useCurrentFrame } from "remotion";
 import captured from "../captured.json";
 import { Layer } from "../ui/Layer";
 import { Ring } from "../ui/Ring";
-import { Cursor } from "../ui/Cursor";
+import { ClickRing } from "../ui/ClickRing";
 import { ease, len, lin } from "../theme";
 
 const B = captured.boxes.home;
@@ -14,11 +14,11 @@ const target = { x: btn.x + btn.w * 0.5, y: btn.y + btn.h * 0.5 };
 export const Reveal: React.FC = () => {
   const f = useCurrentFrame();
   const rise = ease(f, 0, 72);
-  const push = lin(f, 40, 300, 1, 1.035);
+  const push = lin(f, 40, 340, 1, 1.035);
   const spin = -10 - 8 * (f / 60); // the site's own 8°/s
-  const hover = ease(f, 196, 14);
-  const CLICK = 236;
-  const RIPPLE = 276;
+  const hover = ease(f, 232, 14);
+  const CLICK = 252;
+  const RIPPLE = 300;
   const r = ease(f, RIPPLE, 36) * 2300;
   const gone = ease(f, RIPPLE + 6, 24); // the page fades under the ripple so nothing shows through later
   const veil = 1 - ease(f, len("reveal") - 8, 24);
@@ -35,7 +35,7 @@ export const Reveal: React.FC = () => {
             <Ring spin={spin} />
           </div>
         </div>
-        <Cursor frame={f} moves={[{ from: { x: 1760, y: 1060 }, to: target, start: 112, dur: 84 }]} clicks={[CLICK]} opacity={ease(f, 112, 10)} />
+        <ClickRing frame={f} at={CLICK} x={target.x} y={target.y} />
       </div>
       {r > 0 && (
         <div style={{ position: "absolute", left: target.x - r, top: target.y - r, width: r * 2, height: r * 2, borderRadius: 999, background: "#0b0308", boxShadow: "0 0 120px 30px rgba(255,45,149,0.35)", opacity: veil }} />

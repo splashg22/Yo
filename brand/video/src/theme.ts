@@ -4,7 +4,7 @@ import { Easing, interpolate, spring } from "remotion";
 export const FPS = 60;
 export const W = 1920;
 export const H = 1080;
-export const DURATION = 2280; // 38 s
+export const DURATION = 1728; // 28.8 s = 12 bars at 100 BPM; every cut sits on a beat (36 frames)
 
 /** Seconds to frames. */
 export const s = (sec: number) => Math.round(sec * FPS);
@@ -35,12 +35,10 @@ export const pop = (frame: number, fps: number, start: number, config = POP) =>
 /** The scene boundaries in frames (nominal cuts; each scene gets 20 extra frames to finish its exit). */
 export const SCENE = {
   hook: [0, 216],
-  problem: [216, 480],
-  reveal: [480, 792],
-  rule: [792, 1176],
-  dash: [1176, 1548],
-  history: [1548, 1908],
-  end: [1908, 2280],
+  problem: [216, 504],
+  reveal: [504, 864],
+  rule: [864, 1296],
+  end: [1296, 1728],
 } as const;
 export const TAIL = 20;
 export const len = (k: keyof typeof SCENE) => SCENE[k][1] - SCENE[k][0];

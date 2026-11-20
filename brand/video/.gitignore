@@ -6,3 +6,4 @@ footage/raw/
 out/render.log
 # raw job responses and logs (carry the account's CDN paths); footage/jobs.md has every id and cost
 footage/jobs/
+public/audio/mix-preview.wav
