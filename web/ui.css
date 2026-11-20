@@ -2,7 +2,9 @@
    A dark plum room lit from above in hot pink, a floating pill navigation, light display type
    with one bold phrase, the artwork in a slow 3D ring, and frames for every number.
    Vice City colours: hot pink, cyan, violet on near-black plum. */
-@import url("https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,200..900&display=swap");
+/* DM Sans is loaded from the HTML head (parallel with this file). While it arrives, a metric-matched
+   system fallback keeps the layout where it will end up, so the swap does not move anything. */
+@font-face { font-family: "DM Sans Fallback"; src: local("Helvetica Neue"), local("Arial"); size-adjust: 97%; ascent-override: 96%; descent-override: 28%; line-gap-override: 0%; }
 
 :root {
   --pink: #ff2d95; --pink-hi: #ff5fae; --pink-deep: #d10070; --cyan: #3ee8ff; --violet: #b65cff;
@@ -13,7 +15,7 @@
   --rim: inset 0 0 0 1px rgba(255, 225, 243, 0.1), inset 0 1px 0 rgba(255, 225, 243, 0.08);
   --tile-rim: inset 0 0 0 1px rgba(255, 225, 243, 0.08), inset 0 1px 0 rgba(255, 225, 243, 0.14), 0 4px 10px -4px rgba(0, 0, 0, 0.7);
   --shadow: 0 22px 44px -20px rgba(0, 0, 0, 0.8), 0 6px 16px -8px rgba(0, 0, 0, 0.5);
-  --font: "DM Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font: "DM Sans", "DM Sans Fallback", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: ui-monospace, Menlo, Consolas, monospace;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --container: 1280px; --gutter: clamp(16px, 3.2vw, 40px); --gap: clamp(12px, 1.6vw, 20px);
