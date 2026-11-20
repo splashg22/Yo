@@ -137,7 +137,7 @@ h1 b { font-weight: 800; }
 .wheel-track { position: absolute; inset: 0; overflow: hidden; -webkit-mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 78%, transparent); }
 .wheel-item { position: absolute; top: 50%; left: 56px; white-space: nowrap; font-size: 2.1rem; line-height: 1; font-weight: 200; letter-spacing: -0.04em; transform-origin: left center; cursor: pointer; color: #a6a6a6; will-change: transform, opacity, filter; transition: transform 0.6s var(--ease), opacity 0.6s ease, filter 0.6s ease, color 0.4s ease; }
 .wheel-item.is-selected { font-weight: 800; color: #fff; }
-.cycle-card { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+.cycle-card { overflow: hidden; border: 1px solid var(--line); border-radius: 20px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); contain: layout paint; }
 .cycle-photo { position: relative; aspect-ratio: 16 / 9; overflow: hidden; background: var(--card); }
 .cycle-photo > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.04); transition: opacity 0.6s ease, transform 0.9s var(--ease); }
 .cycle-photo > img.is-on { opacity: 1; transform: scale(1); }
@@ -152,7 +152,7 @@ h1 b { font-weight: 800; }
 
 /* Every number, on-chain */
 .tiles { display: grid; grid-template-columns: 1fr; gap: var(--gap); }
-.tile { position: relative; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 0; animation: logo-in 0.7s var(--ease) backwards; }
+.tile { position: relative; padding: 20px 22px; border: 1px solid var(--line); border-radius: 16px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); min-width: 0; contain: layout paint; animation: logo-in 0.7s var(--ease) backwards; }
 .tile .label { font-size: 13px; font-weight: 500; color: var(--muted); }
 .tile .value { margin-top: 10px; font-size: 30px; font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-variant-numeric: tabular-nums lining-nums; overflow-wrap: anywhere; min-height: 1.05em; }
 .tile .value small { font-size: 13px; font-weight: 500; color: var(--muted); margin-left: 6px; letter-spacing: 0; }
@@ -178,7 +178,7 @@ h1 b { font-weight: 800; }
 
 /* Dashboard */
 .page .section:first-child { padding-top: 84px; }
-.panel { position: relative; border: 1px solid var(--line); border-radius: 20px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px 22px; min-width: 0; animation: logo-in 0.6s var(--ease) backwards; }
+.panel { position: relative; border: 1px solid var(--line); border-radius: 20px; background: var(--frame); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); padding: 20px 22px; min-width: 0; contain: layout paint; animation: logo-in 0.6s var(--ease) backwards; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
 .panel-head h3 { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.02em; }
 .caption { font-size: 12.5px; color: var(--muted); }
@@ -237,6 +237,10 @@ td.sig a { font-family: var(--mono); font-size: 12.5px; color: var(--cyan); whit
 @media (min-width: 860px) { #overview .item { padding: 26px 28px; } #overview .value { font-size: 44px; } .cols-2 { grid-template-columns: repeat(2, 1fr); } .cols-4 { grid-template-columns: repeat(4, 1fr); } .wide-2 { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); } .panel { padding: 22px 26px; } .table-wrap { margin: 0 -26px; padding: 0 26px; } }
 @media (max-width: 859px) { th.hide-sm, td.hide-sm { display: none; } }
 @media (min-width: 540px) and (max-width: 859px) { .cols-4 { grid-template-columns: repeat(2, 1fr); } .cols-2 { grid-template-columns: repeat(2, 1fr); } }
+
+/* Phones and other touch devices: the frames keep their colour and border but skip the backdrop blur,
+   which is re-sampled on every scroll frame; the navigation keeps its blur because it is small. */
+@media (hover: none) and (max-width: 900px) { .tile, .panel, .cycle-card { backdrop-filter: none; -webkit-backdrop-filter: none; background: rgba(17, 6, 12, 0.86); } }
 
 /* Motion */
 @keyframes rise { 0% { opacity: 0; transform: translateY(40px); } }
