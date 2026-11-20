@@ -1,0 +1,18 @@
+{
+ "target": -14,
+ "appliedGainDb": 5.951966206714296,
+ "before": {
+  "integrated": -19.951966206714296,
+  "shortTermMax": -18.614061043473487,
+  "peakDb": -7.3359624813963284,
+  "rmsDb": -20.873583272563717
+ },
+ "after": {
+  "integrated": -13.9999999996061,
+  "shortTermMax": -12.662094835486556,
+  "peakDb": -1.3839964684642907,
+  "rmsDb": -14.921617065479854
+ },
+ "measuredAt": "2026-11-20T06:25:14.779Z",
+ "note": "BS.1770-4 integrated loudness (K-weighted, gated), sample peak (true peak not measured) and RMS, measured on the offline sum of bed + cues; bedGain in cues.json is 1 after baking."
+}

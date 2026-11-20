@@ -1,0 +1,147 @@
+{
+ "fps": 60,
+ "bed": "audio/bed.wav",
+ "bedGain": 1,
+ "cues": [
+  {
+   "sfx": "hit",
+   "frame": 36,
+   "gain": 1
+  },
+  {
+   "sfx": "whoosh",
+   "frame": 200,
+   "gain": 1
+  },
+  {
+   "sfx": "whoosh",
+   "frame": 504,
+   "gain": 1
+  },
+  {
+   "sfx": "click",
+   "frame": 756,
+   "gain": 1
+  },
+  {
+   "sfx": "whoosh",
+   "frame": 804,
+   "gain": 1
+  },
+  {
+   "sfx": "whoosh",
+   "frame": 912,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 912,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 918,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 924,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 930,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 936,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 942,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 948,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 954,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 960,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 966,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 972,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 978,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 984,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 990,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 996,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1002,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1008,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1014,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1020,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1026,
+   "gain": 0.6
+  },
+  {
+   "sfx": "tick",
+   "frame": 1032,
+   "gain": 0.6
+  },
+  {
+   "sfx": "whoosh",
+   "frame": 1296,
+   "gain": 1
+  }
+ ]
+}
