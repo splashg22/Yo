@@ -178,6 +178,19 @@
   }
   $("more").onclick = () => { state.shown += 100; renderTable(); };
 
+  /** The split panel: percentages from config.json, amounts so far from the rows (zeros before any). */
+  function renderSplit(s = summarize(state.rows), q = dec().q) {
+    const split = cfg.split;
+    $("split-caption").textContent = `${split.burn} / ${split.buyback} / ${split.holders}`;
+    $("bar").setAttribute("aria-label", `Fee split: ${split.burn}% burns DCTY, ${split.buyback}% buys the coin back, ${split.holders}% to holders`);
+    $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
+    $("split").innerHTML = [
+      ["DCTY burn", `pct-burn`, split.burn, fmt(s.spent, q)],
+      ["Buyback and burn", `pct-buyback`, split.buyback, fmt(s.selfSpent, q)],
+      ["Paid to holders", `pct-holders`, split.holders, fmt(s.paid, q)],
+    ].map(([k, c, p, v]) => `<div><div class="k">${k}</div><div class="p ${c}">${p}%</div><div class="v">${v} <small>TTWO so far</small></div></div>`).join("");
+  }
+
   function render() {
     ensureSkeletons();
     const { q, b, s: sd } = dec();
@@ -198,14 +211,7 @@
     setValue($("kpi-paid"), amount(fmt(s.paid, q), "TTWO")); $("kpis-paid").textContent = `${plural(s.recipients, "wallet")} · ${plural(s.payouts, "payout")}`;
     setValue($("kpi-claimed"), amount(fmt(s.claimed, q), "TTWO")); $("kpis-claimed").textContent = `${plural(s.claims, "claim")} · ${pct(s.paid + s.spent + s.selfSpent, s.claimed)} put to work`;
 
-    $("split-caption").textContent = `${split.burn} / ${split.buyback} / ${split.holders}`;
-    $("bar").setAttribute("aria-label", `Fee split: ${split.burn}% burns DCTY, ${split.buyback}% buys the coin back, ${split.holders}% to holders`);
-    $("bar").innerHTML = `<i class="a" style="width:${split.burn}%"></i><i class="b" style="width:${split.buyback}%"></i><i class="c" style="width:${split.holders}%"></i>`;
-    $("split").innerHTML = [
-      ["DCTY burn", `pct-burn`, split.burn, fmt(s.spent, q)],
-      ["Buyback and burn", `pct-buyback`, split.buyback, fmt(s.selfSpent, q)],
-      ["Paid to holders", `pct-holders`, split.holders, fmt(s.paid, q)],
-    ].map(([k, c, p, v]) => `<div><div class="k">${k}</div><div class="p ${c}">${p}%</div><div class="v">${v} <small>TTWO so far</small></div></div>`).join("");
+    renderSplit(s, q);
     if (live) {
       const waiting = live.vaulted + live.quote.amount;
       const p = splitPreview(waiting, split);
@@ -308,6 +314,8 @@
     $("addresses").innerHTML = [["Treasury", cfg.treasury], cfg.strategyMint ? [name, cfg.strategyMint] : null, ["DCTY", cfg.burnMint], cfg.quoteMint ? ["TTWO", cfg.quoteMint] : null]
       .filter(Boolean).map(addrRow).join("");
     ensureSkeletons();
+    renderSplit();
+    $("next").innerHTML = rows([["TTWO waiting", sk], ["To burn DCTY", sk], [`To buy ${esc(name)} back`, sk], ["To holders", sk], ["Minimum to be paid", `${group(cfg.minHold)}<small>${esc(cfg.holderSymbol || "coins")}</small>`]]);
     await mintOf(cfg.burnMint);
     if (cfg.strategyMint) await mintOf(cfg.strategyMint);
     await refresh();
