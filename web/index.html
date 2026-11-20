@@ -108,12 +108,13 @@
 
   // The ring: only pictures that mean something here, each caption tied to the rule.
   const pct = (k) => (split ? `${split[k]}% of every fee` : "");
+  const art = (n) => ({ src: `./art/ring/${n}.jpg`, srcset: `./art/ring/${n}-300.jpg 300w, ./art/ring/${n}-420.jpg 420w, ./art/ring/${n}.jpg 600w` });
   const ART = [
-    { src: "./art/ring/tickets.jpg", title: "One rule", subtitle: "Every fee, split three ways" },
-    { src: "./art/ring/ticket-pink.jpg", title: "DCTY burn", subtitle: pct("burn") || "Bought and destroyed" },
-    { src: "./art/ring/bay.jpg", title: "On-chain", subtitle: "Every step a Solana transaction" },
-    { src: "./art/ring/ticket-white.jpg", title: "Buyback", subtitle: pct("buyback") || "Bought back and burned" },
-    { src: "./art/ring/ticket-blue.jpg", title: "Holders", subtitle: split ? `${split.holders}% paid in TTWO` : "Paid in TTWO" },
+    { ...art("tickets"), title: "One rule", subtitle: "Every fee, split three ways" },
+    { ...art("ticket-pink"), title: "DCTY burn", subtitle: pct("burn") || "Bought and destroyed" },
+    { ...art("bay"), title: "On-chain", subtitle: "Every step a Solana transaction" },
+    { ...art("ticket-white"), title: "Buyback", subtitle: pct("buyback") || "Bought back and burned" },
+    { ...art("ticket-blue"), title: "Holders", subtitle: split ? `${split.holders}% paid in TTWO` : "Paid in TTWO" },
   ];
   const narrow = matchMedia("(max-width: 899px)");
   let ringCtl = null;
@@ -134,7 +135,7 @@
       { label: `${split.holders}% to holders`, img: "ticket-blue", badge: `${split.holders}%`, cls: "cyan", text: `<b>${split.holders}% is paid to holders.</b> Sent in TTWO to every wallet holding at least ${esc(minText)}. Nothing to claim.` },
       { label: "Every cycle", img: "grid", badge: "", cls: "", text: `<b>Claim, swap, burn, pay. Repeat.</b> Each step is a public Solana transaction. The dashboard reads them straight from the chain.` },
     ];
-    $("cycle-photo").innerHTML = steps.map((s, i) => `<img src="./art/cycle/${s.img}.jpg" alt="" width="1280" height="720" loading="${i ? "lazy" : "eager"}" decoding="async" draggable="false">`).join("") + `<div class="cycle-badge" id="cycle-badge"></div>`;
+    $("cycle-photo").innerHTML = steps.map((s, i) => `<img src="./art/cycle/${s.img}.jpg" srcset="./art/cycle/${s.img}-800.jpg 800w, ./art/cycle/${s.img}.jpg 1280w" sizes="(min-width: 900px) 56vw, calc(100vw - 32px)" alt="" width="1280" height="720" loading="${i ? "lazy" : "eager"}" decoding="async" draggable="false">`).join("") + `<div class="cycle-badge" id="cycle-badge"></div>`;
     const imgs = [...$("cycle-photo").querySelectorAll(":scope > img")];
     wheel($("wheel"), steps.map((s) => s.label), {
       onSelect(i) {

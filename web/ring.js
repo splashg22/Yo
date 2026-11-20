@@ -41,7 +41,7 @@ export function ring(root, items, { width = 200, height = 266, gap = 44, tilt = 
   const digitsWide = String(m).length;
   root.style.setProperty("--w", `${width}px`); root.style.setProperty("--h", `${height}px`);
   root.innerHTML = `<div class="ring-view"><div class="ring-camera" style="transform:translateY(${-Math.round(height * 0.16)}px) translateZ(${-radius}px) rotateX(${tilt}deg)"><div class="ring-spin">${cards
-    .map((it, i) => `<div class="ring-card" aria-hidden="${i >= m}" style="transform:rotateY(${i * step}deg) translateZ(${radius}px)"><img src="${esc(items[it].src)}" alt="${esc(items[it].alt || items[it].title)}" width="${width}" height="${height}" loading="${i < 4 ? "eager" : "lazy"}" decoding="async" draggable="false"><div class="shade"></div></div>`)
+    .map((it, i) => `<div class="ring-card" aria-hidden="${i >= m}" style="transform:rotateY(${i * step}deg) translateZ(${radius}px)"><img src="${esc(items[it].src)}"${items[it].srcset ? ` srcset="${esc(items[it].srcset)}" sizes="${width}px"` : ""} alt="${esc(items[it].alt || items[it].title)}" width="${width}" height="${height}" loading="${i < 4 ? "eager" : "lazy"}" decoding="async" draggable="false"><div class="shade"></div></div>`)
     .join("")}</div></div></div><div class="ring-caption"><div class="ring-title"><b></b><span></span></div><div class="ring-count" aria-hidden="true"><span class="digits">${digits(1, digitsWide).map(reelHTML).join("")}</span><span class="slash">/</span><span>${m}</span></div><span class="sr-only" aria-live="polite"></span></div>`;
   const spinEl = root.querySelector(".ring-spin");
   const shades = [...root.querySelectorAll(".ring-card .shade")];
