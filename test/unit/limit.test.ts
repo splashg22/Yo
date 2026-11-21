@@ -1,9 +1,5 @@
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { PER_MINUTE, bucketOf, callerOf, forgetLimits, overLimit } from "../../lib/server/limit";
-import { forget, state } from "../../lib/server/store";
 
 describe("the ceiling on requests per address", () => {
   beforeEach(forgetLimits);
@@ -51,25 +47,5 @@ describe("who a request is counted against", () => {
     expect(callerOf("10.0.0.1")).toBe("direct"); // fewer entries than proxies: nothing to trust
     process.env.TRUSTED_PROXY_HOPS = "many";
     expect(callerOf("203.0.113.7")).toBe("direct");
-  });
-});
-
-describe("a damaged state file", () => {
-  it("stops the server with a clear message and is left untouched, rather than starting again from empty", () => {
-    const directory = mkdtempSync(join(tmpdir(), "ring-state-"));
-    const previous = process.env.APP_DATA_DIR;
-    process.env.APP_DATA_DIR = directory;
-    forget();
-    try {
-      for (const contents of ['{"balances": {"a"', "[]", "null"]) {
-        writeFileSync(join(directory, "state.json"), contents);
-        expect(() => state()).toThrow(/state file .* is damaged .* left untouched/);
-        forget();
-      }
-    } finally {
-      if (previous === undefined) delete process.env.APP_DATA_DIR;
-      else process.env.APP_DATA_DIR = previous;
-      forget();
-    }
   });
 });

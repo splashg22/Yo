@@ -5,7 +5,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import { PublicKey } from "@solana/web3.js";
-import { Database } from "../lib/server/database";
+import { openDb } from "../lib/server/db";
 import { settings } from "../lib/server/env";
 import { connection } from "../lib/server/solana";
 import { site } from "../site.config";
@@ -45,14 +45,13 @@ if (config) {
 
   if (config.databaseUrl) {
     try {
-      const { database } = await Database.open(config.databaseUrl, config.databaseSchema);
-      await database.close();
-      say("ok", `Database answers; state table ready in schema "${config.databaseSchema}"`);
+      await (await openDb(config)).close();
+      say("ok", `Database answers; tables ready in schema "${config.databaseSchema}"`);
     } catch (error) {
       say("FAIL", `Database: ${error instanceof Error ? error.message : String(error)}`);
     }
   } else {
-    say("todo", `DATABASE_URL is not set: state is kept in a file under ${config.dataDir}/. Fine on one machine, not for a deployment.`);
+    say("todo", `DATABASE_URL is not set: the embedded database under ${config.dataDir}/ is used. Fine on one machine, not for a deployment.`);
   }
   say(has("HELIUS_API_KEY") ? "ok" : "todo", `HELIUS_API_KEY is ${has("HELIUS_API_KEY") ? "set" : "not set: needed for devnet and the real Ring"}`);
   say(

@@ -1,11 +1,11 @@
 /**
- * The Postgres store. These run only when DATABASE_URL is set (npm run test:flows:pg);
- * every other flow test runs against Postgres too in that mode.
+ * The store on a Postgres server. These run only when DATABASE_URL is set (npm run test:flows:pg);
+ * every other flow test runs against that server too in that mode, and against the embedded database otherwise.
  */
-import { Client } from "pg";
+import pg from "pg";
 import { beforeAll, describe, expect, it } from "vitest";
 import { NATIVE } from "../../lib/constants";
-import { Database } from "../../lib/server/database";
+import { openDb } from "../../lib/server/db";
 import { settings } from "../../lib/server/env";
 import { storedText } from "../../lib/server/store";
 import type { RingClient } from "../../lib/sdk";
@@ -35,17 +35,16 @@ describe.skipIf(!url)("state kept in Postgres", () => {
   });
 
   it("refuses a second server on the same database, and lets one in once the first has gone", async () => {
-    await expect(Database.open(url, settings().databaseSchema)).rejects.toThrow(/another server is already using this database/);
+    await expect(openDb(settings())).rejects.toThrow(/another server is already using this database/);
     // A different schema is a different deployment: it is not locked out.
-    const elsewhere = await Database.open(url, `${settings().databaseSchema}_b`);
-    await elsewhere.database.close();
+    await (await openDb({ ...settings(), databaseSchema: `${settings().databaseSchema}_b` })).close();
   });
 
   it("stops accepting anything if the stored state was changed behind its back, and keeps what was there", async () => {
     const balance = await holder.ringBalance(NATIVE);
-    const intruder = new Client({ connectionString: url });
+    const intruder = new pg.Client({ connectionString: url });
     await intruder.connect();
-    await intruder.query(`update ${settings().databaseSchema}.state set version = version + 1`);
+    await intruder.query(`update ${settings().databaseSchema}.meta set value = '999' where key = 'version'`);
     await intruder.end();
     const friend = await fundedClient().catch((error: unknown) => error);
     void friend;
@@ -58,6 +57,6 @@ describe.skipIf(!url)("state kept in Postgres", () => {
   });
 
   it("refuses a schema name that is not a plain identifier", async () => {
-    await expect(Database.open(url, 'x"; drop table state; --')).rejects.toThrow(/DATABASE_SCHEMA must be/);
+    await expect(openDb({ ...settings(), databaseSchema: 'x"; drop table state; --' })).rejects.toThrow(/DATABASE_SCHEMA must be/);
   });
 });

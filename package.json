@@ -39,6 +39,7 @@
     "local:plan": "tsx scripts/plan-local-accounts.ts"
   },
   "dependencies": {
+    "@electric-sql/pglite": "0.5.17",
     "@heliuslabs/spr": "0.9.0-alpha",
     "@noble/ciphers": "2.4.0",
     "@noble/curves": "2.4.0",
@@ -56,7 +57,8 @@
     "pg": "8.16.3",
     "qrcode": "1.5.4",
     "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react-dom": "19.3.1",
+    "ws": "8.23.0"
   },
   "devDependencies": {
     "@eslint/js": "9.39.5",
@@ -67,6 +69,8 @@
     "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",
+    "@types/ws": "8.18.2",
+    "esbuild": "0.28.2",
     "eslint": "9.39.5",
     "eslint-plugin-react-hooks": "7.1.1",
     "globals": "17.14.0",

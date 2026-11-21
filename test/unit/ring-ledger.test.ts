@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
 import { newActor } from "../../lib/keys";
 import { ring } from "../../lib/server/ring";
-import { forget, state } from "../../lib/server/store";
+import { forget } from "../../lib/server/store";
 
 const COIN = newActor().address,
   SOL = newActor().address;
@@ -92,13 +92,5 @@ describe("the ledger", () => {
     ring.register(ben);
     ring.transfer(ana, ben, COIN, 20n);
     expect(ring.coinStats(COIN)).toEqual({ inRing: 100n, depositors: 1 });
-  });
-
-  it("survives a restart exactly", () => {
-    ring.credit(ana, COIN, 2n ** 63n, "sig-1");
-    const before = JSON.stringify(state());
-    forget();
-    expect(JSON.stringify(state())).toBe(before);
-    expect(ring.balances(ana)[COIN]).toBe((2n ** 63n).toString());
   });
 });
