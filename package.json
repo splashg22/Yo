@@ -30,6 +30,7 @@
     "crawl": "node scripts/crawl.mjs",
     "break": "tsx scripts/break.mjs",
     "motion": "node scripts/motion.mjs",
+    "window": "node scripts/window.mjs",
     "scan": "node scripts/scan-secrets.mjs",
     "doctor": "tsx scripts/doctor.ts",
     "postgres:start": "bash scripts/local-postgres.sh start",

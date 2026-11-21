@@ -14,3 +14,4 @@ shots/crawl.json
 shots/look-*
 shots/motion-*
 .data-dead/
+.data-window/

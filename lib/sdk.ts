@@ -6,7 +6,7 @@
 import { toBase64 } from "./bytes";
 import { checkNoteText, noteKeysFor, openNote, sealNote, type NoteKeys, type SealedNote } from "./notes";
 import { signRequest } from "./auth";
-import type { Api, Offer, OpenOpName, RingEvent, Settlement, SignedOpName } from "./contract";
+import type { Api, Offer, OpenOpName, RingEvent, Settlement, SignedOpName, WindowView } from "./contract";
 import { newActor, signMessage, type Actor } from "./keys";
 import { signTransaction } from "./sign";
 
@@ -72,6 +72,26 @@ export class RingClient {
     });
     const sent = await this.send(built.transaction, [mint.seed]);
     return { mint: mint.address, signature: sent.signature, firstBuyTokens: BigInt(built.firstBuyTokens) };
+  }
+  /** Sealed launch window (only when the feature is switched on). Opens a window that others can commit SOL to. */
+  async openWindow(details: { name: string; symbol: string; description?: string; hours: number }): Promise<WindowView> {
+    return (await this.signed("window/open", details)).window;
+  }
+  async commitToWindow(id: string, lamports: bigint): Promise<WindowView> {
+    return (await this.signed("window/commit", { id, lamports: lamports.toString() })).window;
+  }
+  async uncommitFromWindow(id: string): Promise<WindowView> {
+    return (await this.signed("window/uncommit", { id })).window;
+  }
+  async cancelWindow(id: string): Promise<WindowView> {
+    return (await this.signed("window/cancel", { id })).window;
+  }
+  /** Launches a closed window: the coin is created and bought with everything committed, in one transaction. */
+  async launchWindow(id: string, picture?: string): Promise<{ mint: string; signature: string }> {
+    const mint = newActor();
+    const built = await this.signed("window/launch/build", { id, mint: mint.address, picture });
+    const sent = await this.send(built.transaction, [mint.seed]);
+    return { mint: mint.address, signature: sent.signature };
   }
   /** A public trade on the curve. `amount` is lamports for a buy and coin base units for a sell. */
   async trade(mint: string, side: "buy" | "sell", amount: bigint): Promise<{ signature: string; expected: bigint }> {

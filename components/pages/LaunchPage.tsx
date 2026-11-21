@@ -11,6 +11,7 @@ import { Confirm } from "../ui/Confirm";
 import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
+import { SealedWindows } from "./SealedWindows";
 import { AppPage } from "./shell";
 
 export function LaunchPage() {
@@ -22,9 +23,16 @@ export function LaunchPage() {
     >
       <WalletGate>
         <LaunchForm />
+        <WhenSwitchedOn />
       </WalletGate>
     </AppPage>
   );
+}
+
+/** The sealed launch window appears only when the operator has switched it on. */
+function WhenSwitchedOn() {
+  const { config } = useWallet();
+  return config !== null && config !== "offline" && config.features.sealedWindow ? <SealedWindows /> : null;
 }
 
 interface Launched {

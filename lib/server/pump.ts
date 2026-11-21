@@ -62,6 +62,8 @@ export async function launchInstructions(input: {
   symbol: string;
   uri: string;
   firstBuyLamports: bigint;
+  /** Who makes the first buy and receives the coins. The creator, unless a sealed window's pool is buying. */
+  buyer?: PublicKey;
 }): Promise<LaunchPlan> {
   const { global, feeConfig } = await pumpState();
   const common = { mint: input.mint, name: input.name, symbol: input.symbol, uri: input.uri, creator: input.wallet, user: input.wallet, mayhemMode: false };
@@ -72,7 +74,18 @@ export async function launchInstructions(input: {
     const amount = sdk.getBuyTokenAmountFromSolAmount({ global, feeConfig, mintSupply: null, bondingCurve: null, amount: solAmount, quoteMint: NATIVE_KEY });
     firstBuyTokens = toBig(amount);
     if (firstBuyTokens <= 0n) throw new Error("the first buy is too small to buy anything");
-    instructions.push(...(await sdk.PUMP_SDK.createV2AndBuyInstructions({ ...common, global, solAmount, amount })));
+    const buyer = input.buyer ?? input.wallet;
+    const built = await sdk.PUMP_SDK.createV2AndBuyInstructions({ ...common, user: buyer, global, solAmount, amount });
+    if (!buyer.equals(input.wallet)) {
+      // The SDK has the buyer create the coin too. Here the creator creates and pays for it, and only the buy is the pool's.
+      const create = await sdk.PUMP_SDK.createV2Instruction(common);
+      const index = built.findIndex(
+        (instruction) => instruction.programId.equals(create.programId) && instruction.data.subarray(0, 8).equals(create.data.subarray(0, 8)),
+      );
+      if (index < 0) throw new Error("the launch could not be built for a pooled first buy");
+      built[index] = create;
+    }
+    instructions.push(...built);
   } else {
     instructions.push(await sdk.PUMP_SDK.createV2Instruction(common));
   }

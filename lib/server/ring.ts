@@ -156,6 +156,29 @@ export const ring = {
    * The two public facts behind the privacy score. Both are visible on-chain for the real
    * Ring too: the coin's escrow balance, and the wallets that have made a deposit.
    */
+  /** Moves a coin between two ledger accounts. Used by the sealed window, whose own account holds what is committed. */
+  moveBetween(from: string, to: string, mint: string, amount: bigint): void {
+    assertLocalOnly("The mock Ring");
+    if (amount <= 0n) throw new Error("the amount must be above zero");
+    move(from, mint, -amount);
+    move(to, mint, amount);
+  },
+  /** Adds coins that escrow has received on-chain to a ledger account. The caller has read the amount from the chain. */
+  mint(wallet: string, mint: string, amount: bigint): void {
+    assertLocalOnly("The mock Ring");
+    if (!state().registered.includes(wallet)) state().registered.push(wallet);
+    move(wallet, mint, amount);
+  },
+  /** Removes coins that escrow has spent on-chain from a ledger account. The caller has read the amount from the chain. */
+  burn(account: string, mint: string, amount: bigint): void {
+    assertLocalOnly("The mock Ring");
+    if (amount > 0n) move(account, mint, -amount);
+  },
+  /** Adds an entry to the history. */
+  note(event: Omit<RingEvent, "id" | "at">): RingEvent {
+    return record(event);
+  },
+
   /** The ledger's total of one coin across every wallet. Escrow must hold at least this much on-chain. */
   total(mint: string): bigint {
     let sum = 0n;

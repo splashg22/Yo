@@ -11,6 +11,7 @@ import { curveExists, curveOf, tokenProgramOf } from "./pump";
 import { ring } from "./ring";
 import { connection } from "./solana";
 import { save, state, type RingEvent } from "./store";
+import { windows } from "./windows";
 
 /**
  * Safe to call any number of times, from any number of requests at once, for the same
@@ -27,6 +28,14 @@ export async function settle(signature: string): Promise<Settlement> {
     // Nothing was credited: release the claim so a later call can try again.
     store.credited = store.credited.filter((claimed) => claimed !== signature);
     throw error;
+  }
+  // A sealed window's launch: the coins that reached escrow belong to the window's committers, not to whoever paid the fee.
+  const launched = store.windows.find((window) => window.status === "launching" && window.launching && receipts.accounts.includes(window.launching.mint));
+  if (launched?.launching) {
+    const mint = launched.launching.mint;
+    const received = receipts.receipts.filter((receipt) => receipt.mint === mint).reduce((sum, receipt) => sum + receipt.amount, 0n);
+    windows.fill(launched, mint, received, receipts.spent, signature);
+    receipts.receipts = receipts.receipts.filter((receipt) => receipt.mint !== mint);
   }
   const events: RingEvent[] = receipts.receipts.map((receipt) => ring.credit(receipts.payer, receipt.mint, receipt.amount, signature));
   const listed = await listLaunches(receipts.accounts, receipts.payer, signature);

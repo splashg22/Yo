@@ -14,7 +14,7 @@ const counts = new Map<string, { windowStart: number; used: number }>();
 export function bucketOf(operation: string): Bucket {
   if (operation === "faucet") return "faucet";
   // Anything that builds, sends or moves something, and every request signed by a wallet.
-  return /build|send|credit|reconcile|^ring\/|^otc\//.test(operation) ? "write" : "read";
+  return /build|send|credit|reconcile|^ring\/|^otc\/|^window\/(?!list)/.test(operation) ? "write" : "read";
 }
 
 /** Counts one request. Returns how many seconds to wait if the caller is over the ceiling, or 0 if it may go ahead. */

@@ -84,6 +84,22 @@ export interface Stats {
   depositors?: number;
 }
 
+/** What anyone may see of a sealed launch window. Who committed how much is not part of it. */
+export interface WindowView {
+  id: string;
+  creator: string;
+  name: string;
+  symbol: string;
+  description: string;
+  openedAt: number;
+  closesAt: number;
+  status: "open" | "launching" | "launched" | "cancelled";
+  committers: number;
+  totalLamports: string;
+  mint?: string;
+  signature?: string;
+}
+
 type Op<Input, Output, IsSigned extends boolean = false> = { input: Input; output: Output; signed: IsSigned };
 type Nothing = Record<string, never>;
 
@@ -136,6 +152,15 @@ export interface Api {
   "otc/offer": Op<{ buyer: string; mint: string; amount: string; priceLamports: string; hours?: number }, { offer: Offer }, true>;
   "otc/mine": Op<Nothing, { offers: Offer[] }, true>;
   "otc/cancel": Op<{ id: string }, { offer: Offer }, true>;
+  /** The sealed launch window. Every one of these refuses unless the feature is switched on. */
+  "window/list": Op<Nothing, { windows: WindowView[]; limits: { capLamports: string; minimumLamports: string; longestHours: number } }>;
+  "window/mine": Op<Nothing, { commitments: Record<string, string> }, true>;
+  "window/open": Op<{ name: string; symbol: string; description?: string; hours: number }, { window: WindowView }, true>;
+  "window/commit": Op<{ id: string; lamports: string }, { window: WindowView }, true>;
+  "window/uncommit": Op<{ id: string }, { window: WindowView }, true>;
+  "window/cancel": Op<{ id: string }, { window: WindowView }, true>;
+  /** The transaction comes back already signed by the stand-in's escrow, which makes the pooled buy. */
+  "window/launch/build": Op<{ id: string; mint: string; picture?: string }, { transaction: string }, true>;
   "otc/accept": Op<{ id: string }, { offer: Offer; event: RingEvent }, true>;
 }
 export type OpName = keyof Api;

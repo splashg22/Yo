@@ -34,8 +34,8 @@ const ADDED = [
   [
     "06",
     "Sealed pre-launch window",
-    "A bonding curve cannot be paused, so a sealed window after launch is not possible. A pooled first buy before the coin exists is under review.",
-    "Under review",
+    "A bonding curve cannot be paused, so buys cannot be held back after launch. Instead, buyers commit before the coin exists and all buy in its first transaction, at one price. It holds buyers' funds, so it is built but switched off.",
+    "Built, switched off",
   ],
 ] as const;
 

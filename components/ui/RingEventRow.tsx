@@ -11,6 +11,7 @@ const TITLES: Record<RingEvent["kind"], string> = {
   transfer: "Transfer",
   withdraw: "Withdrawal",
   otc: "OTC block",
+  window: "Sealed window",
 };
 
 /** One entry of a wallet's own Ring history: the public part, then the part only its keys can read. */
@@ -84,6 +85,12 @@ export function RingEventRow({
             : note === null
               ? "There is a sealed note, but this wallet's key does not open it."
               : `Sealed note, readable only by you and the other wallet: "${note}"`}
+        </span>
+      )}
+      {event.kind === "window" && (
+        <span className="enc">
+          Not published: you {sealed.did} {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}
+          {sealed.returned && sealed.returned !== "0" ? `, and ${formatSol(sealed.returned, 9)} came back unspent` : ""}.
         </span>
       )}
       {event.kind === "otc" && (

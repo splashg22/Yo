@@ -12,15 +12,22 @@ import {
 } from "@solana/web3.js";
 import { NATIVE } from "../constants";
 import { bootstrap } from "./bootstrap";
-import { settings } from "./env";
-import { depositInstructions } from "./escrow";
+import { assertLocalOnly, settings } from "./env";
+import { depositInstructions, escrow } from "./escrow";
 import { claimFeesInstructions, claimableFees, launchInstructions, tokenProgramOf, tradeInstructions } from "./pump";
 import { connection } from "./solana";
 import { state } from "./store";
+import { RENT_RESERVE_LAMPORTS } from "./windows";
 
 const MAX_TRANSACTION_BYTES = 1232;
 
-async function compile(payer: PublicKey, instructions: TransactionInstruction[], computeUnits: number): Promise<string> {
+interface Compiled {
+  message: VersionedTransaction;
+  lastValidBlockHeight: number;
+}
+
+/** Builds the unsigned transaction and checks it fits. */
+async function compileMessage(payer: PublicKey, instructions: TransactionInstruction[], computeUnits: number): Promise<Compiled> {
   const chain = connection();
   const tables: AddressLookupTableAccount[] = [];
   const table = state().lookupTable;
@@ -28,17 +35,22 @@ async function compile(payer: PublicKey, instructions: TransactionInstruction[],
     const info = (await chain.getAddressLookupTable(new PublicKey(table))).value;
     if (info) tables.push(info);
   }
-  const { blockhash } = await chain.getLatestBlockhash();
+  const { blockhash, lastValidBlockHeight } = await chain.getLatestBlockhash();
   const all = [ComputeBudgetProgram.setComputeUnitLimit({ units: computeUnits }), ...instructions];
   const message = new TransactionMessage({ payerKey: payer, recentBlockhash: blockhash, instructions: all }).compileToV0Message(tables);
+  const transaction = new VersionedTransaction(message);
   let bytes: Uint8Array;
   try {
-    bytes = new VersionedTransaction(message).serialize();
+    bytes = transaction.serialize();
   } catch {
     throw new Error("this does not fit in one transaction");
   }
   if (bytes.length > MAX_TRANSACTION_BYTES) throw new Error("this does not fit in one transaction");
-  return Buffer.from(bytes).toString("base64");
+  return { message: transaction, lastValidBlockHeight };
+}
+
+async function compile(payer: PublicKey, instructions: TransactionInstruction[], computeUnits: number): Promise<string> {
+  return Buffer.from((await compileMessage(payer, instructions, computeUnits)).message.serialize()).toString("base64");
 }
 
 export interface LaunchRequest {
@@ -69,6 +81,40 @@ export async function buildLaunch(request: LaunchRequest): Promise<{ transaction
   const instructions = [...plan.instructions];
   if (request.toRing && plan.firstBuyTokens > 0n) instructions.push(...depositInstructions(wallet, request.mint, plan.firstBuyTokens));
   return { transaction: await compile(wallet, instructions, 900_000), firstBuyTokens: plan.firstBuyTokens };
+}
+
+/**
+ * A sealed window's launch: the creator creates the coin and registers it; the escrow wallet makes the first
+ * buy with what the window holds, in the same transaction. The server signs for escrow here; the creator and
+ * the new coin's key sign in the browser. Changing anything afterwards voids escrow's signature.
+ */
+export async function buildWindowLaunch(request: {
+  wallet: string;
+  mint: string;
+  name: string;
+  symbol: string;
+  uri: string;
+  /** Everything committed to the window, in lamports. */
+  total: bigint;
+}): Promise<{ transaction: string; lastValidBlockHeight: number }> {
+  assertLocalOnly("The sealed launch window");
+  if (settings().network === "local") await bootstrap();
+  const wallet = new PublicKey(request.wallet);
+  const holder = escrow();
+  // Sized so that the buy at its 1% slippage limit, plus the rent for escrow's token account, cannot exceed what was committed.
+  const spend = ((request.total - RENT_RESERVE_LAMPORTS) * 100n) / 101n;
+  const plan = await launchInstructions({
+    wallet,
+    mint: new PublicKey(request.mint),
+    name: request.name,
+    symbol: request.symbol,
+    uri: request.uri,
+    firstBuyLamports: spend,
+    buyer: holder.publicKey,
+  });
+  const compiled = await compileMessage(wallet, plan.instructions, 900_000);
+  compiled.message.sign([holder]);
+  return { transaction: Buffer.from(compiled.message.serialize()).toString("base64"), lastValidBlockHeight: compiled.lastValidBlockHeight };
 }
 
 export async function buildTrade(request: {

@@ -7,12 +7,13 @@ import { market } from "./operations/market";
 import { otc } from "./operations/otc";
 import { ringOperations } from "./operations/ring";
 import { system } from "./operations/system";
+import { windowOperations } from "./operations/window";
 import { explain } from "./solana";
 import { durable, ready } from "./store";
 import type { Input } from "./validate";
 
 type Registry = { [Name in OpName]: (input: Input) => Api[Name]["output"] | Promise<Api[Name]["output"]> };
-const operations: Registry = { ...system, ...market, ...ringOperations, ...otc };
+const operations: Registry = { ...system, ...market, ...ringOperations, ...otc, ...windowOperations };
 
 export const isOperation = (name: string): name is OpName => Object.hasOwn(operations, name);
 

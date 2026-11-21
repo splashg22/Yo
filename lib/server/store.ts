@@ -11,7 +11,7 @@ import { settings } from "./env";
 export interface RingEvent {
   id: string;
   at: number;
-  kind: "register" | "deposit" | "transfer" | "withdraw" | "otc";
+  kind: "register" | "deposit" | "transfer" | "withdraw" | "otc" | "window";
   /** What an explorer would show. */
   public: Record<string, string>;
   /** What only the parties can read. */
@@ -31,6 +31,22 @@ export interface Coin {
   signature: string;
   /** Where the coin's picture can be fetched. Absent for a coin launched without one. */
   image?: string;
+}
+/** A sealed launch window: see windows.ts. Amounts are lamports, as decimal strings. */
+export interface SealedWindow {
+  id: string;
+  creator: string;
+  name: string;
+  symbol: string;
+  description: string;
+  openedAt: number;
+  closesAt: number;
+  /** "launching": a launch transaction has been handed out and may still land; the window is locked. */
+  status: "open" | "launching" | "launched" | "cancelled";
+  commitments: Record<string, string>;
+  launching?: { mint: string; lastValidBlockHeight: number };
+  mint?: string;
+  signature?: string;
 }
 export interface PendingLaunch {
   wallet: string;
@@ -71,6 +87,8 @@ export interface State {
   nonces: string[];
   coins: Coin[];
   pendingLaunches: Record<string, PendingLaunch>;
+  /** Sealed launch windows. Empty unless the feature is switched on. */
+  windows: SealedWindow[];
   pendingPayouts: PendingPayout[];
   prices: Record<string, PricePoint[]>;
   offers: Offer[];
@@ -85,6 +103,7 @@ const empty = (): State => ({
   nonces: [],
   coins: [],
   pendingLaunches: {},
+  windows: [],
   pendingPayouts: [],
   prices: {},
   offers: [],

@@ -198,7 +198,10 @@ npm run example       # launches a coin and makes a Ring transfer, from a script
             <li>The Privacy Rings SDK is an alpha release and its endpoints are labelled beta by Helius.</li>
             <li>{site.name} is unaudited.</li>
             <li>Rings that also hide wallet addresses are a separate product that is not open to us.</li>
-            <li>A sealed launch window is not built. A bonding curve cannot be paused, so buys cannot be held back after launch.</li>
+            <li>
+              A sealed launch window is built and switched off. It pools buyers&apos; commitments and buys in the coin&apos;s first transaction. It holds
+              buyers&apos; funds, which this build does only on a local test chain.
+            </li>
             <li>Proving a balance is above a threshold without showing it is not something Rings supports.</li>
           </ul>
         </div>

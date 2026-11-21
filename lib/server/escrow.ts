@@ -66,6 +66,8 @@ export interface Receipts {
   /** Every account the transaction touched. */
   accounts: string[];
   receipts: { mint: string; amount: bigint }[];
+  /** Lamports that left the escrow wallet in this transaction, if any. */
+  spent: bigint;
 }
 
 /**
@@ -81,10 +83,12 @@ export async function escrowReceipts(signature: string): Promise<Receipts> {
   const accounts = Array.from({ length: keys.length }, (_, index) => keys.get(index)!.toBase58());
   const owner = escrow().publicKey.toBase58();
   const receipts: Receipts["receipts"] = [];
+  let spent = 0n;
   accounts.forEach((account, index) => {
     if (account !== owner) return;
     const delta = BigInt(meta.postBalances[index]!) - BigInt(meta.preBalances[index]!);
     if (delta > 0n) receipts.push({ mint: NATIVE, amount: delta });
+    else spent += -delta;
   });
   for (const after of meta.postTokenBalances ?? []) {
     if (after.owner !== owner) continue;
@@ -92,7 +96,7 @@ export async function escrowReceipts(signature: string): Promise<Receipts> {
     const delta = BigInt(after.uiTokenAmount.amount) - BigInt(before?.uiTokenAmount.amount ?? "0");
     if (delta > 0n) receipts.push({ mint: after.mint, amount: delta });
   }
-  return { payer: accounts[0]!, accounts, receipts };
+  return { payer: accounts[0]!, accounts, receipts, spent };
 }
 
 export type PayoutOutcome =
