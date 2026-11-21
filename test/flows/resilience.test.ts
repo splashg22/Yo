@@ -3,6 +3,7 @@
  * mid-action, a dead or slow chain connection, forged requests. Nothing may be lost,
  * duplicated or left stuck, and every failure must say why.
  */
+import { createServer, type AddressInfo } from "node:net";
 import { VersionedTransaction } from "@solana/web3.js";
 import { beforeAll, describe, expect, it } from "vitest";
 import { signRequest } from "../../lib/auth";
@@ -10,7 +11,8 @@ import { fromBase64 } from "../../lib/bytes";
 import { NATIVE } from "../../lib/constants";
 import { newActor, signMessage } from "../../lib/keys";
 import { RingClient } from "../../lib/sdk";
-import { escrow } from "../../lib/server/escrow";
+import { PAYOUT_FEE_LAMPORTS, escrow, payoutCost, preparePayout, sendPayout } from "../../lib/server/escrow";
+import { preparing } from "../../lib/server/settle";
 import { ring } from "../../lib/server/ring";
 import { state } from "../../lib/server/store";
 import { signTransaction } from "../../lib/sign";
@@ -82,7 +84,7 @@ describe("a withdrawal whose outcome is uncertain", () => {
   it("gives the coins back when the payout was certainly never sent", async () => {
     const before = await holder.ringBalance(NATIVE);
     await withDeadChain(async () => {
-      await expect(holder.withdraw(NATIVE, SOL / 10n)).rejects.toThrow(/nothing left your Ring balance: the chain is not answering/);
+      await expect(holder.withdraw(NATIVE, SOL / 10n)).rejects.toThrow(/the chain is not answering\. Nothing was sent/);
     });
     expect(await holder.ringBalance(NATIVE)).toBe(before);
     expect((await holder.ringHistory()).some((event) => event.pending)).toBe(false);
@@ -96,7 +98,7 @@ describe("a withdrawal whose outcome is uncertain", () => {
     event.pending = true;
     state().pendingPayouts.push({ eventId: event.id, signature: result.signature, lastValidBlockHeight: (await chain.getBlockHeight()) + 100 });
     expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
-    expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 10n); // paid out once, debited once
+    expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 10n - PAYOUT_FEE_LAMPORTS); // paid out once, debited once, with its fee
     expect(state().events.find((candidate) => candidate.id === event.id)!.pending).toBeUndefined();
     expect(state().pendingPayouts).toEqual([]);
   });
@@ -111,6 +113,55 @@ describe("a withdrawal whose outcome is uncertain", () => {
     ring.undoWithdrawal(event.id); // a second undo must do nothing
     expect(await holder.ringBalance(NATIVE)).toBe(before);
     await expectCovered(NATIVE);
+  });
+
+  it("puts a payout on record before sending it, and treats a send that may have gone through as unknown, not as refused", async () => {
+    // A node that takes the connection and never answers: the transaction may or may not have reached the chain.
+    const silent = createServer((socket) => socket.on("data", () => undefined)).listen(0, "127.0.0.1");
+    await new Promise((resolve) => silent.once("listening", resolve));
+    const before = await holder.ringBalance(NATIVE);
+    const destination = newActor().address;
+    const cost = await payoutCost(destination, NATIVE);
+    const event = ring.debitForWithdrawal(holder.address, NATIVE, SOL / 100n, destination, cost.lamports);
+    const prepared = await preparePayout(destination, NATIVE, SOL / 100n, cost.opensAccount);
+    state().pendingPayouts.push({ eventId: event.id, signature: prepared.signature, lastValidBlockHeight: prepared.lastValidBlockHeight });
+    process.env.LOCAL_RPC_URL = `http://127.0.0.1:${(silent.address() as AddressInfo).port}`;
+    process.env.RPC_TIMEOUT_MS = "700";
+    try {
+      expect(await sendPayout(prepared)).toEqual({ status: "unknown", signature: prepared.signature, lastValidBlockHeight: prepared.lastValidBlockHeight });
+    } finally {
+      process.env.LOCAL_RPC_URL = RPC_URL;
+      delete process.env.RPC_TIMEOUT_MS;
+      silent.close();
+    }
+    // Nothing is given back on a guess: the coins stay out of the balance until the chain says which it was.
+    expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 100n - cost.lamports);
+    // Here it never reached the chain. Once its window has closed, that is certain, and the coins and the fee come back.
+    state().pendingPayouts[state().pendingPayouts.length - 1]!.lastValidBlockHeight = 1;
+    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect(await holder.ringBalance(NATIVE)).toBe(before);
+    expect(await onChain(destination, NATIVE)).toBe(0n);
+    // A refusal before broadcast is the one case that is certain at once: a payout that fails its simulation is not sent.
+    const tooMuch = await preparePayout(destination, NATIVE, 10_000n * SOL, false);
+    expect((await sendPayout(tooMuch)).status).toBe("not-sent");
+  });
+
+  it("gives the coins back for a withdrawal that was taken out of the balance but never got as far as a payout", async () => {
+    // As after a crash between the two steps: debited and stored, with no payout on record.
+    const before = await holder.ringBalance(NATIVE);
+    const event = ring.debitForWithdrawal(holder.address, NATIVE, SOL / 100n, holder.address, PAYOUT_FEE_LAMPORTS);
+    restartServer();
+    expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 100n - PAYOUT_FEE_LAMPORTS);
+    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect(await holder.ringBalance(NATIVE)).toBe(before);
+    expect((await holder.ringHistory()).some((seen) => seen.id === event.id)).toBe(false);
+    // One that is being prepared at this very moment is left alone.
+    const live = ring.debitForWithdrawal(holder.address, NATIVE, 1_000n, holder.address, PAYOUT_FEE_LAMPORTS);
+    preparing.add(live.id);
+    expect((await call("ring/reconcile")).payoutsResolved).toBe(0);
+    preparing.delete(live.id);
+    ring.undoWithdrawal(live.id);
+    expect(await holder.ringBalance(NATIVE)).toBe(before);
   });
 
   it("leaves a payout pending while the chain cannot be asked", async () => {

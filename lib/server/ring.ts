@@ -7,6 +7,7 @@
  * their amounts; a transfer shows both wallets and seals the coin and the amount.
  * Deposited coins really move on the local chain, into an escrow wallet (lib/server/chain.ts).
  */
+import { NATIVE } from "../constants";
 import type { SealedNote } from "../notes";
 import { randomBytes, toHex } from "../bytes";
 import { assertLocalOnly } from "./env";
@@ -83,13 +84,27 @@ export const ring = {
    * Takes coins out of a Ring balance before they are paid out on-chain, so they cannot
    * be spent twice while the payout is in flight. Public: wallet, destination, coin, amount.
    */
-  debitForWithdrawal(wallet: string, mint: string, amount: bigint, destination: string): RingEvent {
+  debitForWithdrawal(wallet: string, mint: string, amount: bigint, destination: string, cost = 0n): RingEvent {
     assertLocalOnly("The mock Ring");
     if (amount <= 0n) throw new Error("the amount must be above zero");
+    // Checked together before anything moves, so a withdrawal that cannot pay its own cost changes nothing.
+    const balances = state().balances[wallet] ?? {};
+    const needed = new Map<string, bigint>([[mint, amount]]);
+    needed.set(NATIVE, (needed.get(NATIVE) ?? 0n) + cost);
+    for (const [coin, lamports] of needed) {
+      if (big(balances[coin]) < lamports) {
+        throw new Error(
+          coin === NATIVE && mint !== NATIVE
+            ? "your Ring balance needs a little SOL to pay for this withdrawal: the network fee, and account rent if the destination has never held this coin"
+            : "the Ring balance is too low",
+        );
+      }
+    }
     move(wallet, mint, -amount);
+    if (cost > 0n) move(wallet, NATIVE, -cost);
     const event = record({
       kind: "withdraw",
-      public: { wallet, destination, coin: mint, amount: amount.toString() },
+      public: { wallet, destination, coin: mint, amount: amount.toString(), ...(cost > 0n ? { cost: cost.toString() } : {}) },
       sealed: {},
       parties: [wallet],
       pending: true,
@@ -97,7 +112,6 @@ export const ring = {
     save();
     return event;
   },
-  /** The payout landed. */
   completeWithdrawal(eventId: string, signature: string): void {
     const event = state().events.find((candidate) => candidate.id === eventId);
     if (!event) return;
@@ -110,6 +124,7 @@ export const ring = {
     const event = state().events.find((candidate) => candidate.id === eventId);
     if (!event?.pending) return; // already completed or already undone: never give coins back twice
     move(event.public.wallet!, event.public.coin!, BigInt(event.public.amount!));
+    if (event.public.cost) move(event.public.wallet!, NATIVE, BigInt(event.public.cost));
     state().events = state().events.filter((candidate) => candidate.id !== eventId);
     save();
   },

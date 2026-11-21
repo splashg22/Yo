@@ -1,13 +1,13 @@
 import bs58 from "bs58";
 import { describe, expect, it } from "vitest";
-import { canonical, signRequest, verifyRequest } from "../../lib/auth";
+import { canonical, messageFor, signRequest, verifyRequest } from "../../lib/auth";
 import { decryptBackup, encryptBackup } from "../../lib/backup";
 import { newActor, signMessage } from "../../lib/keys";
 import { checkPayRequest, parsePayLink, payLink } from "../../lib/paylink";
 import { explain, isUnreachable } from "../../lib/server/solana";
 import { addressOf, amountOf, plainText, signatureOf } from "../../lib/server/validate";
 
-const FAST = { N: 2 ** 14, r: 8, p: 1 };
+const FAST = { N: 2 ** 15, r: 8, p: 1 }; // the weakest setting a backup is accepted with
 
 describe("signed requests", () => {
   const wallet = newActor();
@@ -31,10 +31,36 @@ describe("signed requests", () => {
     await expect(sign("ring/mine", {}, Date.now() - 91_000).then((request) => verifyRequest("ring/mine", request, []))).rejects.toThrow(/too old/);
     await expect(sign("ring/mine", {}, Date.now() + 91_000).then((request) => verifyRequest("ring/mine", request, []))).rejects.toThrow(/too old/);
   });
-  it("keep the list of used requests bounded", async () => {
-    const used = Array.from({ length: 5_000 }, (_, index) => `w:${index}`);
-    verifyRequest("ring/mine", await sign("ring/mine", {}), used);
-    expect(used).toHaveLength(5_000);
+  it("remember a request for as long as it could be replayed, however many others arrive, and forget it only after", async () => {
+    const used: string[] = [];
+    const now = Date.now();
+    const captured = await sign("ring/transfer", { to: "x", mint: "y", amount: "1" }, now);
+    verifyRequest("ring/transfer", captured, used, now);
+    // A flood of other requests inside the same window must not push the captured one out of memory.
+    for (let index = 0; index < 6_000; index++) used.push(`${now}|flood:${index}`);
+    expect(() => verifyRequest("ring/transfer", captured, used, now + 60_000)).toThrow(/already used/);
+    // Past the window the time check refuses it by itself, so it need not be remembered any longer.
+    expect(() => verifyRequest("ring/transfer", captured, used, now + 91_000)).toThrow(/too old/);
+    verifyRequest("ring/mine", await sign("ring/mine", {}, now + 200_000), used, now + 200_000);
+    expect(used).toHaveLength(1);
+  });
+
+  it("refuse a time that is not a number, a missing or absurd nonce, and a time too far ahead", async () => {
+    const good = await sign("ring/mine", {});
+    /** The same request with one field changed, signed again by the wallet: a genuine signature over an odd request. */
+    const resigned = (change: object): Parameters<typeof verifyRequest>[1] => {
+      const body = { ...good.body, ...change };
+      return { body, signature: Buffer.from(signMessage(wallet, messageFor(body))).toString("base64") };
+    };
+    // Such a request would otherwise compare false against every time limit and never expire.
+    for (const at of ["soon", null, Number.NaN, Number.POSITIVE_INFINITY, undefined]) {
+      expect(() => verifyRequest("ring/mine", resigned({ at }), [])).toThrow(/must be signed by a wallet/);
+    }
+    for (const nonce of [undefined, 7, "", "short", "x".repeat(65)]) {
+      expect(() => verifyRequest("ring/mine", resigned({ nonce }), [])).toThrow(/must be signed by a wallet/);
+    }
+    await expect(sign("ring/mine", {}, Date.now() + 31_000).then((request) => verifyRequest("ring/mine", request, []))).rejects.toThrow(/too old/);
+    verifyRequest("ring/mine", await sign("ring/mine", {}, Date.now() + 20_000), []); // a browser clock a little ahead is fine
   });
 });
 

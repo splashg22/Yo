@@ -104,6 +104,26 @@ numbers on both sides together.
 | Recipient, coin, amount, note asked for | hidden | **hidden** until paid: carried after the #, which browsers do not send | can read all of it |
 | The payment | as a transfer, above | as a transfer, above | |
 
+### A coin's picture and description
+
+Public by nature: they describe a public coin. The file is redrawn before it is kept, so
+hidden data in it (where a photo was taken, the device, the author) is removed. We see the
+original file as it is uploaded. Without a picture store configured, it is kept on our
+server; with one, on IPFS through Pinata, which then also sees it.
+
+### Sealed launch window (built, off by default)
+
+| | Public | Us |
+| --- | --- | --- |
+| That a window exists, who opened it, when it closes | public | public |
+| How many wallets committed, and the total | public | public |
+| Who committed, and how much each | not published by the stand-in | **us** |
+| The launch and its first buy, with the amount | public | public |
+| How many coins each committer received | hidden from the public | **us** |
+
+Under the real Ring a commitment would be a transfer to the window, so the committing
+wallet would be public. The window also holds the committed SOL, which is custody.
+
 ### No-wallet mode
 
 | | Public | Us | This browser |
@@ -205,8 +225,10 @@ a trusted setup and an outside audit before mainnet, and none is planned.
 
 Limits of stage 1:
 
-- Notes work for wallets made in this browser and for the SDK. A wallet extension has no
-  note key here, so it cannot send or open notes.
+- A wallet extension gets its note key by signing one fixed message when it connects. If
+  it declines, it has no note key and cannot send or open notes. The key depends on the
+  wallet producing the same signature for the same message every time, which standard
+  Ed25519 wallets do; a wallet that does not would lose access to older notes.
 - A sealed box does not identify its sender to the recipient by itself; the recipient
   trusts our server's record of who sent the transfer.
 - We still see that a note exists and roughly how long it is.

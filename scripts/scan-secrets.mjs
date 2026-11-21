@@ -25,10 +25,13 @@ const SHAPES = [
   [/\[(\d{1,3},\s?){63}\d{1,3}\]/, "64 bytes written out, the shape of a Solana secret key"],
   [/HELIUS_API_KEY\s*[:=]\s*["'][^"']+["']/, "a Helius key assigned in code"],
 ];
+/** Made-up values the tests use to check how a key is handled. They open nothing. */
+const DUMMIES = ["test-key-not-real"];
 const found = [];
 function scan(where, text) {
   for (const [name, needle] of needles) if (text.includes(needle)) found.push(`${where}: contains ${name}`);
-  for (const [shape, name] of SHAPES) if (shape.test(text)) found.push(`${where}: ${name}`);
+  const withoutDummies = DUMMIES.reduce((rest, dummy) => rest.split(`api-key=${dummy}`).join("").split(`HELIUS_API_KEY = "${dummy}"`).join(""), text);
+  for (const [shape, name] of SHAPES) if (shape.test(withoutDummies)) found.push(`${where}: ${name}`);
 }
 function walk(directory, visit) {
   for (const name of readdirSync(directory)) {

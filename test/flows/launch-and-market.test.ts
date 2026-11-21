@@ -265,3 +265,31 @@ describe("a coin's picture and description", () => {
     expect((await call("explore", {})).coins.some((listed) => listed.symbol === "BAD")).toBe(false);
   });
 });
+
+describe("a coin's address while its launch is being prepared", () => {
+  it("belongs to the first wallet to prepare it: nobody else can rename the coin or prepare it again", async () => {
+    const creator = await fundedClient();
+    const other = await fundedClient();
+    const coin = newActor();
+    await call("launch/build", { wallet: creator.address, mint: coin.address, name: "Real Name", symbol: "REAL" });
+    await expect(call("launch/build", { wallet: other.address, mint: coin.address, name: "Fake Name", symbol: "FAKE" })).rejects.toThrow(
+      /already being launched by another wallet/,
+    );
+    expect(state().pendingLaunches[coin.address]!.name).toBe("Real Name");
+    // The same wallet may prepare it again, for instance after changing the name before signing.
+    await call("launch/build", { wallet: creator.address, mint: coin.address, name: "Better Name", symbol: "REAL" });
+    expect(state().pendingLaunches[coin.address]!.name).toBe("Better Name");
+    // A launch prepared and never sent is forgotten after an hour, so the list cannot grow without end.
+    state().pendingLaunches[coin.address]!.at = Date.now() - 3_700_000;
+    await call("launch/build", { wallet: other.address, mint: newActor().address, name: "Another", symbol: "ANTR" });
+    expect(state().pendingLaunches[coin.address]).toBeUndefined();
+  });
+
+  it("cannot be prepared again once the coin exists", async () => {
+    const creator = await fundedClient();
+    const launched = await creator.launch({ name: "Once", symbol: "ONCE" });
+    await expect(call("launch/build", { wallet: creator.address, mint: launched.mint, name: "Twice", symbol: "TWICE" })).rejects.toThrow(
+      /already been launched/,
+    );
+  });
+});

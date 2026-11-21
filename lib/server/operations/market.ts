@@ -60,6 +60,7 @@ export async function publicBalance(wallet: string, mint: string): Promise<bigin
 }
 
 const ACTIVITY_SHOWN = 20;
+const PENDING_LAUNCH_MS = 3_600_000;
 const PRICE_POINTS_SHOWN = 300;
 
 /** The chain's own list of transactions that touched an address. Nothing here comes from this site's records. */
@@ -130,6 +131,12 @@ export const market: Handlers<
     const symbol = plainText(input.symbol, "ticker", 10).toUpperCase();
     if (!/^[A-Z0-9]{1,10}$/.test(symbol)) throw new Error("the ticker must be 1 to 10 letters or digits");
     const firstBuyLamports = input.firstBuyLamports === undefined || input.firstBuyLamports === "" ? 0n : amountOf(input.firstBuyLamports, "first buy");
+    // A coin's address is claimed by the first wallet to prepare its launch; nobody else can rename it meanwhile.
+    // Launches prepared and never sent are forgotten after an hour.
+    const pending = state().pendingLaunches;
+    for (const [address, launch] of Object.entries(pending)) if (Date.now() - launch.at > PENDING_LAUNCH_MS) delete pending[address];
+    if (pending[mint] && pending[mint].wallet !== wallet) throw new Error("that coin address is already being launched by another wallet");
+    if (state().coins.some((coin) => coin.mint === mint)) throw new Error("that coin has already been launched");
     const description = input.description === undefined || input.description === "" ? "" : plainText(input.description, "description", 280);
     const picture =
       input.picture === undefined || input.picture === "" ? undefined : text(input.picture, "picture", Math.ceil((PICTURE_MAX_BYTES * 4) / 3) + 4);

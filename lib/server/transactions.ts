@@ -2,6 +2,7 @@
  * Builds the transactions a wallet signs, and submits them once signed.
  * The server never holds a user's key: it hands back unsigned bytes.
  */
+import bs58 from "bs58";
 import {
   type AddressLookupTableAccount,
   ComputeBudgetProgram,
@@ -102,7 +103,7 @@ export async function buildWindowLaunch(request: {
   uri: string;
   /** Everything committed to the window, in lamports. */
   total: bigint;
-}): Promise<{ transaction: string; lastValidBlockHeight: number }> {
+}): Promise<{ transaction: string; lastValidBlockHeight: number; escrowSignature: string }> {
   assertLocalOnly("The sealed launch window");
   await bootstrap();
   const wallet = new PublicKey(request.wallet);
@@ -120,7 +121,10 @@ export async function buildWindowLaunch(request: {
   });
   const compiled = await compileMessage(wallet, plan.instructions, 900_000);
   compiled.message.sign([holder]);
-  return { transaction: Buffer.from(compiled.message.serialize()).toString("base64"), lastValidBlockHeight: compiled.lastValidBlockHeight };
+  // Escrow's signature covers the whole message, so it names this exact transaction and no other.
+  const signerIndex = compiled.message.message.staticAccountKeys.findIndex((key) => key.equals(holder.publicKey));
+  const escrowSignature = bs58.encode(compiled.message.signatures[signerIndex]!);
+  return { transaction: Buffer.from(compiled.message.serialize()).toString("base64"), lastValidBlockHeight: compiled.lastValidBlockHeight, escrowSignature };
 }
 
 export async function buildTrade(request: {

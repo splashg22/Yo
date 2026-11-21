@@ -47,11 +47,29 @@ export function windowFor(id: string): SealedWindow {
   return found;
 }
 
-/** A launch that can no longer land (its blockhash has expired and the coin does not exist) unlocks the window. */
-export async function refresh(window: SealedWindow, coinExists: (mint: string) => Promise<boolean>): Promise<void> {
-  if (window.status !== "launching" || !window.launching) return;
-  if ((await connection().getBlockHeight("confirmed")) <= window.launching.lastValidBlockHeight) return;
-  if (await coinExists(window.launching.mint)) return; // it landed: settlement will finish the job
+/**
+ * The locks whose launch transaction this process is making right now, by the lock itself, not by window: an older
+ * attempt finishing must not clear a newer one. A lock marked `building` that is not here was left by a crash.
+ */
+const building = new Set<object>();
+/** Blocks to wait past a launch's last valid block before giving up on it, so that if it landed it is certainly confirmed by then. */
+const SETTLED_MARGIN_BLOCKS = 40;
+
+/**
+ * Unlocks a window whose launch can no longer land. `settleFromChain` settles anything escrow took part in
+ * that this server has not yet seen; it is run first, so a launch that did land is filled, not unlocked.
+ * The lock is only released if it is still the same lock afterwards: a newer launch is never undone by an older check.
+ */
+export async function refresh(window: SealedWindow, settleFromChain: () => Promise<unknown>): Promise<void> {
+  const lock = window.launching;
+  if (window.status !== "launching" || !lock) return;
+  if (lock.building) {
+    if (building.has(lock)) return; // being made at this moment
+  } else {
+    if ((await connection().getBlockHeight("confirmed")) <= lock.lastValidBlockHeight + SETTLED_MARGIN_BLOCKS) return;
+    await settleFromChain();
+  }
+  if (window.launching !== lock || window.status !== "launching") return;
   window.status = "open";
   delete window.launching;
   save();
@@ -116,8 +134,16 @@ export const windows = {
     return window;
   },
 
-  /** Locks the window for a launch transaction that is about to be handed to the creator to sign. */
-  lockForLaunch(id: string, creator: string, mint: string, lastValidBlockHeight: number, now = Date.now()): { window: SealedWindow; total: bigint } {
+  /**
+   * Locks the window before its launch transaction is made. Nothing can be added, taken back or cancelled from
+   * here until the launch is settled or can no longer land.
+   */
+  lockForLaunch(
+    id: string,
+    creator: string,
+    mint: string,
+    now = Date.now(),
+  ): { window: SealedWindow; total: bigint; lock: NonNullable<SealedWindow["launching"]> } {
     assertWindowsOn();
     const window = windowFor(id);
     if (window.creator !== creator) throw new Error("that is not your window");
@@ -126,10 +152,32 @@ export const windows = {
     if (now < window.closesAt) throw new Error("the window is still open to commitments: it can launch once it has closed");
     const total = totalOf(window);
     if (total < WINDOW_MIN_LAMPORTS) throw new Error("too little is committed to launch. Cancel the window to return it.");
+    const lock = { mint, lastValidBlockHeight: 0, building: true };
     window.status = "launching";
-    window.launching = { mint, lastValidBlockHeight };
+    window.launching = lock;
+    building.add(lock);
     save();
-    return { window, total };
+    return { window, total, lock };
+  },
+
+  /** The transaction exists: records how to recognise it and when it can no longer land. Refuses if the lock is no longer the one taken. */
+  launchBuilt(window: SealedWindow, lock: NonNullable<SealedWindow["launching"]>, escrowSignature: string, lastValidBlockHeight: number): void {
+    building.delete(lock);
+    if (window.launching !== lock || window.status !== "launching")
+      throw new Error("the window changed while its launch was being made. Nothing was handed out; try again.");
+    lock.building = false;
+    lock.escrowSignature = escrowSignature;
+    lock.lastValidBlockHeight = lastValidBlockHeight;
+    save();
+  },
+
+  /** No transaction was handed out: the window opens again. */
+  launchNotBuilt(window: SealedWindow, lock: NonNullable<SealedWindow["launching"]>): void {
+    building.delete(lock);
+    if (window.launching !== lock) return;
+    window.status = "open";
+    delete window.launching;
+    save();
   },
 
   /**
@@ -139,7 +187,13 @@ export const windows = {
    */
   fill(window: SealedWindow, mint: string, received: bigint, spent: bigint, signature: string): void {
     const total = totalOf(window);
-    if (spent > total) throw new Error("the launch spent more than was committed"); // cannot happen by construction; refuse rather than invent money
+    if (spent > total) {
+      // Cannot happen: the buy is sized so that its limit plus rent is within the pool. If it ever did, refusing here
+      // would leave the coins unshared for ever, so the coins are shared out and the shortfall, which came out of
+      // escrow's own float, is reported for the operator.
+      console.error(`[window ${window.id}] the launch spent ${spent - total} lamports more than was committed`);
+      spent = total;
+    }
     const leftover = total - spent;
     const committers = Object.entries(window.commitments)
       .map(([wallet, amount]) => ({ wallet, amount: BigInt(amount) }))

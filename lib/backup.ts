@@ -15,7 +15,8 @@ export interface Backup {
   nonce: string;
   ciphertext: string;
 }
-const COST = { N: 2 ** 15, r: 8, p: 1 };
+/** scrypt with 128 MB of memory: about a second in a browser, and that much per guess for anyone who gets hold of the file. */
+const COST = { N: 2 ** 17, r: 8, p: 1 };
 
 export function encryptBackup(actor: Actor, password: string, cost = COST): Backup {
   if (password.length < 8) throw new Error("the password must be at least 8 characters");
@@ -37,7 +38,7 @@ export function decryptBackup(input: unknown, password: string): Actor {
   if (!backup || backup.kind !== "ring-wallet-backup" || backup.version !== 1 || backup.kdf?.name !== "scrypt")
     throw new Error("this is not a wallet backup file");
   const { N, r, p } = backup.kdf;
-  if (!Number.isInteger(N) || N < 2 ** 14 || N > 2 ** 20 || r !== 8 || p !== 1) throw new Error("the backup file has unexpected settings");
+  if (!Number.isInteger(N) || N < 2 ** 15 || N > 2 ** 20 || r !== 8 || p !== 1) throw new Error("the backup file has unexpected settings");
   const key = scrypt(utf8(password), fromBase64(backup.kdf.salt), { N, r, p, dkLen: 32 });
   let seed: Uint8Array;
   try {

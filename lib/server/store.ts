@@ -3,7 +3,7 @@
  * It is kept in a JSON file by default, or in Postgres when DATABASE_URL is set (see database.ts).
  * Amounts are kept as decimal strings, never as floating-point numbers.
  */
-import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { closeSync, existsSync, fsyncSync, mkdirSync, openSync, readFileSync, renameSync, writeSync } from "node:fs";
 import { join } from "node:path";
 import { Database } from "./database";
 import { settings } from "./env";
@@ -44,7 +44,11 @@ export interface SealedWindow {
   /** "launching": a launch transaction has been handed out and may still land; the window is locked. */
   status: "open" | "launching" | "launched" | "cancelled";
   commitments: Record<string, string>;
-  launching?: { mint: string; lastValidBlockHeight: number };
+  /**
+   * `building`: the lock was taken and the transaction is still being made; nothing has been handed out.
+   * `escrowSignature`: the signature escrow put on the launch transaction. It is how the launch is recognised when it lands.
+   */
+  launching?: { mint: string; lastValidBlockHeight: number; building?: boolean; escrowSignature?: string };
   mint?: string;
   signature?: string;
 }
@@ -193,7 +197,14 @@ export function save(): void {
   }
   const path = file();
   mkdirSync(settings().dataDir, { recursive: true });
-  writeFileSync(`${path}.tmp`, JSON.stringify(state()));
+  // Written, forced to disk, then renamed over the old file: after a power cut there is one whole file, old or new.
+  const handle = openSync(`${path}.tmp`, "w");
+  try {
+    writeSync(handle, JSON.stringify(state()));
+    fsyncSync(handle);
+  } finally {
+    closeSync(handle);
+  }
   renameSync(`${path}.tmp`, path);
 }
 

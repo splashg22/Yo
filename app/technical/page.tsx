@@ -84,10 +84,10 @@ const TRUST = [
 ] as const;
 
 const LIMITS = [
-  "Runs on a local test chain only. Devnet is not wired up.",
+  "Ring balances exist on a local test chain only. Devnet mode launches and trades coins but has not been run against real devnet.",
   "Ring balances are simulated. Nothing here is encrypted by the Ring today.",
   "OTC offers are held on the server in readable form.",
-  "State is one file on the server. It is right for a test build and wrong for anything else.",
+  "State is one document written whole after each change, to a file or to Postgres. One server process only: a second refuses to start.",
   "The ceiling on requests is counted in memory by one server process. It would need a shared store to hold across several.",
   "No price chart and no price in dollars.",
   "Tested in Chromium only. No real phone, no real wallet extension.",

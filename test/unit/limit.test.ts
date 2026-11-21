@@ -1,8 +1,8 @@
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
-import { PER_MINUTE, bucketOf, forgetLimits, overLimit } from "../../lib/server/limit";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { PER_MINUTE, bucketOf, callerOf, forgetLimits, overLimit } from "../../lib/server/limit";
 import { forget, state } from "../../lib/server/store";
 
 describe("the ceiling on requests per address", () => {
@@ -25,12 +25,32 @@ describe("the ceiling on requests per address", () => {
 
   it("puts anything that builds, sends or is signed by a wallet under the tighter ceiling", () => {
     expect(bucketOf("faucet")).toBe("faucet");
-    for (const name of ["launch/build", "trade/build", "fees/build", "tx/send", "ring/transfer", "ring/withdraw", "ring/mine", "ring/reconcile", "otc/accept"])
+    for (const name of ["launch/build", "window/launch/build"]) expect(bucketOf(name)).toBe("launch"); // may carry a picture to decode
+    for (const name of ["trade/build", "fees/build", "tx/send", "ring/transfer", "ring/withdraw", "ring/mine", "ring/reconcile", "otc/accept"])
       expect(bucketOf(name)).toBe("write");
     for (const name of ["explore", "coin", "coin/prices", "coin/activity", "wallet/public", "status", "stats", "config", "tx/status"])
       expect(bucketOf(name)).toBe("read");
+    expect(PER_MINUTE.launch).toBeLessThan(PER_MINUTE.write);
     expect(PER_MINUTE.faucet).toBeLessThan(PER_MINUTE.write);
     expect(PER_MINUTE.write).toBeLessThan(PER_MINUTE.read);
+  });
+});
+
+describe("who a request is counted against", () => {
+  afterEach(() => delete process.env.TRUSTED_PROXY_HOPS);
+
+  it("ignores the forwarding header unless the operator has said there are proxies of their own in front", () => {
+    expect(callerOf("203.0.113.7")).toBe("direct");
+    expect(callerOf(null)).toBe("direct");
+    process.env.TRUSTED_PROXY_HOPS = "1";
+    // With one proxy of ours in front, the last entry is the one it added. Anything before it was written by the caller.
+    expect(callerOf("1.2.3.4, 203.0.113.7")).toBe("203.0.113.7");
+    expect(callerOf("spoofed, also-spoofed, 198.51.100.9")).toBe("198.51.100.9");
+    process.env.TRUSTED_PROXY_HOPS = "2";
+    expect(callerOf("spoofed, 198.51.100.9, 10.0.0.1")).toBe("198.51.100.9");
+    expect(callerOf("10.0.0.1")).toBe("direct"); // fewer entries than proxies: nothing to trust
+    process.env.TRUSTED_PROXY_HOPS = "many";
+    expect(callerOf("203.0.113.7")).toBe("direct");
   });
 });
 

@@ -1,9 +1,9 @@
 /** The Ring wallet: deposit, transfer, withdraw. Reading or moving a Ring balance takes a wallet-signed request. */
 import { verifyRequest, type Signed } from "../../auth";
 import { assertRing } from "../env";
-import { payFromEscrow } from "../escrow";
+import { payoutCost, preparePayout, sendPayout } from "../escrow";
 import { ring } from "../ring";
-import { reconcile, settle } from "../settle";
+import { preparing, reconcile, settle } from "../settle";
 import { durable, save, state } from "../store";
 import { buildDeposit } from "../transactions";
 import { addressOf, amountOf, noteKeyOf, sealedNoteOf, signatureOf, type Input } from "../validate";
@@ -58,22 +58,34 @@ export const ringOperations: Handlers<
     const mint = addressOf(body.mint, "coin address");
     const amount = amountOf(body.amount, "amount");
     const destination = body.destination === undefined || body.destination === "" ? body.wallet : addressOf(body.destination, "destination address");
-    const event = ring.debitForWithdrawal(body.wallet, mint, amount, destination);
-    // The coins are out of the balance on record before any payout is sent: a crash from here on can never pay the same coins twice.
+    // What escrow will pay beyond the amount is charged to the withdrawing wallet, so payouts cannot run down what the ledger owes others.
+    const cost = await payoutCost(destination, mint);
+    const event = ring.debitForWithdrawal(body.wallet, mint, amount, destination, cost.lamports);
+    preparing.add(event.id);
+    let prepared;
+    try {
+      prepared = await preparePayout(destination, mint, amount, cost.opensAccount);
+    } catch (error) {
+      preparing.delete(event.id);
+      ring.undoWithdrawal(event.id); // nothing was signed, let alone sent
+      throw error;
+    }
+    // On record, with its signature, before it is sent: whatever happens next, including this process dying,
+    // the payout can be looked up on the chain and the withdrawal finished or undone. Never both, never neither.
+    state().pendingPayouts.push({ eventId: event.id, signature: prepared.signature, lastValidBlockHeight: prepared.lastValidBlockHeight });
+    preparing.delete(event.id);
+    save();
     await durable();
-    const outcome = await payFromEscrow(destination, mint, amount);
+    const outcome = await sendPayout(prepared);
+    if (outcome.status === "unknown") return { event, signature: prepared.signature, pending: true };
+    state().pendingPayouts = state().pendingPayouts.filter((payout) => payout.eventId !== event.id);
     if (outcome.status === "landed") {
       ring.completeWithdrawal(event.id, outcome.signature);
       return { event, signature: outcome.signature, pending: false };
     }
-    if (outcome.status === "not-sent") {
-      ring.undoWithdrawal(event.id);
-      throw new Error(`nothing left your Ring balance: ${outcome.reason}`);
-    }
-    // Sent, but the chain cannot confirm it right now. The coins stay out of the balance until it can.
-    state().pendingPayouts.push({ eventId: event.id, signature: outcome.signature, lastValidBlockHeight: outcome.lastValidBlockHeight });
+    ring.undoWithdrawal(event.id);
     save();
-    return { event, signature: outcome.signature, pending: true };
+    throw new Error(`nothing left your Ring balance: ${outcome.reason}`);
   },
 
   "ring/mine": (input) => {

@@ -1,17 +1,18 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { isOperation, run } from "@/lib/server/handlers";
-import { bucketOf, overLimit } from "@/lib/server/limit";
+import { bucketOf, callerOf, overLimit } from "@/lib/server/limit";
 import type { Input } from "@/lib/server/validate";
 
 export const dynamic = "force-dynamic";
 
 const noStore = { "cache-control": "no-store" };
+/** A picture of 1.5 MB in base64, and room for the rest of the request. */
+const MAX_BODY_BYTES = 2_300_000;
 
 async function handle(request: NextRequest, context: { params: Promise<{ op: string[] }> }): Promise<NextResponse> {
   const name = (await context.params).op.join("/");
   if (!isOperation(name)) return NextResponse.json({ error: "there is no such operation" }, { status: 404, headers: noStore });
-  // The first address in the forwarding header is the caller when a proxy sits in front; without one, every caller is this machine.
-  const caller = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "local";
+  const caller = callerOf(request.headers.get("x-forwarded-for"));
   const wait = overLimit(caller, bucketOf(name));
   if (wait > 0) {
     return NextResponse.json(
@@ -19,7 +20,18 @@ async function handle(request: NextRequest, context: { params: Promise<{ op: str
       { status: 429, headers: { ...noStore, "retry-after": String(wait) } },
     );
   }
-  const parsed: unknown = await request.json().catch(() => null);
+  // A request is small, except a launch carrying a picture. Anything larger is refused before it is read into memory.
+  const declared = Number(request.headers.get("content-length") ?? "0");
+  if (!Number.isFinite(declared) || declared > MAX_BODY_BYTES)
+    return NextResponse.json({ error: "the request is too large" }, { status: 413, headers: noStore });
+  const raw = await request.text().catch(() => "");
+  if (raw.length > MAX_BODY_BYTES) return NextResponse.json({ error: "the request is too large" }, { status: 413, headers: noStore });
+  let parsed: unknown = null;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = null; // answered just below
+  }
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed))
     return NextResponse.json({ error: "the request body must be a JSON object" }, { status: 400, headers: noStore });
   const input = parsed as Input;

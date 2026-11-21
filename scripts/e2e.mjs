@@ -113,6 +113,8 @@ const responses = [];
 const PICTURE = await createRequire(import.meta.url)("sharp")({ create: { width: 240, height: 160, channels: 3, background: "#f5a524" } })
   .png()
   .toBuffer();
+/** What a payout costs the withdrawing wallet when no account has to be opened: the network fee, in lamports. */
+const PAYOUT_FEE = 5_000n;
 const symbols = { [NATIVE]: "SOL" };
 /** What each person should hold in the Ring, kept by this script from the actions it took. */
 const expected = { seller: {}, buyer: {} };
@@ -179,8 +181,9 @@ await step("no wallet needed: two wallets are made in the browser, survive a rel
       await page.waitForSelector("text=Get test SOL");
       const before = await onChain(addresses[who], NATIVE);
       await press(page, "text=Get test SOL", /10 test SOL added/);
-      const gained = (await onChain(addresses[who], NATIVE)) - before;
-      if (gained !== 10_000_000_000n) throw new Error(`${who}: the chain gained ${gained} lamports, not exactly 10 SOL`);
+      // The page speaks the moment the airdrop is confirmed; the balance at that same level can be an instant behind it.
+      // So the figure is waited for, and it must be exactly 10 SOL: not less, and not 20.
+      await settles(async () => String((await onChain(addresses[who], NATIVE)) - before), "10000000000", `${who}: lamports gained from the faucet`);
       await walletMatches(page, who, NATIVE);
     });
     const shown = (await page.locator(".kv .address").first().innerText()).trim();
@@ -384,7 +387,10 @@ await step("withdraw, three times: the escrow loses and the wallet gains exactly
       const paid = held - (await onChain(escrow, coin));
       if (coin === NATIVE ? paid < units(coin, amount) : paid !== units(coin, amount)) throw new Error(`escrow paid ${paid}`);
       move("buyer", coin, -units(coin, amount));
+      // The network fee for the payout is charged to the withdrawing wallet's Ring SOL. The wallet already holds this coin, so there is no rent.
+      move("buyer", NATIVE, -PAYOUT_FEE);
       await walletMatches(ben, "buyer", coin);
+      await walletMatches(ben, "buyer", NATIVE);
     },
   );
 });

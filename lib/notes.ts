@@ -10,18 +10,25 @@
  * What it does not do: hide that a note exists, hide its rough length, or hide who sent
  * what to whom. It has not been reviewed by anyone outside the project.
  */
-import sodium from "libsodium-wrappers";
+import type Sodium from "libsodium-wrappers";
 import { fromBase64, fromUtf8, toBase64, utf8 } from "./bytes";
 import { deriveKey } from "./keys";
 import { isPrintable } from "./text";
+
+/** Loaded on first use: it is a quarter of a megabyte, and most pages never seal or open a note. */
+async function libsodium(): Promise<typeof Sodium> {
+  const loaded = (await import("libsodium-wrappers")).default;
+  await loaded.ready;
+  return loaded;
+}
 
 export const NOTE_MAX_CHARACTERS = 140;
 /**
  * What a wallet extension is asked to sign, once, when it connects. The signature never leaves the
  * browser; it seeds the note key. The text says what it is for, because the wallet shows it to its owner.
  */
-export const NOTE_KEY_MESSAGE =
-  "Sign to create your note key.\n\nThis lets you read and send sealed notes on transfers. It moves nothing and costs nothing. Only sign this on a site you trust: the signature is the key to your notes.";
+export const noteKeyMessage = (siteHost: string): string =>
+  `Sign to create your note key for ${siteHost}.\n\nThis lets you read and send sealed notes on transfers. It moves nothing and costs nothing. The signature is the key to your notes: only sign this on ${siteHost} itself.`;
 /** A sealed box adds 48 bytes; a character is at most 4 bytes. In base64. */
 export const SEALED_NOTE_MAX_LENGTH = Math.ceil(((48 + NOTE_MAX_CHARACTERS * 4) * 4) / 3) + 4;
 
@@ -40,7 +47,7 @@ export interface SealedNote {
  * signature of NOTE_KEY_MESSAGE. The same secret always gives the same pair, so a restored backup can read old notes.
  */
 export async function noteKeysFor(walletSeed: Uint8Array): Promise<NoteKeys> {
-  await sodium.ready;
+  const sodium = await libsodium();
   const pair = sodium.crypto_box_seed_keypair(deriveKey(walletSeed, "note-key"));
   return { publicKey: pair.publicKey, privateKey: pair.privateKey };
 }
@@ -54,7 +61,7 @@ export function checkNoteText(text: string): string {
 
 /** Seals a note to the recipient's published note key, and a second copy to the sender's own, so both can read it later. */
 export async function sealNote(text: string, recipientKey: string, sender: NoteKeys): Promise<SealedNote> {
-  await sodium.ready;
+  const sodium = await libsodium();
   const message = utf8(checkNoteText(text));
   const recipient = fromBase64(recipientKey);
   if (recipient.length !== sodium.crypto_box_PUBLICKEYBYTES) throw new Error("the recipient's note key is not valid");
@@ -63,7 +70,7 @@ export async function sealNote(text: string, recipientKey: string, sender: NoteK
 
 /** Opens a sealed note with a wallet's own keys. Null if it was not sealed to this wallet, or was altered. */
 export async function openNote(sealed: string, keys: NoteKeys): Promise<string | null> {
-  await sodium.ready;
+  const sodium = await libsodium();
   try {
     return fromUtf8(sodium.crypto_box_seal_open(fromBase64(sealed), keys.publicKey, keys.privateKey));
   } catch {

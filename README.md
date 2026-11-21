@@ -46,6 +46,25 @@ Everything the launchpad uses is its own, so it can run beside any other project
 No key, program ID, token mint, package, config or `.env` is shared with any other
 project. The local keys are made on first run inside `.data/` and are never committed.
 
+## Settings
+
+Every setting is an environment variable, read in `lib/server/env.ts` and listed with its
+default in `.env.example`. The ones that change what the site is:
+
+| Setting | Default | What it does |
+| --- | --- | --- |
+| `RING_NETWORK` | `local` | `devnet` reaches Solana devnet through Helius. Ring balances are not connected there |
+| `HELIUS_API_KEY` | none | Needed for devnet. Server only |
+| `DATABASE_URL` | none | Keeps the state in Postgres instead of a file |
+| `PINATA_JWT` | none | Keeps coin pictures on IPFS instead of the server's disk |
+| `PREVIEW_PASSWORD` | none | Puts the whole site behind a password |
+| `FEATURE_SEALED_WINDOW` | `off` | Switches on the sealed launch window, which holds buyers' funds |
+| `SITE_URL` | `http://localhost:4710` | The site's public address |
+
+`npm run doctor` says what is set, what is missing and whether the chain and database
+answer, without printing any secret. `GO-LIVE.md` has the commands for a devnet preview,
+and `NEEDS.md` lists what the owner has to provide.
+
 ## Check it
 
 ```bash
@@ -67,6 +86,9 @@ npm run motion          # the scroll sequence and background on a slow phone and
 npm run scan            # looks for secrets in what is served and in the git history
 npm run measure         # page weight, load time and layout shift
 npm run example         # the SDK example: a launch and a Ring transfer from a script
+npm run window          # the sealed launch window in a browser, with its flag on
+npm run test:flows:pg   # every flow test again, with the state kept in a real local Postgres
+npm run doctor          # what is ready and what is missing
 ```
 
 ## What is real and what is a stand-in
@@ -77,7 +99,11 @@ npm run example         # the SDK example: a launch and a Ring transfer from a s
 | Registering a coin with the Ring | The real Privacy Rings program, copied the same way |
 | Ring balances: deposit, transfer, withdraw, OTC, pay links | **A mock.** A ledger on this site's server with the Ring's rules for what is public. Deposits and withdrawals really move coins on the local chain, into and out of an escrow wallet. It is not encryption, and it refuses to run anywhere but a local validator |
 | The wallet made in the browser | Real. The key is made and encrypted in the browser and is never sent |
-| Devnet | Not wired up. Needs `HELIUS_API_KEY` and the real Ring calls in place of the mock |
+| Devnet | Launching, buying and selling are built as a settings swap and tested against a local chain standing in for devnet. **Not verified on real devnet.** Ring balances are not connected there: that needs the real Ring calls, which need `HELIUS_API_KEY` to build against |
+| State in Postgres | Built and tested against a real local Postgres 16. Not verified against a hosted provider |
+| Coin pictures | Cleaned and kept on the server's disk. The IPFS path through Pinata is written and **not verified** |
+| Sealed launch window | Built, off by default. Holds buyers' funds through the stand-in, on a local validator only |
+| Who runs the site | A marked placeholder on the legal pages |
 | Brand media | Stand-ins drawn in code. See `brand/README.md` |
 
 No program of our own is deployed. The project calls pump.fun and Privacy Rings.
@@ -99,6 +125,8 @@ Every version is pinned exactly. Each one, and why it is here:
 | `@noble/curves` | Ed25519 keys and signatures in the browser, without web3.js in the page |
 | `@noble/hashes` | scrypt, for turning the wallet password into a key |
 | `@noble/ciphers` | AES-GCM, for the encrypted wallet backup |
+| `pg` | The Postgres driver, used only when `DATABASE_URL` is set |
+| `sharp` | Redraws an uploaded coin picture before it is kept, and builds the site's own images |
 | `libsodium-wrappers` | Sealed boxes, for notes on a transfer that the server cannot read. Used as the library provides them |
 | `@wallet-standard/app`, `@wallet-standard/base` | Finding and talking to wallet extensions |
 | `qrcode` | The QR code of a pay link |
@@ -112,8 +140,7 @@ Development only:
 | `prettier` | Formatting |
 | `vitest` | Tests |
 | `tsx` | Running TypeScript scripts and the SDK example |
-| `sharp` | Building the sized images and sequence frames from `brand/` |
-| `@types/*` | Types for Node, React, bn.js, qrcode and libsodium |
+| `@types/*` | Types for Node, React, bn.js, qrcode, libsodium and pg |
 
 Playwright is not a dependency: the browser scripts use the one installed on the machine.
 

@@ -7,6 +7,7 @@ import { SOL_DECIMALS } from "@/lib/constants";
 import type { WindowView } from "@/lib/contract";
 import { formatSol, formatTime, parseAmount } from "@/lib/format";
 import { newActor } from "@/lib/keys";
+import { PrivacyPanel } from "../PrivacyPanel";
 import { Address } from "../ui/Address";
 import { useRun } from "../ui/useRun";
 import { useWallet } from "../wallet/WalletProvider";
@@ -76,6 +77,7 @@ export function SealedWindows() {
         buys with everything committed, so every committer gets the same price and nobody can buy first. The launch and its total are public. Who committed how
         much is not published. You can take your commitment back at any time before the launch.
       </p>
+      <PrivacyPanel action="sealed-window" />
       {problem && (
         <p className="notice" role="alert">
           The windows could not be read: {problem}

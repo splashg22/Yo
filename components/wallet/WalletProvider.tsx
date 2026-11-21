@@ -6,7 +6,7 @@
  *  2. A browser wallet, through the Wallet Standard.
  */
 import { utf8 } from "@/lib/bytes";
-import { NOTE_KEY_MESSAGE, noteKeysFor, type NoteKeys } from "@/lib/notes";
+import { noteKeyMessage, noteKeysFor, type NoteKeys } from "@/lib/notes";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet as StandardWallet, WalletAccount } from "@wallet-standard/base";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from "react";
@@ -81,7 +81,7 @@ async function extensionSigner(wallet: StandardWallet): Promise<Signer> {
   // It is asked for once per page load and kept in memory only.
   let notes: Promise<NoteKeys> | undefined;
   const noteKeys = (): Promise<NoteKeys> =>
-    (notes ??= asked(features["solana:signMessage"].signMessage({ account, message: utf8(NOTE_KEY_MESSAGE) })).then(([result]) =>
+    (notes ??= asked(features["solana:signMessage"].signMessage({ account, message: utf8(noteKeyMessage(window.location.host)) })).then(([result]) =>
       noteKeysFor(result.signature),
     ));
   return {

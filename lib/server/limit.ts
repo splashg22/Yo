@@ -3,16 +3,18 @@
  * the rest or drain the local faucet. Counts are kept in memory per minute: enough for one
  * server process, which is all this build runs as.
  */
-export type Bucket = "faucet" | "write" | "read";
+export type Bucket = "faucet" | "launch" | "write" | "read";
 
 /** Requests allowed per address per minute. Reads are cheap and pages poll, so their ceiling is high. */
-export const PER_MINUTE: Record<Bucket, number> = { faucet: 30, write: 240, read: 1200 };
+/** Launches are held lower still: each may carry a picture that the server has to decode and redraw. */
+export const PER_MINUTE: Record<Bucket, number> = { faucet: 30, launch: 30, write: 240, read: 1200 };
 const WINDOW_MS = 60_000;
 
 const counts = new Map<string, { windowStart: number; used: number }>();
 
 export function bucketOf(operation: string): Bucket {
   if (operation === "faucet") return "faucet";
+  if (operation === "launch/build" || operation === "window/launch/build") return "launch";
   // Anything that builds, sends or moves something, and every request signed by a wallet.
   return /build|send|credit|reconcile|^ring\/|^otc\/|^window\/(?!list)/.test(operation) ? "write" : "read";
 }
@@ -29,6 +31,19 @@ export function overLimit(caller: string, bucket: Bucket, now = Date.now()): num
   }
   current.used += 1;
   return current.used > PER_MINUTE[bucket] ? Math.ceil((current.windowStart + WINDOW_MS - now) / 1000) : 0;
+}
+
+/**
+ * Who is calling, for counting. The forwarding header is written by whoever sends the request, so it is believed
+ * only as far as the operator says there are proxies of their own in front: TRUSTED_PROXY_HOPS entries, counted
+ * from the right, were added by those proxies. With none (the default) the header is ignored and every caller
+ * counts as one, which is right for a server reached directly.
+ */
+export function callerOf(forwardedFor: string | null): string {
+  const hops = Number(process.env.TRUSTED_PROXY_HOPS ?? "0");
+  if (!Number.isInteger(hops) || hops < 1 || !forwardedFor) return "direct";
+  const chain = forwardedFor.split(",").map((part) => part.trim());
+  return chain[chain.length - hops] ?? "direct";
 }
 
 /** Tests only. */

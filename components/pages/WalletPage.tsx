@@ -305,6 +305,12 @@ function OpenWallet() {
             ) : null}
             .
           </p>
+          {tab === "withdraw" && (
+            <p className="body">
+              The network fee comes out of the SOL in your Ring balance. If the destination has never held this coin, so does the rent for its account, about
+              0.002 SOL.
+            </p>
+          )}
           {tab === "withdraw" &&
             withdrawalWarnings(mine?.history ?? [], { wallet: me.address, mint: form.mint, amount: reviewedAmount(), destination: form.to.trim() }).map(
               (warning) => (

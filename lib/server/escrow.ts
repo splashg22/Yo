@@ -16,7 +16,7 @@ import { join } from "node:path";
 import { COIN_DECIMALS, NATIVE } from "../constants";
 import { assertLocalOnly, settings } from "./env";
 import { tokenProgramOf } from "./pump";
-import { connection, isUnreachable } from "./solana";
+import { connection } from "./solana";
 
 /** A key the server keeps on disk. Local validator only. */
 export function localKey(name: string): Keypair {
@@ -68,6 +68,10 @@ export interface Receipts {
   receipts: { mint: string; amount: bigint }[];
   /** Lamports that left the escrow wallet in this transaction, if any. */
   spent: bigint;
+  /** The transaction's signatures, in order: the first is the fee payer's. */
+  signatures: string[];
+  /** True if the escrow wallet itself signed. It signs payouts and sealed-window launches, never a deposit. */
+  escrowSigned: boolean;
 }
 
 /**
@@ -96,7 +100,8 @@ export async function escrowReceipts(signature: string): Promise<Receipts> {
     const delta = BigInt(after.uiTokenAmount.amount) - BigInt(before?.uiTokenAmount.amount ?? "0");
     if (delta > 0n) receipts.push({ mint: after.mint, amount: delta });
   }
-  return { payer: accounts[0]!, accounts, receipts, spent };
+  const signers = accounts.slice(0, transaction.transaction.message.header.numRequiredSignatures);
+  return { payer: accounts[0]!, accounts, receipts, spent, signatures: transaction.transaction.signatures, escrowSigned: signers.includes(owner) };
 }
 
 export type PayoutOutcome =
@@ -106,68 +111,106 @@ export type PayoutOutcome =
   /** Sent, and the chain cannot be asked right now. The coins must stay debited until it can. */
   | { status: "unknown"; signature: string; lastValidBlockHeight: number };
 
+/** The network fee for a payout: one signature, no priority fee. */
+export const PAYOUT_FEE_LAMPORTS = 5_000n;
+
 /**
- * Pays a withdrawal out of escrow. The signature is known before anything is sent, so an
- * uncertain outcome can be looked up later instead of being guessed at.
+ * What a payout will cost escrow beyond the amount itself: the network fee, and for a coin sent to a wallet
+ * that has never held it, the rent for that wallet's token account. The withdrawing wallet is charged this,
+ * so that paying out can never run escrow's own SOL down below what the ledger owes.
  */
-export async function payFromEscrow(destination: string, mint: string, amount: bigint): Promise<PayoutOutcome> {
+export async function payoutCost(destination: string, mint: string): Promise<{ lamports: bigint; opensAccount: boolean }> {
+  assertLocalOnly("The mock Ring's escrow");
+  if (mint === NATIVE) return { lamports: PAYOUT_FEE_LAMPORTS, opensAccount: false };
+  const chain = connection();
+  const mintKey = new PublicKey(mint);
+  const tokenProgram = await tokenProgramOf(mint);
+  const [theirs, ours] = await chain.getMultipleAccountsInfo([
+    getAssociatedTokenAddressSync(mintKey, new PublicKey(destination), true, tokenProgram),
+    escrowTokenAccount(mintKey, tokenProgram),
+  ]);
+  if (theirs) return { lamports: PAYOUT_FEE_LAMPORTS, opensAccount: false };
+  if (!ours) throw new Error("the Ring holds none of this coin");
+  // A token account for this coin is the same size whoever owns it, so escrow's own tells us the rent.
+  return { lamports: PAYOUT_FEE_LAMPORTS + BigInt(await chain.getMinimumBalanceForRentExemption(ours.data.length)), opensAccount: true };
+}
+
+export interface PreparedPayout {
+  signature: string;
+  lastValidBlockHeight: number;
+  raw: Buffer;
+}
+
+/**
+ * Builds and signs a payout without sending it. Its signature is known from here on, so it can be put on
+ * record before it is sent and looked up afterwards whatever happens in between.
+ * The destination's token account is opened only if `opensAccount` says the wallet was charged for it.
+ */
+export async function preparePayout(destination: string, mint: string, amount: bigint, opensAccount: boolean): Promise<PreparedPayout> {
   assertLocalOnly("The mock Ring's escrow");
   const from = escrow();
   const to = new PublicKey(destination);
-  const chain = connection();
-  let transaction: Transaction;
-  let lastValidBlockHeight: number;
-  try {
-    const latest = await chain.getLatestBlockhash();
-    lastValidBlockHeight = latest.lastValidBlockHeight;
-    transaction = new Transaction({ feePayer: from.publicKey, blockhash: latest.blockhash, lastValidBlockHeight });
-    if (mint === NATIVE) {
-      transaction.add(SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: to, lamports: amount }));
-    } else {
-      const mintKey = new PublicKey(mint);
-      const tokenProgram = await tokenProgramOf(mint);
-      const destinationAccount = getAssociatedTokenAddressSync(mintKey, to, true, tokenProgram);
-      transaction.add(
-        createAssociatedTokenAccountIdempotentInstruction(from.publicKey, destinationAccount, to, mintKey, tokenProgram),
-        createTransferCheckedInstruction(
-          escrowTokenAccount(mintKey, tokenProgram),
-          mintKey,
-          destinationAccount,
-          from.publicKey,
-          amount,
-          COIN_DECIMALS,
-          [],
-          tokenProgram,
-        ),
-      );
-    }
-    transaction.sign(from);
-  } catch (error) {
-    return { status: "not-sent", reason: isUnreachable(error) ? "the chain is not answering" : error instanceof Error ? error.message : String(error) };
+  const latest = await connection().getLatestBlockhash();
+  const transaction = new Transaction({ feePayer: from.publicKey, blockhash: latest.blockhash, lastValidBlockHeight: latest.lastValidBlockHeight });
+  if (mint === NATIVE) {
+    transaction.add(SystemProgram.transfer({ fromPubkey: from.publicKey, toPubkey: to, lamports: amount }));
+  } else {
+    const mintKey = new PublicKey(mint);
+    const tokenProgram = await tokenProgramOf(mint);
+    const destinationAccount = getAssociatedTokenAddressSync(mintKey, to, true, tokenProgram);
+    if (opensAccount) transaction.add(createAssociatedTokenAccountIdempotentInstruction(from.publicKey, destinationAccount, to, mintKey, tokenProgram));
+    transaction.add(
+      createTransferCheckedInstruction(
+        escrowTokenAccount(mintKey, tokenProgram),
+        mintKey,
+        destinationAccount,
+        from.publicKey,
+        amount,
+        COIN_DECIMALS,
+        [],
+        tokenProgram,
+      ),
+    );
   }
-  const signature = bs58.encode(transaction.signature!);
-  try {
-    // Preflight simulates first: a payout that would fail is refused here and never sent.
-    await chain.sendRawTransaction(transaction.serialize());
-  } catch (error) {
-    if (isUnreachable(error)) return { status: "unknown", signature, lastValidBlockHeight };
-    return { status: "not-sent", reason: error instanceof Error ? error.message.split("\n")[0]! : String(error) };
-  }
-  return payoutStatus(signature, lastValidBlockHeight, 40);
+  transaction.sign(from);
+  return { signature: bs58.encode(transaction.signature!), lastValidBlockHeight: latest.lastValidBlockHeight, raw: transaction.serialize() };
 }
 
-/** Looks a sent payout up until it lands, its window closes, or the chain stops answering. */
+/** True when the node refused the transaction before broadcasting it, or was never reached at all: it cannot land. */
+function certainlyNotSent(error: unknown): boolean {
+  const text = `${error instanceof Error ? `${error.name} ${error.message}` : String(error)} ${error instanceof Error && error.cause instanceof Error ? error.cause.message : ""}`;
+  return /simulation failed|Blockhash not found|ECONNREFUSED|ENOTFOUND/i.test(text);
+}
+
+/**
+ * Sends a prepared payout and waits for it. Only a refusal before broadcast counts as "not sent". Anything
+ * else that goes wrong (a timeout, a bad answer, a dropped connection) may have happened after the node took
+ * the transaction, so the outcome is "unknown" and is settled later from the chain.
+ */
+export async function sendPayout(prepared: PreparedPayout): Promise<PayoutOutcome> {
+  try {
+    // Preflight simulates first: a payout that would fail is refused here and never sent.
+    await connection().sendRawTransaction(prepared.raw);
+  } catch (error) {
+    if (certainlyNotSent(error)) return { status: "not-sent", reason: error instanceof Error ? error.message.split("\n")[0]! : String(error) };
+    return { status: "unknown", signature: prepared.signature, lastValidBlockHeight: prepared.lastValidBlockHeight };
+  }
+  return payoutStatus(prepared.signature, prepared.lastValidBlockHeight, 40);
+}
+
+/** Looks a sent payout up until it lands, its window closes, or the chain stops answering. Never throws: what cannot be learned is "unknown". */
 export async function payoutStatus(signature: string, lastValidBlockHeight: number, attempts: number): Promise<PayoutOutcome> {
   const chain = connection();
   for (let attempt = 0; attempt < attempts; attempt++) {
     try {
+      // The height is read first. If it is already past the transaction's last valid block and the chain then
+      // has no record of it, it can never land. Read the other way round, it could land between the two reads.
+      const height = await chain.getBlockHeight("confirmed");
       const status = (await chain.getSignatureStatus(signature, { searchTransactionHistory: true })).value;
       if (status?.err) return { status: "not-sent", reason: "the payout failed on-chain" };
       if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return { status: "landed", signature };
-      if (!status && (await chain.getBlockHeight("confirmed")) > lastValidBlockHeight)
-        return { status: "not-sent", reason: "the payout expired before it landed" };
-    } catch (error) {
-      if (!isUnreachable(error)) throw error;
+      if (!status && height > lastValidBlockHeight) return { status: "not-sent", reason: "the payout expired before it landed" };
+    } catch {
       return { status: "unknown", signature, lastValidBlockHeight };
     }
     await new Promise((resolve) => setTimeout(resolve, 400));

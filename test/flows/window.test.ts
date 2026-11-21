@@ -3,13 +3,14 @@
  * here are about money: what is committed is exactly what is held, what is bought is exactly
  * what is shared out, and nothing can be changed while a launch may still land.
  */
+import { Keypair, PublicKey, SystemProgram, Transaction, TransactionInstruction, sendAndConfirmTransaction } from "@solana/web3.js";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { NATIVE } from "../../lib/constants";
 import { newActor } from "../../lib/keys";
 import type { RingClient } from "../../lib/sdk";
 import { ring } from "../../lib/server/ring";
 import { state } from "../../lib/server/store";
-import { WINDOW_CAP_LAMPORTS } from "../../lib/server/windows";
+import { WINDOW_CAP_LAMPORTS, refresh, windows } from "../../lib/server/windows";
 import { signTransaction } from "../../lib/sign";
 import { signRequest } from "../../lib/auth";
 import { signMessage } from "../../lib/keys";
@@ -204,7 +205,8 @@ describe("while a launch may still land", () => {
     await expect(mara.uncommitFromWindow(window.id)).rejects.toThrow(/launching/);
     // The creator never signs it. Once its blockhash is too old for the chain to accept, nothing can land any more.
     const expires = state().windows.find((seen) => seen.id === window.id)!.launching!.lastValidBlockHeight;
-    while ((await chain.getBlockHeight("confirmed")) <= expires) await new Promise((resolve) => setTimeout(resolve, 2000));
+    // It is given up on a margin of blocks later still, so that had it landed it would certainly be confirmed and seen.
+    while ((await chain.getBlockHeight("confirmed")) <= expires + 40) await new Promise((resolve) => setTimeout(resolve, 2000));
     await mara.uncommitFromWindow(window.id);
     expect(await mara.ringBalance(NATIVE)).toBe(before + SOL / 10n);
     expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!.status).toBe("open");
@@ -225,5 +227,92 @@ describe("while a launch may still land", () => {
     await expect(call("tx/send", { transaction: bytes.toString("base64") })).rejects.toThrow();
     expect(await escrowOnChain(coin.address)).toBe(0n);
     expect(committed(window.id)).toBe(SOL / 10n);
+  });
+});
+
+describe("attacks on a window by its own creator", () => {
+  const signedBuild = async (id: string, mint: string) =>
+    call("window/launch/build", await signRequest("window/launch/build", creator.address, { id, mint }, (message) => signMessage(creator.wallet, message)));
+
+  it("is not fooled by another transaction that merely names the coin: the pool stays put until the real launch lands", async () => {
+    const window = await creator.openWindow({ name: "Decoy", symbol: "DECOY", hours: 1 });
+    await mara.commitToWindow(window.id, SOL / 10n);
+    await ilya.commitToWindow(window.id, SOL / 10n);
+    closeNow(window.id);
+    const coin = newActor();
+    const built = await signedBuild(window.id, coin.address);
+
+    // The creator lands a transaction of their own that lists the coin's address, and asks the server to settle it,
+    // hoping it is taken for the launch: an empty "launch" would hand the SOL back while the real one still spends it.
+    const decoy = new Transaction().add(
+      new TransactionInstruction({
+        programId: SystemProgram.programId,
+        keys: [
+          { pubkey: new PublicKey(creator.address), isSigner: true, isWritable: true },
+          { pubkey: new PublicKey(creator.address), isSigner: false, isWritable: true },
+          { pubkey: new PublicKey(coin.address), isSigner: false, isWritable: false },
+        ],
+        data: SystemProgram.transfer({ fromPubkey: new PublicKey(creator.address), toPubkey: new PublicKey(creator.address), lamports: 1 }).data,
+      }),
+    );
+    const decoySignature = await sendAndConfirmTransaction(chain, decoy, [Keypair.fromSeed(creator.wallet.seed)]);
+    await call("ring/credit", { signature: decoySignature });
+    expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!.status).toBe("launching");
+    expect(committed(window.id)).toBe(SOL / 5n);
+    await expect(mara.uncommitFromWindow(window.id)).rejects.toThrow(/launching/);
+
+    // The real launch then lands and is settled as what it is: the coins go to the committers, none to the creator.
+    const sent = await call("tx/send", { transaction: signTransaction(built.transaction, [creator.wallet.seed, coin.seed]) });
+    const received = await escrowOnChain(coin.address);
+    expect((await mara.ringBalance(coin.address)) + (await ilya.ringBalance(coin.address))).toBe(received);
+    expect(await creator.ringBalance(coin.address)).toBe(0n);
+    expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!).toMatchObject({ status: "launched", signature: sent.signature });
+    await expectCovered(coin.address);
+    await expectCovered(NATIVE);
+  });
+
+  it("never credits the fee payer with coins that arrived in a transaction escrow itself signed", async () => {
+    const window = await creator.openWindow({ name: "Orphan", symbol: "ORPH", hours: 1 });
+    await mara.commitToWindow(window.id, SOL / 10n);
+    closeNow(window.id);
+    const coin = newActor();
+    const built = await signedBuild(window.id, coin.address);
+    // As if a bug had let the window forget its launch: the transaction lands with no window waiting for it.
+    const stored = state().windows.find((seen) => seen.id === window.id)!;
+    const lock = stored.launching;
+    stored.status = "open";
+    delete stored.launching;
+    await call("tx/send", { transaction: signTransaction(built.transaction, [creator.wallet.seed, coin.seed]) });
+    expect(await escrowOnChain(coin.address)).toBeGreaterThan(0n);
+    expect(await creator.ringBalance(coin.address)).toBe(0n); // the coins are nobody's rather than the creator's
+    // Put right by hand for the checks that follow: the window is filled as it should have been.
+    stored.status = "launching";
+    stored.launching = lock;
+    state().credited = state().credited.filter((signature) => !state().coins.some((listed) => listed.mint === coin.address && listed.signature === signature));
+    await call("ring/reconcile", {});
+    expect(await mara.ringBalance(coin.address)).toBe(await escrowOnChain(coin.address));
+    await expectCovered(NATIVE);
+  });
+
+  it("does not let an older check undo a newer lock, and frees a lock left behind by a crash mid-build", async () => {
+    const window = await creator.openWindow({ name: "Locks", symbol: "LOCKS", hours: 1 });
+    await mara.commitToWindow(window.id, SOL / 10n);
+    closeNow(window.id);
+    const stored = state().windows.find((seen) => seen.id === window.id)!;
+    // A lock is taken; before its transaction is recorded the window is unlocked and locked again by a second launch.
+    const first = windows.lockForLaunch(window.id, creator.address, newActor().address);
+    windows.launchNotBuilt(stored, first.lock);
+    const second = windows.lockForLaunch(window.id, creator.address, newActor().address);
+    expect(() => windows.launchBuilt(stored, first.lock, "stale-signature", 1)).toThrow(/changed while its launch was being made/);
+    expect(stored.launching).toBe(second.lock);
+    // While this process is making the transaction, nothing unlocks it.
+    await refresh(stored, () => Promise.resolve());
+    expect(stored.status).toBe("launching");
+    // After a restart the half-made lock belongs to no one: no transaction was ever handed out, so the window opens again.
+    restartServer();
+    await call("window/list", {});
+    expect(state().windows.find((seen) => seen.id === window.id)!.status).toBe("open");
+    await mara.uncommitFromWindow(window.id);
+    await expectCovered(NATIVE);
   });
 });

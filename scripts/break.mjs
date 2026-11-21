@@ -7,7 +7,7 @@ import { execSync, spawn } from "node:child_process";
 import { cpSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import { NATIVE } from "../lib/constants.ts";
-import { formatCoin } from "../lib/format.ts";
+import { formatCoin, parseAmount } from "../lib/format.ts";
 import { payLink } from "../lib/paylink.ts";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -281,7 +281,8 @@ await check("two tabs on one wallet: a deposit made in one shows in the other wh
   await page.waitForFunction(
     (want) =>
       [...document.querySelectorAll("table.plain tbody tr")].some((row) => row.cells[0].innerText.trim() === "SOL" && row.cells[2].innerText.trim() === want),
-    before,
+    // Back where it started, less the network fee for the payout, which the withdrawing wallet pays.
+    formatCoin(NATIVE, parseAmount(before, 9) - 5_000n),
     { timeout: 15000 },
   );
 });

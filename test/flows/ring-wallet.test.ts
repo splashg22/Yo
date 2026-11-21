@@ -7,6 +7,8 @@ import { newActor, signMessage } from "../../lib/keys";
 import { openNote } from "../../lib/notes";
 import { parsePayLink, payLink } from "../../lib/paylink";
 import { RingClient } from "../../lib/sdk";
+import { PAYOUT_FEE_LAMPORTS } from "../../lib/server/escrow";
+import { ring } from "../../lib/server/ring";
 import { state, storedText } from "../../lib/server/store";
 import { SOL, call, escrowOnChain, expectCovered, freshServer, fundedClient, logsOf, onChain, restartServer } from "./helpers";
 
@@ -137,10 +139,19 @@ describe("notes on a transfer", () => {
 describe("withdraw", () => {
   it.each([1, 2])("pays coins out of escrow to the wallet on-chain, publicly (run %i)", async () => {
     const ringBefore = await holder.ringBalance(mint),
+      solBefore = await holder.ringBalance(NATIVE),
       walletBefore = await onChain(holder.address, mint);
     const result = await holder.withdraw(mint, 2_000_000n);
     expect(result.pending).toBe(false);
-    expect(result.event.public).toEqual({ wallet: holder.address, destination: holder.address, coin: mint, amount: "2000000" });
+    // The wallet already holds this coin, so the only cost is the network fee, taken from its Ring SOL.
+    expect(result.event.public).toEqual({
+      wallet: holder.address,
+      destination: holder.address,
+      coin: mint,
+      amount: "2000000",
+      cost: PAYOUT_FEE_LAMPORTS.toString(),
+    });
+    expect(await holder.ringBalance(NATIVE)).toBe(solBefore - PAYOUT_FEE_LAMPORTS);
     await logsOf(result.signature); // it is on the chain and did not fail
     expect(await onChain(holder.address, mint)).toBe(walletBefore + 2_000_000n);
     expect(await holder.ringBalance(mint)).toBe(ringBefore - 2_000_000n);
@@ -154,6 +165,43 @@ describe("withdraw", () => {
     await holder.withdraw(NATIVE, SOL, other);
     expect(await onChain(other, NATIVE)).toBe(SOL);
     await expectCovered(NATIVE);
+  });
+
+  it("charges the withdrawing wallet what the payout costs escrow, to the lamport, so escrow's own SOL is never run down", async () => {
+    // What escrow holds beyond what the ledger owes is its own working money. A payout must leave it untouched.
+    const spare = async () => (await escrowOnChain(NATIVE)) - ring.total(NATIVE);
+    const before = { spare: await spare(), sol: await holder.ringBalance(NATIVE) };
+    const fresh = newActor().address; // has never held the coin: its token account has to be opened and paid for
+    const first = await holder.withdraw(mint, 1n, fresh);
+    const cost = BigInt(first.event.public.cost!);
+    expect(cost).toBeGreaterThan(PAYOUT_FEE_LAMPORTS + 1_000_000n); // the fee plus real rent
+    expect(await onChain(fresh, mint)).toBe(1n);
+    expect(await holder.ringBalance(NATIVE)).toBe(before.sol - cost);
+    expect(await spare()).toBe(before.spare);
+    // A second payout to the same wallet opens nothing, so it costs the fee alone.
+    const second = await holder.withdraw(mint, 1n, fresh);
+    expect(second.event.public.cost).toBe(PAYOUT_FEE_LAMPORTS.toString());
+    expect(await spare()).toBe(before.spare);
+    // SOL: the fee is charged on top of the amount.
+    const solBefore = await holder.ringBalance(NATIVE);
+    await holder.withdraw(NATIVE, 1_000_000n, fresh);
+    expect(await holder.ringBalance(NATIVE)).toBe(solBefore - 1_000_000n - PAYOUT_FEE_LAMPORTS);
+    expect(await spare()).toBe(before.spare);
+    await expectCovered(mint);
+  });
+
+  it("refuses a withdrawal the wallet cannot pay the cost of, and moves nothing", async () => {
+    const poor = await fundedClient();
+    await poor.register();
+    await holder.transfer(poor.address, mint, 10n); // coins in the Ring, but no SOL there
+    await expect(poor.withdraw(mint, 5n)).rejects.toThrow(/needs a little SOL to pay for this withdrawal/);
+    expect(await poor.ringBalance(mint)).toBe(10n);
+    expect(await onChain(poor.address, mint)).toBe(0n);
+    // Withdrawing every lamport of SOL leaves nothing for the fee: the most that can leave is the balance less the fee.
+    await poor.deposit(NATIVE, 1_000_000n);
+    await expect(poor.withdraw(NATIVE, 1_000_000n)).rejects.toThrow(/Ring balance is too low/);
+    await poor.withdraw(NATIVE, 1_000_000n - PAYOUT_FEE_LAMPORTS);
+    expect(await poor.ringBalance(NATIVE)).toBe(0n);
   });
 
   it("refuses too much or a malformed destination, and a failed attempt changes nothing", async () => {
@@ -183,7 +231,7 @@ describe("no wallet needed", () => {
   it("a key made in the browser, restored from its encrypted backup, is funded at its address and uses the Ring", async () => {
     const made = newActor();
     const restored = decryptBackup(
-      JSON.parse(JSON.stringify(encryptBackup(made, "correct horse battery", { N: 2 ** 14, r: 8, p: 1 }))),
+      JSON.parse(JSON.stringify(encryptBackup(made, "correct horse battery", { N: 2 ** 15, r: 8, p: 1 }))),
       "correct horse battery",
     );
     expect(restored.address).toBe(made.address);

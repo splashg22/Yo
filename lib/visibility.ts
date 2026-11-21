@@ -103,6 +103,19 @@ export const VISIBILITY: Visibility[] = [
       real: false,
     },
   },
+  {
+    id: "sealed-window",
+    action: "Commit to a sealed launch window",
+    public: ["Your wallet", "That you committed to this window", "The window's total, when it launches", "The launch and its first buy, with the amount"],
+    encrypted: ["How much you committed", "How many coins you received"],
+    note: "A commitment is a transfer between Ring balances, so both ends are public. The feature is switched off unless the operator turns it on, because it holds buyers' funds.",
+    proof: {
+      today:
+        "Signed requests to the stand-in, which holds the committed SOL in its escrow wallet and can read every amount. The stand-in does not publish who committed. The launch is one public transaction.",
+      source: "lib/server/windows.ts",
+      real: false,
+    },
+  },
 ];
 
 /** Words the Default Ring does not deliver. A test fails if the site uses them. */

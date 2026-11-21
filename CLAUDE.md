@@ -32,6 +32,17 @@ All media in `brand/` is a stand-in drawn in code. See `brand/README.md`.
 - Only stop for the owner on: money, keys, mainnet, custody of user funds, or a choice that
   cannot be reversed. Otherwise make the sensible call and add a row to `DECISIONS.md`.
 
+## Switches
+
+Anything that changes what the product is sits behind one setting with a safe default, and
+`npm run doctor` reports them: `RING_NETWORK`, `DATABASE_URL`, `PINATA_JWT`,
+`PREVIEW_PASSWORD`, `FEATURE_SEALED_WINDOW`. A path that has only been run against a
+stand-in is marked "not verified" in the code, in `README.md` and in `TEST-REPORT.md`, and
+stays marked until it has run against the real service.
+
+With Postgres, `save()` only queues the write. Await `durable()` before anything that
+cannot be undone (a payout); `run()` awaits it before every answer.
+
 ## Money rules
 
 - An amount is a whole number of base units: `bigint` in code, a decimal string on the
@@ -101,6 +112,9 @@ npm run crawl        # browser: every page, every control
 npm run break        # browser: bad input, double clicks, declined signature, dead chain
 npm run motion       # browser: the scroll sequence and background under hard conditions
 npm run scan         # secrets in served files and git history
+npm run window       # browser: the sealed launch window with its flag on
+npm run test:flows:pg  # the flow tests with the state in a real local Postgres
+npm run doctor       # what is ready, what is missing; prints no secret
 npm run measure      # page weight, load time, layout shift
 npm run media        # after changing anything in brand/: frames, sized stills, link preview
 npm run standins     # redraws the stand-in media. Do NOT run once real media is in brand/
@@ -135,7 +149,16 @@ lib/server/transactions.ts     building unsigned transactions; submitting signed
 lib/server/escrow.ts           MOCK: the escrow wallet behind Ring balances
 lib/server/ring.ts             MOCK: the Ring ledger
 lib/server/settle.ts           crediting what the chain shows; reconciling
-lib/server/bootstrap.ts        one-off set-up of a fresh local chain; the faucet
+lib/server/bootstrap.ts        one-off set-up of a fresh local chain; the faucet; the lookup table
+lib/server/database.ts         Postgres as the state store (DATABASE_URL): one writer, versioned writes
+lib/server/windows.ts          the sealed launch window (FEATURE_SEALED_WINDOW): pools funds, off by default
+lib/server/pictures.ts         coin pictures: cleaned on upload, kept on disk or on IPFS (PINATA_JWT)
+lib/server/opskey.ts           the devnet-only operator key that pays for the lookup table
+lib/server/limit.ts            requests per address per minute
+lib/notes.ts                   notes sealed in the browser with libsodium
+lib/linkability.ts             warnings before a withdrawal that is easy to link to a deposit
+proxy.ts                       the private-preview password (PREVIEW_PASSWORD)
+app/health, app/u/[name]       the health check; stored pictures served by hash name only
 lib/server/operations/         the operations, grouped: market, ring, otc, system
 components/pages/              one component per app page
 components/ui/                 shared pieces: confirm step, status line, address, lists

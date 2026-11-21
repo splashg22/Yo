@@ -22,7 +22,17 @@ const SIDE = 512;
 export const STORED_NAME = /^[a-f0-9]{24}\.(webp|json)$/;
 
 /** Decodes an upload and returns it redrawn as a square WebP. Refuses anything that is not a still or animated raster image. */
-export async function cleanPicture(base64: string): Promise<Buffer> {
+/** Pictures are decoded one at a time, so a burst of uploads cannot multiply the memory decoding takes. */
+let decoding: Promise<unknown> = Promise.resolve();
+const MAX_PIXELS = 16_000_000;
+
+export function cleanPicture(base64: string): Promise<Buffer> {
+  const next = decoding.then(() => cleanOne(base64));
+  decoding = next.catch(() => undefined);
+  return next;
+}
+
+async function cleanOne(base64: string): Promise<Buffer> {
   if (!/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) throw new Error("the picture did not arrive intact");
   const original = Buffer.from(base64, "base64");
   if (original.length === 0) throw new Error("the picture is empty");
@@ -30,13 +40,13 @@ export async function cleanPicture(base64: string): Promise<Buffer> {
   let format: string | undefined;
   try {
     // A pixel limit, so a small file that unpacks to an enormous image cannot exhaust the server's memory.
-    format = (await sharp(original, { limitInputPixels: 40_000_000 }).metadata()).format;
+    format = (await sharp(original, { limitInputPixels: MAX_PIXELS }).metadata()).format;
   } catch {
     format = undefined;
   }
   if (!format || !ALLOWED.has(format)) throw new Error("the picture must be a PNG, JPEG, WebP or GIF image");
   try {
-    return await sharp(original, { limitInputPixels: 40_000_000 }).rotate().resize(SIDE, SIDE, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
+    return await sharp(original, { limitInputPixels: MAX_PIXELS }).rotate().resize(SIDE, SIDE, { fit: "cover" }).webp({ quality: 82 }).toBuffer();
   } catch {
     throw new Error("the picture could not be read");
   }

@@ -1,8 +1,8 @@
 /** The sealed launch window. Every operation refuses unless FEATURE_SEALED_WINDOW=on. See ../windows.ts. */
 import type { WindowView } from "../../contract";
-import { curveExists } from "../pump";
 import { PICTURE_MAX_BYTES, storeCoinDetails } from "../pictures";
-import { save, state, type SealedWindow } from "../store";
+import { reconcile } from "../settle";
+import { durable, save, state, type SealedWindow } from "../store";
 import { buildWindowLaunch } from "../transactions";
 import { addressOf, amountOf, plainText, text } from "../validate";
 import { LONGEST_WINDOW_HOURS, WINDOW_CAP_LAMPORTS, WINDOW_MIN_LAMPORTS, assertWindowsOn, refresh, totalOf, windowFor, windows } from "../windows";
@@ -31,7 +31,7 @@ export const windowOperations: Handlers<
 > = {
   "window/list": async () => {
     assertWindowsOn();
-    for (const window of state().windows) await refresh(window, curveExists);
+    for (const window of state().windows) await refresh(window, reconcile);
     return {
       windows: [...state().windows].reverse().map(view),
       limits: { capLamports: WINDOW_CAP_LAMPORTS.toString(), minimumLamports: WINDOW_MIN_LAMPORTS.toString(), longestHours: LONGEST_WINDOW_HOURS },
@@ -67,14 +67,14 @@ export const windowOperations: Handlers<
   "window/uncommit": async (input) => {
     assertWindowsOn();
     const body = signedBody("window/uncommit", input);
-    await refresh(windowFor(idOf(body.id)), curveExists);
+    await refresh(windowFor(idOf(body.id)), reconcile);
     return { window: view(windows.uncommit(idOf(body.id), body.wallet)) };
   },
 
   "window/cancel": async (input) => {
     assertWindowsOn();
     const body = signedBody("window/cancel", input);
-    await refresh(windowFor(idOf(body.id)), curveExists);
+    await refresh(windowFor(idOf(body.id)), reconcile);
     return { window: view(windows.cancel(idOf(body.id), body.wallet)) };
   },
 
@@ -83,15 +83,15 @@ export const windowOperations: Handlers<
     const body = signedBody("window/launch/build", input);
     const mint = addressOf(body.mint, "new coin's address");
     const window = windowFor(idOf(body.id));
-    await refresh(window, curveExists);
+    await refresh(window, reconcile);
     // Locked before anything is awaited, so nothing can be added or taken back while the transaction is being made.
-    // The height at which the lock may lapse is filled in once the transaction exists.
-    const { total } = windows.lockForLaunch(window.id, body.wallet, mint, Number.MAX_SAFE_INTEGER);
+    const { total, lock } = windows.lockForLaunch(window.id, body.wallet, mint);
     try {
       const picture = body.picture === undefined || body.picture === "" ? undefined : text(body.picture, "picture", Math.ceil((PICTURE_MAX_BYTES * 4) / 3) + 4);
       const details = await storeCoinDetails({ name: window.name, symbol: window.symbol, description: window.description, picture });
       const built = await buildWindowLaunch({ wallet: body.wallet, mint, name: window.name, symbol: window.symbol, uri: details.uri, total });
-      window.launching = { mint, lastValidBlockHeight: built.lastValidBlockHeight };
+      // Recorded, and stored, before the transaction leaves this server: it is recognised by escrow's signature when it lands.
+      windows.launchBuilt(window, lock, built.escrowSignature, built.lastValidBlockHeight);
       state().pendingLaunches[mint] = {
         wallet: body.wallet,
         name: window.name,
@@ -100,12 +100,10 @@ export const windowOperations: Handlers<
         ...(details.image ? { image: details.image } : {}),
       };
       save();
+      await durable();
       return { transaction: built.transaction };
     } catch (error) {
-      // No transaction was handed out, so there is nothing that could land: the window opens again.
-      window.status = "open";
-      delete window.launching;
-      save();
+      windows.launchNotBuilt(window, lock);
       throw error;
     }
   },
