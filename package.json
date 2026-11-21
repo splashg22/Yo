@@ -14,7 +14,10 @@
     "typecheck": "tsc --noEmit",
     "standins": "node scripts/make-standins.mjs",
     "media": "node scripts/build-media.mjs",
-    "shots": "node scripts/screenshots.mjs"
+    "shots": "node scripts/screenshots.mjs",
+    "local:fetch": "tsx scripts/probe-accounts.ts && tsx scripts/probe-ring-accounts.ts && tsx scripts/fetch-local-accounts.ts",
+    "local": "bash scripts/local-validator.sh",
+    "e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "@heliuslabs/spr": "^0.9.0-alpha",

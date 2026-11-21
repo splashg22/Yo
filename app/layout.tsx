@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
+import { WalletProvider } from "@/components/Wallet";
 import { site } from "@/site.config";
 import "./globals.css";
 
@@ -22,11 +23,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body>
         <Background />
-        <div className="shell">
-          <Header />
-          <main>{children}</main>
-          <Footer />
-        </div>
+        <WalletProvider>
+          <div className="shell">
+            <Header />
+            <main>{children}</main>
+            <Footer />
+          </div>
+        </WalletProvider>
       </body>
     </html>
   );

@@ -65,35 +65,21 @@ Not measured on a real phone. Frame pacing was measured in a headless browser wi
 CPU throttled four times: 60 frames a second once the frames have loaded. During the few
 seconds they are still arriving, scrolling shows the nearest frame that has.
 
-## Decisions I need from you
+## Steps 3 to 5: done on a local validator
 
-1. **Sealed launch window.** What you described cannot be done on a pump.fun curve. The
-   closest thing is a sealed window before the coin exists, ending in one pooled first buy.
-   Someone has to hold the pooled SOL during the window. Options:
-   - **Creator-held pool:** the launch creator's own key holds it. Simple, but buyers must
-     trust the creator, which is the trust a launchpad is meant to remove.
-   - **Platform-held pool:** our server key holds it. We become a custodian of user funds,
-     with the legal weight that carries.
-   - **Leave it out** until Rings has a production escrow path.
-   My recommendation is to leave it out of the first release and decide with legal advice.
-   A pooled purchase of a coin that does not exist yet can look like a presale.
-2. **Name.** Settled for now: RINGPAD as a working name, one line to change.
-3. **Brand media and accent colour.** The revised brief settles the style (pure black,
-   white text, one dot-matrix face, colour only from the media), so my earlier palette
-   question is closed. What is open is the media itself: generate the six items, put them
-   in `brand/` with the style screenshots, and tell me the accent colour you chose. Avoid
-   violet or purple for it, since "purple and black" is on your own avoid list.
-4. **Helius API key for devnet.** I need one to run anything. I will ask for it through
-   the secure credential form, not in chat.
-5. **Where the code lives.** This folder is inside the `Yo` repository, which is public,
-   so I have committed and pushed nothing. Tell me to push here, or give me a private
-   repository.
-6. **Reuse.** The ShadowTerminal work from earlier has tested pieces this project needs
-   (in-browser keys, encrypted local storage, wallet connection, the Rings wrapper). I plan
-   to carry those over rather than rewrite them.
+Proven on copies of the real programs: one transaction creates a pump.fun coin and
+registers it with the Ring, for both kinds of coin, with or without a first buy. That
+settles the main risk in `RESEARCH.md` section 6 as far as registration goes. Whether the
+Ring's deposits and transfers accept these coins is for the devnet pass.
 
-## What I will not claim
+Working end to end, with tests: launch, first buy into the Ring, buy and sell on the
+curve, deposit, transfer, withdraw, OTC, pay links with QR, no-wallet mode with encrypted
+backup, the privacy score, creator fees into the Ring, the privacy panel before every
+signature. See `DECISIONS.md`.
 
-Nothing on the site will say or imply that launches, buys or sells on the curve are
-private, that wallets are hidden, or that the project is audited. Section 1 of
-`RESEARCH.md` is the limit of what can be said.
+## What is left
+
+1. **Devnet pass.** Replace the mock Ring ledger with the real SDK. Needs `HELIUS_API_KEY`.
+2. **Real media** in `brand/`, then `npm run media` and re-measure two values in `site.config.ts`.
+3. **Step 6 polish** that depends on the two above, and a lawyer's read of the legal pages.
+

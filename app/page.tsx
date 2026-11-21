@@ -5,11 +5,11 @@ import { VISIBILITY } from "@/lib/visibility";
 import { site } from "@/site.config";
 
 const ADDED = [
-  ["01", "Privacy score", "Each coin shows the share of its supply held in Ring balances, and how many wallets have deposited it. Both are public facts, read from the chain.", "In build"],
-  ["02", "Pay links", "A link or QR code that asks for an amount of a coin and opens a Ring transfer with it filled in.", "In build"],
-  ["03", "No wallet needed", "A deposit address made in your browser, funded from any wallet or exchange, with an encrypted backup file you keep.", "In build"],
-  ["04", "Creator fees to your Ring", "Claiming fees is public. The claim lands in your Ring balance in the same transaction, so what you do next is encrypted.", "In build"],
-  ["05", "A privacy panel on every action", "Before you sign, one panel lists what this transaction makes public and what it encrypts.", "Live on this site"],
+  ["01", "Privacy score", "Each coin shows the share of its supply held in Ring balances, and how many wallets have deposited it. Both are public facts. The number of holders inside the Ring is encrypted and cannot be shown.", "Working on the test chain"],
+  ["02", "Pay links", "A link or QR code that asks for an amount of a coin and opens a Ring transfer with it filled in.", "Working on the test chain"],
+  ["03", "No wallet needed", "A deposit address made in your browser, funded from any wallet or exchange, with an encrypted backup file you keep.", "Working on the test chain"],
+  ["04", "Creator fees to your Ring", "Claiming fees is public. The claim lands in your Ring balance in the same transaction, so what you do next is encrypted.", "Working on the test chain"],
+  ["05", "A privacy panel on every action", "Before you sign, one panel lists what this transaction makes public and what it encrypts.", "Working on the test chain"],
   ["06", "Sealed pre-launch window", "A bonding curve cannot be paused, so a sealed window after launch is not possible. A pooled first buy before the coin exists is under review.", "Under review"],
 ] as const;
 
@@ -18,6 +18,7 @@ const PRODUCTS = [
   ["02", "Ring wallet", "/wallet", "Deposit, transfer with encrypted amounts, withdraw."],
   ["03", "Explore", "/explore", "Every coin launched here, with its market cap and how much of it sits in Rings."],
   ["04", "OTC", "/otc", "Sell a block to a named buyer at a size and price only the two of you can read."],
+  ["05", "Pay links", "/pay", "Ask for a payment by link or QR code, paid from one Ring balance to another."],
 ] as const;
 
 export default function Home() {
@@ -75,7 +76,7 @@ export default function Home() {
 
       <section className="section" aria-labelledby="products">
         <div className="wrap">
-          <h2 className="h2" id="products">Four tools</h2>
+          <h2 className="h2" id="products">Five tools</h2>
           <ul className="rows">
             {PRODUCTS.map(([n, title, href, text]) => (
               <li key={n}>

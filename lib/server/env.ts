@@ -7,7 +7,7 @@ export function settings() {
   return {
     network: network as "local" | "devnet",
     rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899",
-    dataDir: process.env.RINGPAD_DATA_DIR ?? ".data",
+    dataDir: process.env.APP_DATA_DIR ?? ".data",
     /** For the devnet pass. Unused on a local validator. */
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
   };

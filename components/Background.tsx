@@ -16,6 +16,7 @@ const VIEWS: Record<string, [number, number]> = {
   "/launch": [1.06, 0.16],
   "/wallet": [-0.06, 0.38],
   "/otc": [0.96, 0.92],
+  "/pay": [0.5, 1.3],
   "/docs": [0.04, -0.12],
   "/terms": [1.02, 0.52],
   "/privacy": [-0.02, 0.64],
@@ -65,7 +66,7 @@ export function Background() {
       if (!ctx) return;
       const home = route.current === "/";
       const phone = W < 760;
-      const target = VIEWS[route.current] ?? VIEWS["/terms"]!;
+      const target = VIEWS[route.current] ?? (route.current.startsWith("/coin/") ? VIEWS["/explore"]! : VIEWS["/terms"]!);
       if (!view) view = [target[0], target[1]];
       // Turned down on app pages, and further on phones, where text covers the whole width.
       const level = phone ? (home ? 0.3 : 0.18) : home ? 1 : 0.55;
@@ -114,7 +115,7 @@ export function Background() {
       const delta = last ? now - last : 33;
       last = now;
       clock += Math.min(delta, 100) / 1000;
-      const target = VIEWS[route.current] ?? VIEWS["/terms"]!;
+      const target = VIEWS[route.current] ?? (route.current.startsWith("/coin/") ? VIEWS["/explore"]! : VIEWS["/terms"]!);
       if (view) { view[0] += (target[0] - view[0]) * 0.035; view[1] += (target[1] - view[1]) * 0.035; }
       const started = performance.now();
       draw();

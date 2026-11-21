@@ -35,6 +35,13 @@
     "errors": []
   },
   {
+    "page": "/pay",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
     "page": "/docs",
     "device": "desktop",
     "horizontalOverflow": 0,
@@ -85,6 +92,13 @@
   },
   {
     "page": "/otc",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/pay",
     "device": "phone",
     "horizontalOverflow": 0,
     "brightestBehindText": 23,

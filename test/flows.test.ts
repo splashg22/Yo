@@ -17,7 +17,7 @@ import { run } from "../lib/server/handlers";
 import { forget } from "../lib/server/store";
 import { signTransaction } from "../lib/sign";
 
-process.env.RINGPAD_DATA_DIR = mkdtempSync(join(tmpdir(), "ringpad-test-"));
+process.env.APP_DATA_DIR = mkdtempSync(join(tmpdir(), "ringpad-test-"));
 process.env.RING_NETWORK = "local";
 forget();
 

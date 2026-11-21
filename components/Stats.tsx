@@ -8,14 +8,12 @@ interface Stats {
   reason?: string;
   launched?: number;
   registered?: number;
-  supplyInRings?: string;
   depositors?: number;
 }
 const LABELS: [keyof Stats, string][] = [
   ["launched", "Coins launched"],
   ["registered", "Registered with a Ring"],
-  ["supplyInRings", "Supply held in Rings"],
-  ["depositors", "Wallets that deposited"],
+  ["depositors", "Wallets that deposited a coin"],
 ];
 
 export function StatsRow() {
