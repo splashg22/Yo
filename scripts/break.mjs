@@ -64,6 +64,8 @@ async function makeWallet(page, faucets = 1) {
   await page.click("text=Create wallet");
   await page.waitForSelector(".kv .address", { timeout: 30000 });
   const address = await page.locator(".kv .address").first().getAttribute("title");
+  // A new wallet registers itself, with its note key, a moment after it is made. Until then it cannot be sent to.
+  await settlesNoteKey(address);
   for (let index = 0; index < faucets; index++) await app("faucet", { wallet: address });
   await page.reload();
   await page.waitForSelector("#w-amount");
@@ -590,7 +592,7 @@ await check("the chain stops answering: a second server pointed at a dead addres
     return `${heard.join(", ")}; deposit: ${said}`;
   } finally {
     process.kill(-server.pid);
-    rmSync(".data-dead", { recursive: true, force: true });
+    rmSync(".data-dead", { recursive: true, force: true, maxRetries: 10, retryDelay: 200 }); // the server may still be writing as it stops
   }
 });
 

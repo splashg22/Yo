@@ -26,7 +26,7 @@ const SHAPES = [
   [/HELIUS_API_KEY\s*[:=]\s*["'][^"']+["']/, "a Helius key assigned in code"],
 ];
 /** Made-up values the tests use to check how a key is handled. They open nothing. */
-const DUMMIES = ["test-key-not-real"];
+const DUMMIES = ["test-key-not-real", "${dummy}"]; // the second is an earlier version of this file, still in the history
 // Put together here so that this file does not itself contain the shape it looks for.
 const KEY_NAME = ["HELIUS", "API", "KEY"].join("_");
 const found = [];
