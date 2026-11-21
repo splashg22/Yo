@@ -6,7 +6,7 @@ const { chromium } = createRequire(import.meta.url)("playwright");
 const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const browser = await chromium.launch();
 const rows = [];
-for (const path of ["/", "/explore", "/wallet", "/launch", "/pay", "/docs"]) {
+for (const path of ["/", "/explore", "/terminal", "/wallet", "/launch", "/pay", "/docs"]) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
   const client = await context.newCDPSession(page);

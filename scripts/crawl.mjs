@@ -20,6 +20,7 @@ if (!coin) throw new Error("Launch a coin first (npm run e2e), so the coin and r
 const PAGES = [
   "/",
   "/explore",
+  "/terminal",
   "/launch",
   "/wallet",
   "/otc",

@@ -12,7 +12,7 @@ mkdirSync(out, { recursive: true });
 const { chromium } = createRequire(import.meta.url)("playwright");
 // CHECK_URL points the check at a deployed copy instead of one on this machine.
 const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
-const PAGES = ["/", "/explore", "/launch", "/wallet", "/otc", "/pay", "/status", "/changelog", "/docs", "/technical", "/terms", "/privacy"];
+const PAGES = ["/", "/explore", "/terminal", "/launch", "/wallet", "/otc", "/pay", "/status", "/changelog", "/docs", "/technical", "/terms", "/privacy"];
 const SIZES = { desktop: { width: 1440, height: 900, deviceScaleFactor: 1 }, phone: { width: 390, height: 844, deviceScaleFactor: 2 } };
 
 const browser = await chromium.launch();

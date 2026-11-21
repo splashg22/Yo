@@ -50,6 +50,7 @@ let pages = 0;
 for (const path of [
   "/",
   "/explore",
+  "/terminal",
   "/launch",
   "/wallet",
   "/otc",

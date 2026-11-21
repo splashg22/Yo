@@ -33,6 +33,7 @@ export const site = {
 
 export const nav = [
   { href: "/explore", label: "Explore" },
+  { href: "/terminal", label: "Terminal" },
   { href: "/launch", label: "Launch" },
   { href: "/wallet", label: "Ring wallet" },
   { href: "/otc", label: "OTC" },

@@ -306,6 +306,31 @@ await step("curve trade, three buys and a sell: the wallet figure matches the ch
   await walletMatches(ben, "buyer", NATIVE);
 });
 
+await step("terminal: the board lists the coins, a one-click buy and a typed sell match the chain, and the choice survives a reload", async () => {
+  await ben.goto(`${base}/terminal#${mint}`);
+  await settles(async () => String(await ben.locator(".board li").count()), "3", "coins on the board");
+  await ben.waitForSelector(".quick button");
+  if (!(await ben.locator(".terminal .panel").isVisible())) throw new Error("the panel saying what a curve trade makes public is not shown before the buttons");
+  const before = await onChain(addresses.buyer, mint);
+  await press(ben, "button:text-is('Buy 0.01 SOL')", /bought/);
+  const bought = await onChain(addresses.buyer, mint);
+  if (bought <= before) throw new Error("the chain shows no more coins after the one-click buy");
+  await shot(ben, "05b-terminal");
+  await ben.click(".tabs button:text-is('sell')");
+  await ben.fill("#tm-amount", "500");
+  await press(ben, "button:text-is('Sell now')", /sold/);
+  if (bought - (await onChain(addresses.buyer, mint)) !== units(mint, "500")) throw new Error("the chain did not lose exactly 500 coins");
+  const other = await ben.locator(".board button[aria-pressed='false']").first();
+  await other.click();
+  const chosen = new URL(ben.url()).hash.slice(1);
+  if (!chosen || chosen === mint) throw new Error("choosing another coin did not change the address");
+  await ben.reload();
+  await ben.waitForSelector(".board button[aria-pressed='true']");
+  if (!(await ben.locator(".terminal a[href='/coin/" + chosen + "']").count())) throw new Error("the reload did not keep the chosen coin");
+  await ben.goto(`${base}/wallet`);
+  await walletMatches(ben, "buyer", mint);
+});
+
 await step("deposit, three times: the wallet loses and the escrow gains exactly the amount, on the chain", async () => {
   await thrice(
     ben,
@@ -483,10 +508,10 @@ await step("privacy score, three times: the coin page's two figures are the chai
   if (!caption.includes(`LOW ${formatPrice(lowest)}`) || !caption.includes(`HIGH ${formatPrice(highest)}`) || !caption.includes(`READINGS ${readings.length}`))
     throw new Error(`chart caption reads "${caption}"`);
   if (highest <= lowest) throw new Error("three buys did not raise the recorded price");
-  // The coin's history on the curve: its launch, three buys and a sell, each with a receipt.
+  // The coin's history on the curve: its launch, three buys and a sell, then a buy and a sell from the terminal, each with a receipt.
   await settles(
     async () => String(await ana.locator("h2:text-is('Recent activity on the curve') ~ ul.events li a:text-is('Receipt')").count()),
-    "5",
+    "7",
     "curve transactions listed",
   );
   await shot(ana, "14-coin");
@@ -568,7 +593,7 @@ await step("the wallet locks and unlocks with the password; addresses keep their
 
 await step("phone width: every app page fits without sideways scroll", async () => {
   await ben.setViewportSize({ width: 390, height: 844 });
-  for (const path of ["/wallet", "/explore", `/coin/${mint}`, "/otc", "/pay", "/launch", "/status"]) {
+  for (const path of ["/wallet", "/explore", "/terminal", `/coin/${mint}`, "/otc", "/pay", "/launch", "/status"]) {
     await ben.goto(base + path);
     await ben.waitForTimeout(1200);
     const overflow = await ben.evaluate(() => document.documentElement.scrollWidth - innerWidth);

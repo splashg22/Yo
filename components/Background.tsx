@@ -13,6 +13,7 @@ import { useEffect, useRef } from "react";
 const VIEWS: Record<string, [number, number]> = {
   "/": [0.9, 1.04],
   "/explore": [0.08, 1.12],
+  "/terminal": [0.08, 1.12],
   "/launch": [1.06, 0.16],
   "/wallet": [-0.06, 0.38],
   "/otc": [0.96, 0.92],
@@ -81,6 +82,8 @@ export function Background() {
           ];
         return [[gutter - 20, gutter + W * 0.43]];
       }
+      // A page that uses the whole width, such as the terminal, has text everywhere: no ring is drawn behind it.
+      if (document.querySelector("[data-bg-full]")) return [[0, W]];
       const column = Math.min(MEASURE, W - 2 * gutter);
       return [[(W - column) / 2 - 28, (W + column) / 2 + 28]];
     };
