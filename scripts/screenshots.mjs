@@ -37,13 +37,19 @@ for (const [device, size] of Object.entries(SIZES)) {
       for (const el of document.querySelectorAll("h1, h2, h3, p, li, td, th, label, a, .label, dd, dt, input")) {
         const r = el.getBoundingClientRect();
         if (r.width === 0 || r.bottom < 0 || r.top > innerHeight || getComputedStyle(el).visibility === "hidden") continue;
-        const range = document.createRange(); range.selectNodeContents(el);
+        const range = document.createRange();
+        range.selectNodeContents(el);
         for (const box of range.getClientRects()) {
-          const x = Math.max(0, Math.floor(box.left * scale)), y = Math.max(0, Math.floor(box.top * scale));
-          const w = Math.min(canvas.width - x, Math.ceil(box.width * scale)), h = Math.min(canvas.height - y, Math.ceil(box.height * scale));
+          const x = Math.max(0, Math.floor(box.left * scale)),
+            y = Math.max(0, Math.floor(box.top * scale));
+          const w = Math.min(canvas.width - x, Math.ceil(box.width * scale)),
+            h = Math.min(canvas.height - y, Math.ceil(box.height * scale));
           if (w <= 0 || h <= 0) continue;
           const data = ctx.getImageData(x, y, w, h).data;
-          for (let i = 0; i < data.length; i += 4) { const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) * (data[i + 3] / 255); if (lum > worst) worst = lum; }
+          for (let i = 0; i < data.length; i += 4) {
+            const lum = (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) * (data[i + 3] / 255);
+            if (lum > worst) worst = lum;
+          }
         }
       }
       return Math.round(worst);
@@ -54,12 +60,20 @@ for (const [device, size] of Object.entries(SIZES)) {
   await page.goto(base + "/", { waitUntil: "load" });
   await page.waitForTimeout(3500);
   const pinned = await page.evaluate(() => document.querySelector(".seq").offsetHeight - innerHeight);
-  for (const [label, share] of [["1-turn", 0.26], ["2-apart", 0.5], ["3-layers", 0.9]]) {
+  for (const [label, share] of [
+    ["1-turn", 0.26],
+    ["2-apart", 0.5],
+    ["3-layers", 0.9],
+  ]) {
     await page.evaluate((y) => scrollTo(0, y), Math.round(pinned * share));
     await page.waitForTimeout(900);
     await page.screenshot({ path: join(out, `home-scroll-${label}-${device}.png`) });
   }
-  for (const [label, selector] of [["4-hidden", "#hidden"], ["5-added", "#added"], ["6-cta", "#products"]]) {
+  for (const [label, selector] of [
+    ["4-hidden", "#hidden"],
+    ["5-added", "#added"],
+    ["6-cta", "#products"],
+  ]) {
     await page.evaluate((s) => document.querySelector(s).scrollIntoView({ block: "start" }), selector);
     await page.waitForTimeout(700);
     await page.screenshot({ path: join(out, `home-scroll-${label}-${device}.png`) });

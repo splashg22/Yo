@@ -2,7 +2,7 @@
 // These are placeholders with the exact names and sizes brand/README.md asks for, so the
 // real renders can replace them with no code changes. Run: npm run standins
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -23,7 +23,10 @@ const only = process.argv[2]; // optional: "stills" or "video"
 
 const browser = await chromium.launch({ args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader", "--ignore-gpu-blocklist"] });
 const page = await browser.newPage();
-page.on("pageerror", (error) => { console.error(String(error)); process.exit(1); });
+page.on("pageerror", (error) => {
+  console.error(String(error));
+  process.exit(1);
+});
 await page.goto(`file://${join(root, "scripts", "standin-scene.html")}`);
 await page.waitForFunction("window.ready === true");
 
@@ -44,7 +47,10 @@ if (only !== "video") {
   writeFileSync(join(brand, "banner.png"), await render({ width: 3600, height: 1200, t: 0, shift: shiftFor(0.86, 3600, 1200), zoom: 2.4 }));
   console.log("banner.png");
   await sharp(readFileSync(join(root, "public", "logo.svg")), { density: 600 })
-    .resize(2048, 2048, { fit: "contain", background: "#000000" }).flatten({ background: "#000000" }).png().toFile(join(brand, "logo.png"));
+    .resize(2048, 2048, { fit: "contain", background: "#000000" })
+    .flatten({ background: "#000000" })
+    .png()
+    .toFile(join(brand, "logo.png"));
   console.log("logo.png");
 }
 
@@ -55,8 +61,26 @@ if (only !== "stills") {
     writeFileSync(join(frames, `f_${String(i).padStart(4, "0")}.png`), png);
     if (i % 12 === 0) console.log(`frame ${i + 1} of ${FRAMES}`);
   }
-  execFileSync("ffmpeg", ["-y", "-loglevel", "error", "-framerate", "24", "-i", join(frames, "f_%04d.png"),
-    "-c:v", "libx264", "-preset", "slow", "-crf", "14", "-pix_fmt", "yuv420p", "-movflags", "+faststart", join(brand, "hero.mp4")]);
+  execFileSync("ffmpeg", [
+    "-y",
+    "-loglevel",
+    "error",
+    "-framerate",
+    "24",
+    "-i",
+    join(frames, "f_%04d.png"),
+    "-c:v",
+    "libx264",
+    "-preset",
+    "slow",
+    "-crf",
+    "14",
+    "-pix_fmt",
+    "yuv420p",
+    "-movflags",
+    "+faststart",
+    join(brand, "hero.mp4"),
+  ]);
   rmSync(frames, { recursive: true });
   console.log("hero.mp4");
 }

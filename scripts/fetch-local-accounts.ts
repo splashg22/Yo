@@ -13,13 +13,26 @@ mkdirSync("local/accounts", { recursive: true });
 
 async function save(key: string, patch?: (data: Buffer) => void) {
   const info = await connection.getAccountInfo(new PublicKey(key));
-  if (!info) { console.log("not on devnet, skipped:", key); return null; }
+  if (!info) {
+    console.log("not on devnet, skipped:", key);
+    return null;
+  }
   const data = Buffer.from(info.data);
   patch?.(data);
-  writeFileSync(`local/accounts/${key}.json`, JSON.stringify({
-    pubkey: key,
-    account: { lamports: info.lamports, data: [data.toString("base64"), "base64"], owner: info.owner.toBase58(), executable: info.executable, rentEpoch: 0, space: data.length },
-  }));
+  writeFileSync(
+    `local/accounts/${key}.json`,
+    JSON.stringify({
+      pubkey: key,
+      account: {
+        lamports: info.lamports,
+        data: [data.toString("base64"), "base64"],
+        owner: info.owner.toBase58(),
+        executable: info.executable,
+        rentEpoch: 0,
+        space: data.length,
+      },
+    }),
+  );
   return info;
 }
 
