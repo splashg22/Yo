@@ -1,8 +1,8 @@
 // Page weight and load time for the main pages, as a browser sees them (cold cache).
-// Needs a server on PORT (default 3311). Prints one line per page.
+// Needs a server on PORT (default 4711). Prints one line per page.
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const browser = await chromium.launch();
 const rows = [];
 for (const path of ["/", "/explore", "/wallet", "/launch", "/pay", "/docs"]) {

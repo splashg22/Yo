@@ -13,7 +13,7 @@ let ana: string, ben: string;
 beforeEach(() => {
   process.env.APP_DATA_DIR = mkdtempSync(join(tmpdir(), "ring-ledger-"));
   process.env.RING_NETWORK = "local";
-  process.env.LOCAL_RPC_URL = "http://127.0.0.1:8899";
+  process.env.LOCAL_RPC_URL = "http://127.0.0.1:8799";
   forget();
   ana = newActor().address;
   ben = newActor().address;

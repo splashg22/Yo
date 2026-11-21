@@ -96,7 +96,7 @@ warnings, Prettier. No UI library, no icon library. `README.md` lists every depe
 npm run check        # typecheck, lint, format check, all tests. Run before every commit.
 npm run test:site    # unit tests, no chain
 npm run test:flows   # flow tests on the local validator (started if not running)
-npm run e2e          # browser: every flow, against a built site on port 3311 and a FRESH validator
+npm run e2e          # browser: every flow, against a built site on port 4711 and a FRESH validator
 npm run crawl        # browser: every page, every control
 npm run break        # browser: bad input, double clicks, declined signature, dead chain
 npm run motion       # browser: the scroll sequence and background under hard conditions

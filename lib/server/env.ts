@@ -17,7 +17,7 @@ export function settings(): Settings {
   if (!Number.isInteger(rpcTimeoutMs) || rpcTimeoutMs < 100) throw new Error("RPC_TIMEOUT_MS must be a whole number of milliseconds, 100 or more");
   return {
     network,
-    rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899",
+    rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799",
     dataDir: process.env.APP_DATA_DIR ?? ".data",
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
     rpcTimeoutMs,

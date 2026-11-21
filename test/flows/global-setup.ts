@@ -2,7 +2,7 @@
 import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 
-const URL_ = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899";
+const URL_ = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
 async function healthy(): Promise<boolean> {
   try {
     const response = await fetch(URL_, {

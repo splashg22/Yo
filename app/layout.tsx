@@ -6,7 +6,7 @@ import { site } from "@/site.config";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:3000"),
+  metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:4710"),
   title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
   icons: { icon: "/logo.svg" },

@@ -1,14 +1,14 @@
 /**
  * A runnable example: two wallets, a launch, a deposit and a Ring transfer, from a script.
  * Needs the local validator and the site running:  npm run local  and  npm run dev
- * Then:  npm run example            (set SITE_URL if the site is not on port 3000)
+ * Then:  npm run example            (set SITE_URL if the site is not on port 4710)
  */
 import { NATIVE } from "../lib/constants";
 import { formatCoin, formatSol } from "../lib/format";
 import { newActor } from "../lib/keys";
 import { RingClient, httpTransport } from "../lib/sdk";
 
-const transport = httpTransport(process.env.SITE_URL ?? "http://localhost:3000");
+const transport = httpTransport(process.env.SITE_URL ?? "http://localhost:4710");
 const mara = new RingClient(transport, newActor());
 const ilya = new RingClient(transport, newActor());
 
@@ -27,4 +27,4 @@ const sent = await mara.transfer(ilya.address, coin.mint, 250_000_000_000n, "for
 console.log("public part of the transfer:", sent.public);
 console.log(`Ilya's Ring balance: ${formatCoin(coin.mint, await ilya.ringBalance(coin.mint))} LNTRN`);
 console.log(`Mara's wallet still holds ${formatSol(await mara.publicBalance(NATIVE))} in public`);
-console.log(`receipt: ${process.env.SITE_URL ?? "http://localhost:3000"}/tx/${coin.signature}`);
+console.log(`receipt: ${process.env.SITE_URL ?? "http://localhost:4710"}/tx/${coin.signature}`);

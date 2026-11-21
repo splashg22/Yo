@@ -1,11 +1,11 @@
 // Looks for anything secret in what the site serves and in the repository's history:
 // the server's local keys, environment values, and anything shaped like a key.
-// Needs a build (.next) and, for the served pages, a server on PORT (default 3311). Run: npm run scan
+// Needs a build (.next) and, for the served pages, a server on PORT (default 4711). Run: npm run scan
 import { execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const needles = new Map();
 // The server's own local keys: any 12 consecutive bytes of one, as text, would give it away.
 for (const file of existsSync(".data") ? readdirSync(".data").filter((name) => name.endsWith(".json") && name !== "state.json") : []) {

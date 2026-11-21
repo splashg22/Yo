@@ -14,7 +14,7 @@ import { run } from "../../lib/server/handlers";
 import { ring } from "../../lib/server/ring";
 import { forget } from "../../lib/server/store";
 
-export const RPC_URL = "http://127.0.0.1:8899";
+export const RPC_URL = "http://127.0.0.1:8799";
 export const SOL = 1_000_000_000n;
 export const RING_PROGRAM = "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW";
 export const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";

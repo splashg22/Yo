@@ -175,7 +175,7 @@ export default function Docs() {
         <pre className="code">{`npm install
 npm run local:fetch   # once: copies the programs from devnet
 npm run local         # the local test chain
-npm run dev           # this site, on http://localhost:3000
+npm run dev           # this site, on http://localhost:4710
 npm run example       # launches a coin and makes a Ring transfer, from a script`}</pre>
         <div className="prose">
           <p>

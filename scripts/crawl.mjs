@@ -5,12 +5,12 @@
 // - checks that every internal link leads somewhere
 // - submits every form empty and expects a message
 // Needs the validator, at least one launched coin (npm run e2e leaves three) and a server
-// on PORT (default 3311). Writes shots/crawl.json. Run: npm run crawl
+// on PORT (default 4711). Writes shots/crawl.json. Run: npm run crawl
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const post = async (op, input = {}) =>
   (await fetch(`${base}/api/${op}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) })).json();
 

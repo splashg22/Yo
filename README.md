@@ -19,7 +19,7 @@ at `/opt/solana/bin`, set `SOLANA_BIN` to the folder that holds them.
 npm ci
 npm run local:fetch     # once, needs network: copies pump.fun and the Rings programs from devnet
 npm run local           # the local validator, in its own terminal
-npm run dev             # http://localhost:3000
+npm run dev             # http://localhost:4710
 ```
 
 Open Ring wallet, make a wallet with a password, press "Get test SOL", then Launch.
@@ -27,6 +27,23 @@ Open Ring wallet, make a wallet with a password, press "Get test SOL", then Laun
 Configuration is in one place: environment variables, read by `lib/server/env.ts` and
 listed in `.env.example`. The Helius key for the later devnet pass is `HELIUS_API_KEY`
 and is only ever read on the server.
+
+## Ports and folders
+
+Everything the launchpad uses is its own, so it can run beside any other project:
+
+| What | Where |
+| --- | --- |
+| The site in development (`npm run dev`, `npm run start`) | port 4710 |
+| The built site the browser checks drive | port 4711 |
+| A second site the dead-chain check starts and stops | port 4712 |
+| Local validator: RPC, websocket | ports 8799, 8800 (`LOCAL_RPC_PORT`) |
+| Local validator: faucet, gossip, its other sockets | ports 9799, 8701, 8710 to 8740 |
+| Validator ledger and copied programs | `local/ledger/`, `local/accounts/` in this folder |
+| Server state and the mock escrow's local key | `.data/` in this folder (`APP_DATA_DIR`) |
+
+No key, program ID, token mint, package, config or `.env` is shared with any other
+project. The local keys are made on first run inside `.data/` and are never committed.
 
 ## Check it
 
@@ -40,7 +57,7 @@ The browser checks drive the built site. Start from a fresh validator and an emp
 `.data/` folder, so that the first launch also proves the local set-up:
 
 ```bash
-npm run build && npm run start -- -p 3311 &
+npm run build && npm run start -- -p 4711 &
 npm run e2e             # 16 steps as two people: every flow twice and once after a reload,
                         # each balance on screen compared with a direct read of the chain
 npm run crawl           # every page, two widths, with and without a wallet: every control clicked

@@ -1,15 +1,15 @@
 // Drives the real pages in a browser, as two people, against the local validator.
 // Every flow is run twice in a row and a third time after a page reload, and after each
 // action the balances on screen are compared with balances read straight from the chain.
-// Needs the validator and `npm run start -- -p 3311`. Run: npm run e2e
+// Needs the validator and `npm run start -- -p 4711`. Run: npm run e2e
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
 import { formatCoin, formatShare, parseAmount } from "../lib/format.ts";
 import { NATIVE, decimalsOf } from "../lib/constants.ts";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
-const rpcUrl = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899";
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+const rpcUrl = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
 const PASSWORD = "correct horse battery";
 mkdirSync("shots/app", { recursive: true });
 

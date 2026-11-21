@@ -1,12 +1,12 @@
 // Checks the homepage scroll sequence and the site-wide background under hard conditions:
 // a slow phone, reduced motion, a hidden tab, very tall, very narrow and very short windows,
 // and fast scrolling. Looks for jumps, blank frames and dropped text.
-// Needs a server on PORT (default 3311). Run: npm run motion
+// Needs a server on PORT (default 4711). Run: npm run motion
 import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const media = JSON.parse(readFileSync("lib/media.json", "utf8"));
 const END_OF_MOTION = 0.74; // as in components/Sequence.tsx
 

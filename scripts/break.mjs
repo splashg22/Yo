@@ -2,7 +2,7 @@
 // clicks, a declined signature, a reload in the middle of an action, a frozen chain, a dead
 // chain, a dead server, no wallet, an empty account. Each must give a clear message, and
 // after all of it the escrow on the chain must still hold exactly what Ring balances add up to.
-// Needs the validator, a server on PORT (default 3311), and one launched coin. Run: npm run break
+// Needs the validator, a server on PORT (default 4711), and one launched coin. Run: npm run break
 import { execSync, spawn } from "node:child_process";
 import { cpSync, rmSync } from "node:fs";
 import { createRequire } from "node:module";
@@ -12,8 +12,8 @@ import { payLink } from "../lib/paylink.ts";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
 const bs58 = createRequire(import.meta.url)("bs58").default;
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
-const rpcUrl = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899";
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+const rpcUrl = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
 const PASSWORD = "correct horse battery";
 
 async function rpc(method, params) {
@@ -409,7 +409,7 @@ await check("the site's own server stops answering: pages say so and offer a ret
 });
 
 await check("the chain stops answering: a second server pointed at a dead address explains it on every page within its time limit", async () => {
-  const port = 3312;
+  const port = 4712;
   cpSync(".data", ".data-dead", { recursive: true }); // the same coins and balances, so there is something the chain is needed for
   const server = spawn("npx", ["next", "start", "-p", String(port)], {
     env: { ...process.env, LOCAL_RPC_URL: "http://127.0.0.1:1", RPC_TIMEOUT_MS: "1500", APP_DATA_DIR: ".data-dead" },

@@ -1,6 +1,6 @@
 // Screenshots of every page at desktop and phone width, plus the homepage at each scroll
 // step, and a check that the background stays dark behind text. Needs `npm run build` and
-// a server on PORT (default 3311): npm run start -- -p 3311
+// a server on PORT (default 4711): npm run start -- -p 4711
 import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
@@ -10,7 +10,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const out = join(root, "shots");
 mkdirSync(out, { recursive: true });
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
+const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const PAGES = ["/", "/explore", "/launch", "/wallet", "/otc", "/pay", "/status", "/changelog", "/docs", "/terms", "/privacy"];
 const SIZES = { desktop: { width: 1440, height: 900, deviceScaleFactor: 1 }, phone: { width: 390, height: 844, deviceScaleFactor: 2 } };
 

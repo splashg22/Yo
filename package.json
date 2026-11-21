@@ -7,9 +7,9 @@
     "node": ">=22.12"
   },
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 4710",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 4710",
     "test": "npm run test:site && npm run test:flows",
     "typecheck": "tsc --noEmit",
     "standins": "node scripts/make-standins.mjs",
