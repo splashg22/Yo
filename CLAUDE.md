@@ -20,6 +20,10 @@ All media in `brand/` is a stand-in drawn in code. See `brand/README.md`.
   mainnet key, never point a default RPC at mainnet, unless the owner asks in so many words.
 - No custody of user funds beyond the local mock. The mock refuses to run off a local
   validator (`assertLocalOnly`). Do not loosen that without the owner asking.
+- The sealed launch window stays off. It holds buyers' funds. Never change the default of
+  `FEATURE_SEALED_WINDOW`, and never ship it switched on, without the owner saying so and an
+  outside review.
+- The plan for replacing the stand-in with the real Ring is `RING-PLAN.md`. Follow its order.
 - No token. Ask the owner before adding one.
 - No fake stats, testimonials, partners, audit badges or "first ever" claims. Numbers on the
   site come from the chain or are not shown. Alpha technology is labelled alpha. Mocks and

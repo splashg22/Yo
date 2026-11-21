@@ -113,7 +113,7 @@ export function CoinPage({ mint }: { mint: string }) {
       </dl>
       <p className="body">
         The Ring figures count what is public: the coin&apos;s total held in Ring balances, and wallets that made a deposit. How that total is split between
-        holders is encrypted, so the number of holders inside the Ring cannot be known.
+        holders is not published, so the number of holders inside the Ring cannot be known. In this build Ring balances are simulated.
       </p>
       {coin.complete ? (
         <p className="notice">This curve has completed, so the coin no longer trades on the bonding curve. It can still be held and moved in Ring balances.</p>

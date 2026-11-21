@@ -17,7 +17,7 @@ export function PrivacyPanel({ action }: { action: string }) {
           ))}
         </div>
         <div>
-          <dt>Encrypted</dt>
+          <dt>Encrypted by a Ring</dt>
           {row.encrypted.length ? (
             row.encrypted.map((item) => (
               <dd key={item} className="enc">

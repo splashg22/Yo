@@ -19,7 +19,7 @@ export function OtcPage() {
     <AppPage
       label="OTC"
       title="Sell a block to a named buyer"
-      intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together inside the Ring, or nothing moves. Each side must hold what it is giving in its Ring balance."
+      intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together, or nothing moves. Each side must hold what it is giving in its Ring balance. The size and price are not published. In this build Ring balances are simulated, and the site's own server can read every offer."
     >
       <NeedsRing>
         <WalletGate>

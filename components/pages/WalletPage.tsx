@@ -27,7 +27,7 @@ export function WalletPage() {
     <AppPage
       label="Ring wallet"
       title="Deposit, transfer, withdraw"
-      intro="Moving coins into or out of a Ring balance is public. Moving them between Ring balances encrypts the coin and the amount; both wallet addresses stay public."
+      intro="Moving coins into or out of a Ring balance is public. A move between Ring balances does not publish the coin or the amount; both wallet addresses stay public. In this build Ring balances are simulated: the site's own server keeps them and can read every move."
     >
       <WalletGate>
         <NeedsRing instead={<PublicWallet />}>

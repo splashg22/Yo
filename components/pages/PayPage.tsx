@@ -34,7 +34,7 @@ function QrCode({ text }: { text: string }) {
 }
 
 const INTRO =
-  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. The request travels in the part of the link that browsers do not send to servers. The payment is a transfer between the two wallets: they are public, the coin and the amount are not published.";
+  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. The request travels in the part of the link that browsers do not send to servers. The payment is a transfer between the two wallets: they are public, the coin and the amount are not published. In this build Ring balances are simulated.";
 
 export function PayPage() {
   // The link is read in the browser: until then nothing is known, which is its own state.

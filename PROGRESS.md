@@ -55,7 +55,7 @@ generated or verified by this code.
 
 ### 5. Decisions made for you
 
-All 78 are in `DECISIONS.md` with the reason and how to reverse each. Yours, from 21
+All 80 are in `DECISIONS.md` with the reason and how to reverse each. Yours, from 21
 November, are row 63. The ones made since that you would most want to know: Postgres
 keeps the state as one document with one writer; devnet mode has no Ring balances; a
 withdrawal now charges the wallet its network fee and any account rent; new backups use a
@@ -117,7 +117,9 @@ fixes.
 
 ## Doing
 
-Nothing in flight.
+Nothing in flight. Stopped on 21 November at your request, waiting for the items in
+`NEEDS.md`. `RING-PLAN.md` is the plan for the real Ring; `SITE-WORDING.md` lists every
+place the site says a feature is simulated or not connected.
 
 ## Next
 

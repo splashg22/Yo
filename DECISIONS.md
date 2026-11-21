@@ -82,6 +82,8 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 76 | The note-key message a wallet extension signs names the site it is for | So another site cannot ask for the same signature. Moving the site to a new address means extension wallets get a new note key and cannot open older notes | `noteKeyMessage` in `lib/notes.ts` |
 | 77 | The request limit ignores the forwarding header unless `TRUSTED_PROXY_HOPS` is set | The header is written by the caller | `callerOf` in `lib/server/limit.ts` |
 | 78 | The site's server is not rate-limited per wallet, only per address | Enough for a preview; noted as a limit | n/a |
+| 79 | Owner's decision, 21 November: the sealed launch window stays off. It holds buyers' funds, so it stays behind its flag and never ships without the owner's say-so and an outside review | Your instruction | `FEATURE_SEALED_WINDOW`; do not change its default |
+| 80 | The real Ring will be built behind one interface with the stand-in, proving each step on devnet before the next; OTC is reduced or withdrawn rather than given an escrow of ours | So the finished product holds no user funds | `RING-PLAN.md` |
 
 ## Only you
 
