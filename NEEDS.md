@@ -2,6 +2,11 @@
 
 21 November 2026. One list, ordered by how much work each item unblocks.
 
+**Updated after the last round of building.** Most of what these items unlock is now built
+against stand-ins and switched by one setting each, so providing an item is mostly a
+matter of setting a value and running the commands in `GO-LIVE.md`. What each item still
+needs from me afterwards is said under it. The decisions in item 4 are made.
+
 **Prices and free tiers below are from memory and were not checked today.** Confirm each
 on the provider's pricing page before you choose a plan.
 
@@ -30,12 +35,12 @@ and held by you and entered by you into the hosting provider's own secrets scree
 | 1 | Private GitHub repository | Required | Yes | GitHub | 0 | Tell me its name |
 | 2 | Helius API key | Required | Yes | Helius, free tier | 0 to about 49 | `HELIUS_API_KEY` |
 | 3 | Devnet SOL | Required for the devnet pass | Yes | Solana's faucet | 0 | Sent to an address I give you |
-| 4 | Decisions | Required | Yes | | 0 | A reply in chat |
+| 4 | Decisions | Made on 21 November | | | 0 | Recorded in `DECISIONS.md`, row 63 |
 | 5 | Real brand media | Required | No | Higgsfield, your account | Your plan | `brand/` in the repository |
 | 6 | Database | Required | Yes | Neon | 0 to about 19 | `DATABASE_URL` |
 | 7 | Hosting | Required | No | Railway | About 5 to 20 | Their dashboard |
 | 8 | Domain | Required | Yes | Cloudflare Registrar | About 1 | Hosting dashboard, `SITE_URL` |
-| 9 | Contact email | Required | Yes | Cloudflare Email Routing | 0 | `CONTACT_EMAIL` |
+| 9 | Contact email | Required | Yes | Cloudflare Email Routing | 0 | `operator.contact` in `site.config.ts` |
 | 10 | Lawyer's review | Required | No | A crypto-literate lawyer | One-off | Edits to two pages |
 | 11 | Outside security review | Required before real money | No | An audit firm | One-off | A report |
 | 12 | Coin image storage | Required for coins with pictures | Yes | Pinata | 0 to about 20 | `PINATA_JWT` |
@@ -58,9 +63,11 @@ and held by you and entered by you into the hosting provider's own secrets scree
    github.com/apps/claude, Configure, your account, Repository access, add the new
    repository.
 5. **Where:** tell me the repository's name in chat. A name is not a secret.
-6. **Then I will:** push all 30 commits to `main`, add a workflow that runs the unit tests
-   and lint on every push, and confirm the repository shows the same commit as here. I
-   will also give you the one command that removes the old branch from the public `Yo`.
+6. **Then:** I push every commit to `main`. The workflow that runs typecheck, lint, the
+   unit tests, a build and the Postgres store tests on every push is already in the
+   repository (`.github/workflows/check.yml`) and has never run: its first run is the
+   test of it. To remove the old branch from the public `Yo`:
+   `git push https://github.com/splashg22/Yo.git --delete claude/exciting-gates-vdquz4`.
 
 ## 2. Helius API key
 
@@ -76,34 +83,37 @@ and held by you and entered by you into the hosting provider's own secrets scree
    limits, leave them open for now.
 5. **Where:** environment variable `HELIUS_API_KEY`. Server only; it is never sent to a
    browser.
-6. **Then I will:** point the build at devnet, replace the stand-in with the Ring's real
-   deposit, transfer and withdraw with proofs made in the browser, and run every flow
-   test and browser check on devnet. `npm run scan` will confirm the key appears in no
-   served file. Privacy stage 2 in `PRIVACY-AUDIT.md`.
+6. **Then:** set `RING_NETWORK=devnet` and run `npm run doctor`, `npm run devnet:setup`,
+   `npm run build`, `npm run start`. Launching, buying and selling are built for devnet
+   and have only been run against a local chain standing in for it, so the first run is
+   the test. What I still have to build with the key: the real Ring's deposit, transfer
+   and withdraw with proofs made in the browser, in place of the stand-in (privacy stage 2
+   in `PRIVACY-AUDIT.md`), and the SOL price in dollars. `npm run scan` then confirms the
+   key is in nothing served.
 
 ## 3. Devnet SOL
 
 1. **What:** test coins with no value, to pay fees on Solana's test network.
 2. **Required** for the devnet pass.
 3. **Solana's faucet**, free, a few SOL a day. Alternative: Helius's faucet, free.
-4. **Steps** (under 5 minutes): after item 2 I create test-only wallets and write their
-   public addresses in `DEVNET-WALLETS.md`. You open faucet.solana.com, choose Devnet,
-   paste each address, request the largest amount offered. About 10 SOL in total covers
-   the test runs.
+4. **Steps** (under 5 minutes): `npm run devnet:setup` prints the address of a
+   devnet-only operator wallet. Open faucet.solana.com, choose Devnet, paste the address,
+   request the largest amount offered, and run the command again. For your own test
+   wallet, make one on the site's Ring wallet page and fund its address the same way.
 5. **Where:** sent to those addresses. You handle no key.
-6. **Then I will:** read the balances from the chain and start the devnet tests.
+6. **Then:** `npm run devnet:setup` makes the lookup table and says so.
 
 ## 4. Decisions
 
-Each needs one line from you.
+Made, and each is one config value if you change your mind:
 
-- **The name.** RINGPAD is a working name. Keep it or give me another.
-- **The sealed launch window.** Build it with custody of buyers' funds, or drop it.
-- **Wallet extensions and notes.** Notes work only for wallets made in the browser. Accept
-  that, or have extension users sign one extra message at connect to derive a note key.
-- **Who runs it.** A person or a company, and in which country. The legal pages and the
-  lawyer both need this.
-- **Public or private preview.** Whether the site may be deployed where others can open it.
+- **The name:** RINGPAD. `name` in `site.config.ts`.
+- **The sealed launch window:** built, off. `FEATURE_SEALED_WINDOW`.
+- **Wallet extensions and notes:** they sign one extra message when they connect.
+- **Who runs it:** a marked placeholder. `operator` in `site.config.ts`: name, country, contact.
+- **Public preview:** no. Set `PREVIEW_PASSWORD` on any deployed copy.
+
+Still open, and yours: the operator's real name, country and contact address.
 
 ## 5. Real brand media
 
@@ -131,9 +141,9 @@ Each needs one line from you.
    your hosting, copy the connection string that starts `postgresql://`. Choose the pooled
    connection if offered.
 5. **Where:** environment variable `DATABASE_URL`.
-6. **Then I will:** move the state store to Postgres with every money-moving step in a
-   transaction, keep the file store for local runs, and run the whole flow suite against
-   both, including the concurrency and restart tests.
+6. **Then:** `npm run doctor` should say "Database answers". It is built: the whole flow
+   suite and the browser run pass against a real local Postgres. It has not been run
+   against a hosted provider. Run one server only; a second refuses to start.
 
 ## 7. Hosting
 
@@ -146,8 +156,10 @@ Each needs one line from you.
    set the start command to `npm run start`. Add the environment variables from this file
    in the project's Variables screen. Do not make the address public until you decide to.
 5. **Where:** the provider's dashboard. Secrets are entered there by you.
-6. **Then I will:** add a health-check route, give you the exact build and start settings,
-   and run the crawler, break-it and secrets scan against the deployed address you give me.
+6. **Then:** build `npm run build`, start `npm run start -- -p $PORT`, health check
+   `/health`, and set `PREVIEW_PASSWORD`, `SITE_URL` and `TRUSTED_PROXY_HOPS=1`. A
+   `Dockerfile` is in the repository and has not been built. `GO-LIVE.md` has the three
+   `curl` checks, and `CHECK_URL=https://<domain> npm run scan` checks the deployed copy.
 
 ## 8. Domain
 
@@ -170,9 +182,9 @@ Each needs one line from you.
    Alternative: Google Workspace, about $7 a month.
 4. **Steps** (under 5 minutes after item 8): in Cloudflare, Email, Email Routing, add an
    address such as `hello@` and the inbox it forwards to.
-5. **Where:** environment variable `CONTACT_EMAIL`. An address is not a secret.
-6. **Then I will:** put it on the legal pages and in a `security.txt`, with a test that
-   both show it.
+5. **Where:** `operator.contact` in `site.config.ts`. An address is not a secret.
+6. **Then:** put it in `operator.contact` in `site.config.ts`, with the name and country.
+   The legal pages show all three, and `npm run doctor` says when no placeholder is left.
 
 ## 10. Lawyer's review
 
@@ -207,8 +219,9 @@ Each needs one line from you.
 4. **Steps** (under 5 minutes): pinata.cloud, sign up, API Keys, New key, allow only
    pinning files and JSON, copy the JWT.
 5. **Where:** environment variable `PINATA_JWT`.
-6. **Then I will:** add a picture to the launch form with size and type limits, store it
-   with the coin's details, and test launches with a missing, broken and oversized image.
+6. **Then:** nothing to build. Pictures already work, kept on the server's disk; with the
+   key they go to IPFS instead. That upload is written and has not been run against
+   Pinata: the first launch with a picture is the test, and `GO-LIVE.md` says what to look for.
 
 ## 13. Mainnet wallets and keys
 
@@ -297,6 +310,20 @@ through the Helius key. I will add it in the devnet pass and label its source.
 | Best | Helius Developer $49, Railway or Vercel Pro $20, Neon $19, Pinata $20, Sentry $26, BrowserStack $39, Upstash free, domain $1 | About $175 |
 
 One-off, not included: the lawyer, the outside security review, and your Higgsfield plan.
+
+## After you provide them: the commands
+
+`GO-LIVE.md` has them in order, with how to tell each step worked. In short:
+
+```bash
+git remote add origin git@github.com:<you>/<repository>.git && git push -u origin main
+# set RING_NETWORK=devnet, HELIUS_API_KEY, DATABASE_URL, PINATA_JWT, SITE_URL, PREVIEW_PASSWORD, TRUSTED_PROXY_HOPS=1
+npm ci
+npm run doctor            # every line "ok" except what you have chosen to leave
+npm run devnet:setup      # prints a wallet to fund at faucet.solana.com; run again once funded
+npm run media             # after saving the real files into brand/
+npm run build && npm run start
+```
 
 ## The first five minutes
 

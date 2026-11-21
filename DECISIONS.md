@@ -66,6 +66,22 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 60 | The site may not say "zero-knowledge", "zk" or "shielded", as well as the earlier list | The code generates and verifies no proof today | `FORBIDDEN_CLAIMS` in `lib/visibility.ts` |
 | 61 | Privacy plan: adopt the real Default Ring with proofs made in the browser; wait for Helius's anonymous rings for hidden addresses; build no circuits of our own | It is the only audited, live option that takes arbitrary coins. Our own pool would need a trusted setup and an outside audit and would start with almost no users to hide among | `PRIVACY-AUDIT.md`, section 3 |
 | 62 | Before a withdrawal the confirm step warns if it matches a deposit in amount, follows one within the hour, or returns to the depositing wallet | These are the links anyone can draw without special skill. It needs nothing from outside | `lib/linkability.ts` |
+| 63 | Owner's decisions, 21 November: name stays RINGPAD; sealed window built behind a flag, off; wallet extensions sign one extra message at connect; operator is a marked placeholder; no public preview | Your instructions | `site.config.ts`, `FEATURE_SEALED_WINDOW`, `PREVIEW_PASSWORD` |
+| 64 | Postgres keeps the state as one document, one writer, with an advisory lock and a version on every write. Not a table per kind of record | It is a one-variable swap that keeps every money rule already tested, and it refuses the two things that would corrupt it: a second writer and a lost write. A relational schema is the next step, not a prerequisite | `lib/server/database.ts` |
+| 65 | With Postgres, every operation waits for its changes to be stored before answering, and a withdrawal is stored before its payout is sent | Nothing is reported or acted on that a crash could lose | `run` in `handlers.ts`; `durable()` |
+| 66 | Devnet mode has no stand-in Ring. Launching, buying and selling work there; everything Ring-based is refused and the pages say so | A custodial stand-in must not leave a local chain. The real Ring needs the Helius key to build against | `ringAvailable` in `lib/server/env.ts` |
+| 67 | Devnet mode can be pointed at any chain address with `DEVNET_RPC_URL` | It is how the devnet paths are tested without devnet | `rpcUrlFor` |
+| 68 | A devnet-only operator key, made on the server, pays for the launch lookup table | Something must pay for it; it holds test SOL only. There is no mainnet equivalent in the code | `lib/server/opskey.ts` |
+| 69 | Coin pictures are redrawn as 512px WebP before being kept; SVG and anything not a raster image is refused | Drops hidden data and anything crafted to attack a viewer | `lib/server/pictures.ts` |
+| 70 | Pictures are kept on the server's disk unless `PINATA_JWT` is set | A stand-in store that needs nothing from outside | same |
+| 71 | The sealed window caps a pool at 0.5 SOL, needs 0.01 SOL to launch, stays open 1 to 72 whole hours, and can be launched only after it closes | The local curve completes near 0.85 SOL; a deadline committers can rely on | `lib/server/windows.ts` |
+| 72 | A window's pool is a ledger account of its own; rounding leftovers go to the largest committer | What escrow must hold never changes by committing, and every unit escrow holds is owed to someone | same |
+| 73 | A withdrawal charges the wallet the network fee (5,000 lamports) and, for a destination that has never held the coin, the account rent | Otherwise payouts spend escrow's own SOL, which backs everyone | `payoutCost` in `lib/server/escrow.ts` |
+| 74 | Only a refusal before broadcast makes a payout "not sent" | Refunding on an ambiguous error can pay twice | `sendPayout` |
+| 75 | New wallet backups use scrypt at 2^17; backups made at 2^15 still open | A stolen backup file is attacked offline, so each guess should cost more | `lib/backup.ts` |
+| 76 | The note-key message a wallet extension signs names the site it is for | So another site cannot ask for the same signature. Moving the site to a new address means extension wallets get a new note key and cannot open older notes | `noteKeyMessage` in `lib/notes.ts` |
+| 77 | The request limit ignores the forwarding header unless `TRUSTED_PROXY_HOPS` is set | The header is written by the caller | `callerOf` in `lib/server/limit.ts` |
+| 78 | The site's server is not rate-limited per wallet, only per address | Enough for a preview; noted as a limit | n/a |
 
 ## Only you
 

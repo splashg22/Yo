@@ -14,9 +14,14 @@ checked against, not something it does or is ready to do.
 | Check | Command | Result |
 | --- | --- | --- |
 | Fresh clone: install, typecheck, lint, format, build | `npm ci`, `npm run check`, `npm run build` | Clean. Zero lint warnings, no rule switched off, no `any` |
-| Unit tests, no chain | `npm run test:site` | 70 of 70 |
-| Flow tests on the local validator | `npm run test:flows` | 57 of 57 |
+| Unit tests, no chain | `npm run test:site` | 85 of 85 |
+| Flow tests on the local validator | `npm run test:flows` | 80 of 80 |
+| The same flow tests with the state in a real local Postgres 16 | `npm run test:flows:pg` | 85 of 85 (5 more that only apply to Postgres) |
+| The Postgres store by itself | `test/unit/database.test.ts` with `DATABASE_URL` | 4 of 4 |
 | Every flow in a browser, as two people | `npm run e2e` | 17 of 17 steps, 0 browser errors |
+| The same browser run with the state in Postgres | `npm run e2e`, server started with `DATABASE_URL` | 17 of 17 |
+| The sealed window in a browser, flag on | `npm run window` | 3 of 3 |
+| Every page in devnet mode (pointed at the local chain) | `npm run crawl` against that server | 0 findings |
 | Every page, every control | `npm run crawl` | 0 findings |
 | Breaking it on purpose | `npm run break` | 14 of 14 |
 | Scroll sequence and background | `npm run motion` | 11 of 11 |
@@ -25,7 +30,7 @@ checked against, not something it does or is ready to do.
 | SDK example | `npm run example` | Runs: a launch and a Ring transfer from a script |
 
 **Test count.** Before this audit: 45 tests (15 site, 30 flow) and a 12-step browser run.
-Now: 127 tests (70 unit, 57 flow), a 17-step browser run, and four new browser checks
+Now: 165 tests (85 unit, 80 flow), a further 9 that run only with Postgres, a 17-step browser run, and four new browser checks
 (crawler, break-it, motion, secrets scan).
 
 ### The flows, end to end (part 3)
@@ -136,8 +141,24 @@ Each has a test or a scripted check that fails without the fix.
 | 24 | One unit test failed at random: a lower-cased address is sometimes still a valid address | The test now asserts what is actually true | 3 runs in a row |
 | 25 | A coin with a 32-letter name pushed the coin page wider than a phone screen, leaving a Copy button out of reach while the page itself did not scroll | Long names and addresses wrap inside their column | break: awkward names; crawl |
 | 26 | With the pay-link request moved after the #, opening a second pay link in the same tab left the first one on screen, marked as paid | The page follows a change of link and starts each request clean | e2e: pay link, three times |
+| 27 | **Sealed window, critical.** A launch was recognised by any confirmed transaction that named the coin's address. A creator could settle a decoy, have the pool refunded as an empty "launch", then send the real launch and be credited every coin escrow bought | A launch is recognised only by the signature escrow put on it. Nothing that reaches escrow in a transaction escrow signed is credited to the fee payer | flow: window, "attacks on a window by its own creator" |
+| 28 | Sealed window: an older check could unlock a window that a newer launch had locked, and a crash mid-build left a window locked for ever | The lock is released only if it is still the same lock; a half-made lock is released after a restart; a launch that expired is given up only after a margin of blocks and a settlement pass | flow: window |
+| 29 | Withdrawals: escrow paid the network fee, and the rent for a new token account, from its own SOL. Repeated withdrawals to fresh addresses could drain it | The withdrawing wallet is charged both, exactly. A test checks escrow's spare SOL is unchanged by payouts | flow: ring-wallet, "charges the withdrawing wallet" |
+| 30 | Withdrawals: a crash while a payout was being sent left the coins out of the balance with nothing on record to resolve it | The payout is recorded, with its signature, and stored before it is sent. A withdrawal with no payout on record is given back | flow: resilience |
+| 31 | Withdrawals: any error from the node on sending was treated as "not sent" and refunded, though the node may already have taken the transaction | Only a refusal before broadcast is "not sent". Anything else is "unknown" and settled from the chain | flow: resilience, with a node that accepts and never answers |
+| 32 | Settlement: a deposit's signature was marked as handled before it was credited. A crash in between meant it was never credited | Claims are held in memory; the signature is recorded in the same step as the credit | flow: resilience (existing tests), by construction |
+| 33 | Signed requests: a time that was not a number never expired; used requests were forgotten by count, so a flood could make room for a replay | Time must be a finite number; nonce a string; forgotten by age only | unit: requests |
+| 34 | Anyone could prepare a launch for a coin address another wallet was about to launch, changing the name it would be listed under | The first wallet to prepare an address keeps it; stale ones are dropped after an hour | flow: launch |
+| 35 | No limit on request size; pictures of up to 40 megapixels decoded without limit on how many at once | 2.3 MB cap; 16 megapixels; one decode at a time; launches limited to 30 a minute | unit: config, limit |
+| 36 | The request limit trusted an address the caller writes themselves | Believed only as far as `TRUSTED_PROXY_HOPS` says | unit: limit |
+| 37 | Coin pictures were linked by the site's configured address, so they broke when the site was reached at another | The site's own pages use a path | e2e |
+| 38 | The wallet page asked for a Ring balance before knowing whether the network has one | Waits for the server's answer first | crawl in devnet mode |
+| 39 | Opening a second pay link in the same tab left the first on screen | Follows the change | e2e |
+| 40 | libsodium was loaded on every page, doubling page weight | Loaded only when a note is sealed or opened | measure |
 
 Bugs 13 and 14 were only found because the browser run started from a fresh validator.
+Bugs 27 to 36 were found by a second, independent read of the money and key code, asked
+for without being told where to look. Each was confirmed against the code before fixing.
 
 ### Added after the first report
 
@@ -153,6 +174,19 @@ Privacy, stage 1 (`PRIVACY-AUDIT.md`): notes on a transfer are sealed in the bro
 libsodium and the server cannot read them; pay-link requests are carried after the # and
 do not reach the server; no referrer is sent. The site still sees every transfer's
 wallets, coin and amount, and says so.
+
+### Built in the last round, against stand-ins
+
+| What | How it is switched | Proven by | Not verified |
+| --- | --- | --- | --- |
+| State in Postgres | `DATABASE_URL` | The whole flow suite and the browser run against a local Postgres 16 | A hosted provider |
+| Devnet mode | `RING_NETWORK=devnet`, `HELIUS_API_KEY` | Flow tests and a crawl with devnet mode pointed at the local chain | **Real devnet and Helius.** The devnet faucet is closed to this machine |
+| Coin pictures | `PINATA_JWT` | Unit, flow and browser tests of the local store | **The Pinata upload** |
+| Sealed launch window | `FEATURE_SEALED_WINDOW` | 10 flow tests and a browser run | Anything off a local validator: it uses the stand-in's escrow |
+| Private preview | `PREVIEW_PASSWORD` | Unit tests and a live check | A real host |
+| Note keys for wallet extensions | One extra signature at connect | Browser run with a stand-in extension | **A real wallet extension** |
+| Container | `Dockerfile` | Nothing: no container runtime here | **The image has not been built** |
+| CI | `.github/workflows/check.yml` | Nothing: no repository to run it in | **The workflow has not run** |
 
 ## 3. Code quality pass: what changed and why
 
@@ -190,7 +224,10 @@ the docs' "What is real in this build", and the footer.
 
 ## 5. Not verified
 
-- **Not verified: anything on devnet or mainnet.** No Helius key was used.
+- **Not verified: anything on devnet or mainnet.** No Helius key was used. Devnet mode has
+  only been run with its chain address pointed at the local validator.
+- **Not verified: the Pinata upload, the container image, the CI workflow, a hosted
+  Postgres.** Each is written and none has been run against the real thing.
 - **Not verified: a real Ring deposit, transfer or withdrawal.** The one attempt on the local
   validator failed (`InvalidTreeAccounts`), which is why Ring balances are a mock.
 - **Not verified: any browser but Chromium.** No Safari, no Firefox.

@@ -17,6 +17,8 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "Explore can be searched and ordered. The docs have a contents list. A designed page for addresses that do not exist.",
       "A technical page: the programs called, whose logic is whose, how a launch is laid out, who you are trusting, and how to check a transaction yourself. The SDK example now runs inside the tests.",
       "The site and its local chain moved to ports of their own.",
+      "An independent review of the money and key code, and its fixes: a sealed window's launch is recognised only by the stand-in's own signature; a withdrawal pays its own network fee and account rent, is on record before it is sent, and is never refunded on a guess.",
+      "State can be kept in Postgres. Coins can have a picture and a description. A devnet mode that launches and trades, with Ring balances not connected there. A private-preview password. A sealed launch window, built and switched off.",
       "Privacy, stage 1: a note on a transfer is sealed in the browser and the server cannot read it. What a pay link asks for no longer reaches the server. No address of this site is passed to other sites.",
       "A ceiling on requests per address. The server answers POST only. A damaged state file stops the server instead of being replaced.",
       "Each privacy claim now says what carries it out in this build. A price chart on coin pages. Tabs kept in the address across a reload. Explore shows 24 coins at a time.",
