@@ -1,7 +1,16 @@
 # brand/
 
-The homepage is built from the files below. None is here yet. Put them in this folder
-under exactly these names.
+The homepage is built from the files below, under exactly these names.
+
+**Every media file here today is a stand-in**, drawn in code by `npm run standins`
+(`scripts/make-standins.mjs`): `hero.png`, `layers.png`, `hero.mp4`, `logo.png`,
+`banner.png`. They have the right names, sizes and framing so that the real renders drop
+in with no code changes. The site never labels them as stand-ins. To replace one: save the
+real file over it, then run `npm run media`. Do not run `npm run standins` after that, or
+it will draw over the real files.
+
+The prompts for the real renders are in `HIGGSFIELD-PROMPTS.md`. The style screenshots
+(`style-*.png`) are still missing.
 
 | File | What it is | Specification |
 | --- | --- | --- |

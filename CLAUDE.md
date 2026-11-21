@@ -1,10 +1,17 @@
-# [NAME] (working folder: ring-launchpad)
+# RINGPAD (working folder: ring-launchpad)
 
 A private launchpad and trading suite on Helius Privacy Rings: launch a coin on a pump.fun
 bonding curve and register it with a Ring, a Ring wallet, an explore feed, and an OTC desk.
 
-Status: step 1 of 6 (research and plan) is done. Step 2, the homepage, is waiting on the
-media in `brand/`. No application code yet. See `docs/PLAN.md`.
+Status: steps 1 and 2 of 6 are done (research and plan; the homepage with the scroll
+sequence and the site-wide background). The app pages exist as honest shells: they say
+"not open yet" and move no funds. Step 3 (devnet flows) is next. See `docs/PLAN.md`.
+
+The name is a working name. It is written once, in `site.config.ts`. The accent colour is
+written once, as `--accent` in `app/globals.css`. Tests fail if either is spelled anywhere
+else in the site's code.
+
+All media in `brand/` is a stand-in drawn in code. See `brand/README.md`.
 
 ## Read first
 
@@ -67,8 +74,50 @@ arrows, hover animations, neon or pastel colours.
 
 `brand/README.md` lists the media files the site expects and their exact specifications.
 
-## Stack (planned)
+## Stack and commands
 
-Next.js App Router, React, TypeScript. `@heliuslabs/spr` with `@solana/kit` for Rings,
-`@pump-fun/pump-sdk` for the curve, Wallet Standard for wallets. Vitest for tests.
-Commands will be listed here once the project is scaffolded in step 2.
+Next.js App Router, React, TypeScript, Vitest. No UI library, no icon library.
+Planned for step 3: `@heliuslabs/spr` with `@solana/kit` for Rings, `@pump-fun/pump-sdk`
+for the curve, Wallet Standard for wallets.
+
+```bash
+npm install
+npm run dev          # http://localhost:3000
+npm test             # 15 tests: claims, single-source name and colour, media, structure
+npm run typecheck
+npm run build
+
+npm run media        # after changing anything in brand/: frames, sized stills, link preview
+npm run standins     # redraws the stand-in media. Do NOT run once real media is in brand/
+npm run start -- -p 3311 & npm run shots   # screenshots of every page into shots/, with checks
+```
+
+## Where things are
+
+```
+site.config.ts            the name, the five layer callouts and their positions, the nav
+lib/visibility.ts         the one table of what each action reveals and encrypts
+app/globals.css           every style; --accent is the one colour
+components/Background.tsx the site-wide background (rings passing behind walls)
+components/Sequence.tsx   the pinned hero: frames of hero.mp4 driven by scroll
+components/Callouts.tsx   the five callouts, as boxes with lines and as a list
+scripts/build-media.mjs   brand/ -> public/media (keys black to transparent, cuts frames)
+scripts/make-standins.mjs draws the stand-in media with a ray-marching shader
+scripts/screenshots.mjs   every page at two widths, overflow and legibility checks
+brand/                    source media, prompts for the real renders, what must match
+shots/                    the latest screenshots and report.json
+prototypes/background/    the three background concepts; "Passing" was built
+```
+
+## How the background and the media fit together
+
+- The background canvas is fixed behind everything (`z-index: -1`) and never takes clicks.
+- Its "walls" are the columns the text sits in, plus the header band. Rings are clipped
+  out of them, so text on desktop always has plain black behind it. On phones, where text
+  spans the width, only faint rings are drawn and no moving blocks.
+- `build-media` turns the media's black into transparency, so the rings pass behind the
+  object instead of across it. This is why the source media must be on true #000000.
+- Each route has its own position in the scene (`VIEWS` in `Background.tsx`); navigating
+  eases the view there. A new page needs an entry, or it falls back to the Terms view.
+- Reduced motion: the background draws one still frame and the pinned sequence is
+  replaced by two plain sections (`StillStory`), by CSS alone.

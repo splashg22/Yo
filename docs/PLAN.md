@@ -2,7 +2,7 @@
 
 ## What it is
 
-One web app, working name [NAME]: launch a coin on a pump.fun curve with its Ring
+One web app, working name RINGPAD: launch a coin on a pump.fun curve with its Ring
 registration in the same signature, hold and send it with hidden amounts, see which coins
 have real Ring usage, and trade blocks over the counter at a sealed size and price.
 
@@ -34,32 +34,36 @@ have real Ring usage, and trade blocks over the counter at a sealed size and pri
 Step 3 starts with two half-day proofs on devnet, because the rest depends on them:
 a pump.fun coin registered with the Ring, and a Ring transfer of that coin.
 
-## Blocked: step 2 needs files that are not here yet
+## Step 2: done, on stand-in media
 
-The homepage is built from five media files and a set of style screenshots, all expected
-in `brand/`. None of them exists in this folder or anywhere in the repository. The six
-generation prompts in the brief still contain the placeholders `[NAME]` and
-`[ACCENT COLOUR]`, and I cannot run an image or video generator from this session.
-`brand/README.md` lists each file, its size and what must line up between them.
+Built without waiting for the name, the colour or the real renders, as instructed:
 
-## How the homepage will be built (step 2)
+- **Name** RINGPAD, in `site.config.ts` only. **Accent** amber #F5A524, as `--accent` only.
+- **Stand-in media** drawn in code under the exact names and sizes in `brand/README.md`.
+- **Homepage:** pinned hero that plays 96 frames of `hero.mp4` against scroll, words that
+  change with a 150 ms glitch, five callouts joined to their layers, then live stats (no
+  number is shown until one is read from the chain), what is hidden and what is not, what
+  the project adds (each with its true status), four tools, call to action, footer.
+- **Background:** concept 1, "Passing", on every page. See `CLAUDE.md` for how it works.
+- **Other pages:** Explore, Launch, Ring wallet, OTC as shells that say "not open yet",
+  each with the real privacy panels; Docs; Terms and Privacy Policy as drafts.
+- **Checks, all pages, desktop and phone:** no horizontal scroll, no console errors, pure
+  black behind every piece of text on desktop, at most a faint hairline on phones.
 
-- **Typeface.** Doto (SIL Open Font Licence), a dot-matrix face with real weights, self-hosted
-  as one variable file. It is the only font. Long pages (Terms, Privacy Policy, Docs) will
-  be harder to read in an all-caps dot-matrix face than in a text face; I will set them
-  larger and looser and show you, so you can judge it before step 6.
-- **Scroll sequence.** `hero.mp4` is cut into still frames at build time (about 120 for six
-  seconds), encoded as AVIF with a WebP fallback, and drawn to a canvas from scroll
-  position. Frames load in order after first paint; the first frame is `hero.png` itself,
-  so the page is complete before any of the sequence arrives. A video element scrubbed by
-  scroll stutters on most phones, which is why it is frames and not the video.
-- **Callouts.** Positions are stored as fractions of the image, so the boxes and their
-  lines stay on their layers at every width. On phones they become a numbered list.
-- **Layer labels match the research.** 01 your wallet: public. 02 the coin: encrypted in a
-  transfer. 03 the amount: encrypted in a transfer. 04 the Ring: where the encrypted
-  balance lives. 05 the public chain: deposits, withdrawals and every curve trade.
-- **Live stats** come from devnet through our own route and show nothing until there is a
-  real number. With no launches yet the section says so.
+Choices I made where the brief was cut off or silent, all easy to reverse:
+
+| Choice | Why |
+| --- | --- |
+| Background concept "Passing" | My recommendation; it is the one that leaves the hero object alone and turns down cleanly on app pages. |
+| Sealed launch window left out | Listed on the homepage as "under review", with the reason. No pooled-funds code. |
+| Media black keyed to transparency | So the background passes behind the object. Needs true black source files. |
+| Tables stack on phones | Three columns of dot-matrix text do not fit 390 px. |
+| Phone nav says "Wallet", not "Ring wallet" | So five links fit on one line. |
+| Small frame set on modest devices | A sharp frame that arrives late is worse than a soft one that keeps up. |
+
+Not measured on a real phone. Frame pacing was measured in a headless browser with the
+CPU throttled four times: 60 frames a second once the frames have loaded. During the few
+seconds they are still arriving, scrolling shows the nearest frame that has.
 
 ## Decisions I need from you
 
@@ -73,8 +77,7 @@ generation prompts in the brief still contain the placeholders `[NAME]` and
    - **Leave it out** until Rings has a production escrow path.
    My recommendation is to leave it out of the first release and decide with legal advice.
    A pooled purchase of a coin that does not exist yet can look like a presale.
-2. **Name.** Both briefs say [NAME]. I used the folder `ring-launchpad`. The name is needed
-   for the logo lockup, the headline and the page titles.
+2. **Name.** Settled for now: RINGPAD as a working name, one line to change.
 3. **Brand media and accent colour.** The revised brief settles the style (pure black,
    white text, one dot-matrix face, colour only from the media), so my earlier palette
    question is closed. What is open is the media itself: generate the six items, put them
