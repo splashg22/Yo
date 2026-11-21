@@ -104,7 +104,8 @@ export default function Docs() {
               <tr>
                 <th>Action</th>
                 <th>Public</th>
-                <th>Encrypted</th>
+                <th>Encrypted by a Ring</th>
+                <th>In this build</th>
               </tr>
             </thead>
             <tbody>
@@ -115,6 +116,9 @@ export default function Docs() {
                     {row.public.join(". ")}.{row.note ? ` ${row.note}` : ""}
                   </td>
                   <td data-label="Encrypted">{row.encrypted.length ? `${row.encrypted.join(". ")}.` : "Nothing."}</td>
+                  <td data-label="In this build">
+                    {row.proof.today} <span className="address">{row.proof.source}</span>
+                  </td>
                 </tr>
               ))}
             </tbody>

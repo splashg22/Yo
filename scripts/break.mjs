@@ -228,6 +228,81 @@ await check("a double click on Sign sends one transaction and moves the money on
   await other.context().close();
 });
 
+// ---- two tabs -----------------------------------------------------------------------------
+await page.goto(`${base}/wallet`);
+await page.waitForSelector("#w-amount");
+await check("two tabs on one wallet: a deposit made in one shows in the other when you return to it, and both keep working", async () => {
+  const second = await page.context().newPage();
+  await second.goto(`${base}/wallet`);
+  // A new tab shares the encrypted wallet but not the unlocked key: it asks for the password.
+  await second.waitForSelector("text=Unlock your wallet");
+  await second.fill("#wallet-password", PASSWORD);
+  await second.click("button:text-is('Unlock')");
+  await second.waitForSelector("#w-amount", { timeout: 30000 });
+  await second.waitForFunction(() => [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)));
+  const before = await ringCell(second, "SOL");
+  await page.bringToFront();
+  await fillWallet(page, "deposit", { amount: "0.3" });
+  await page.click("text=Sign and deposit");
+  await page.waitForFunction(() => /deposited/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  const after = await ringCell(page, "SOL");
+  if (after === before) throw new Error("the first tab did not change");
+  await second.bringToFront();
+  await second.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await second.waitForFunction(
+    (want) =>
+      [...document.querySelectorAll("table.plain tbody tr")].some((row) => row.cells[0].innerText.trim() === "SOL" && row.cells[2].innerText.trim() === want),
+    after,
+    { timeout: 15000 },
+  );
+  // The second tab is not left with a stale view of what it can spend: it withdraws what the first deposited.
+  await fillWallet(second, "withdraw", { amount: "0.3" });
+  await second.click("text=Sign and withdraw");
+  await second.waitForFunction(() => /withdrew/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  await second.close();
+  await page.bringToFront();
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await page.waitForFunction(
+    (want) =>
+      [...document.querySelectorAll("table.plain tbody tr")].some((row) => row.cells[0].innerText.trim() === "SOL" && row.cells[2].innerText.trim() === want),
+    before,
+    { timeout: 15000 },
+  );
+});
+
+// ---- awkward names ---------------------------------------------------------------------------
+await check("a coin with the longest name and ticker allowed, and names that cannot be shown: pages still fit; bad names are refused", async () => {
+  await page.goto(`${base}/launch`);
+  for (const [name, reason] of [
+    ["Lan\u0000tern", /cannot be shown/i],
+    ["\u202Egnp.exe", /cannot be shown/i],
+  ]) {
+    await page.fill("#l-name", name);
+    await page.fill("#l-symbol", "ODD");
+    await page.click("button:text-is('Review')");
+    if (await page.locator(".confirm").count()) await page.click("text=Sign and launch");
+    const said = await waitForComplaint(page);
+    if (!reason.test(said)) throw new Error(`name ${JSON.stringify(name)}: ${said}`);
+    await page.goto(`${base}/launch`);
+  }
+  await page.fill("#l-name", "W".repeat(32));
+  await page.fill("#l-symbol", "W".repeat(10));
+  await page.click("button:text-is('Review')");
+  await page.click("text=Sign and launch");
+  await page.waitForSelector("text=is on the curve and registered with the Ring", { timeout: 60000 });
+  const wide = await page.locator(".kv .address").first().getAttribute("title");
+  const phone = await browser.newPage({ viewport: { width: 320, height: 640 } });
+  for (const path of ["/explore", `/coin/${wide}`, "/wallet"]) {
+    await phone.goto(base + path);
+    await phone.waitForTimeout(1500);
+    const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - innerWidth);
+    if (overflow > 0) throw new Error(`${path} is ${overflow}px too wide with a 32-letter name`);
+  }
+  await phone.close();
+  await page.goto(`${base}/wallet`);
+  await page.waitForSelector("#w-amount");
+});
+
 // ---- reload mid-action ---------------------------------------------------------------------
 await check("a reload in the middle of a deposit loses nothing: the chain and the Ring agree afterwards", async () => {
   const [walletBefore, escrowBefore] = [await onChain(me, NATIVE), await onChain(escrow, NATIVE)];

@@ -50,6 +50,12 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 44 | Search engines are asked not to index the site | A pre-release on a test chain should not be found by search | `robots` in `app/layout.tsx` |
 | 45 | The prototypes folder and one-off probe scripts were removed; browser check scripts were added | Dead code out; every check repeatable by one command | git history; `scripts/` |
 | 46 | The launchpad uses ports of its own: site 4710, checks 4711 and 4712, validator 8799 (and 8800, 9799, 8701, 8710 to 8740) | So it cannot collide with any other project on the same machine, whatever that project uses | `README.md`, "Ports and folders" |
+| 47 | Every privacy claim carries what does it in this build and the source file (`proof` in the visibility table); the panel before each signature shows it | A claim should point at what proves it. Where the mock does the work, the panel says so before you sign | `lib/visibility.ts`, `components/PrivacyPanel.tsx` |
+| 48 | The coin page's chart draws the prices this site has read, and says so. It is not a trade history | Rebuilding every trade from the chain is a separate indexer; a mislabelled chart would be a false figure | `coin/prices`, `components/ui/PriceChart.tsx` |
+| 49 | The wallet tab and the buy or sell side live in the address after the #; switching replaces history instead of adding to it | A reload or shared link should open in the same place; Back should leave the page, not step through tabs | `components/ui/useHashChoice.ts` |
+| 50 | Balances refresh when you return to a tab, for the browser-made wallet only | Reading a Ring balance is a signed request; an extension would ask for approval every time | `components/pages/WalletPage.tsx` |
+| 51 | A second tab on the same wallet asks for the password | The unlocked key is per tab by design (decision 40) | n/a |
+| 52 | Explore shows 24 coins and a "Show more" button | Enough for now without a paged server call | `components/pages/ExplorePage.tsx` |
 
 ## Only you
 

@@ -15,17 +15,17 @@ checked against, not something it does or is ready to do.
 | --- | --- | --- |
 | Fresh clone: install, typecheck, lint, format, build | `npm ci`, `npm run check`, `npm run build` | Clean. Zero lint warnings, no rule switched off, no `any` |
 | Unit tests, no chain | `npm run test:site` | 57 of 57 |
-| Flow tests on the local validator | `npm run test:flows` | 54 of 54 |
-| Every flow in a browser, as two people | `npm run e2e` | 16 of 16 steps, 0 browser errors |
+| Flow tests on the local validator | `npm run test:flows` | 55 of 55 |
+| Every flow in a browser, as two people | `npm run e2e` | 17 of 17 steps, 0 browser errors |
 | Every page, every control | `npm run crawl` | 0 findings |
-| Breaking it on purpose | `npm run break` | 12 of 12 |
+| Breaking it on purpose | `npm run break` | 14 of 14 |
 | Scroll sequence and background | `npm run motion` | 11 of 11 |
 | Secrets in served files and git history | `npm run scan` | Nothing found |
 | Screenshots, overflow, text over background | `npm run shots` | 11 pages x 2 widths, no overflow |
 | SDK example | `npm run example` | Runs: a launch and a Ring transfer from a script |
 
 **Test count.** Before this audit: 45 tests (15 site, 30 flow) and a 12-step browser run.
-Now: 111 tests (57 unit, 54 flow), a 16-step browser run, and four new browser checks
+Now: 112 tests (57 unit, 55 flow), a 17-step browser run, and four new browser checks
 (crawler, break-it, motion, secrets scan).
 
 ### The flows, end to end (part 3)
@@ -76,6 +76,8 @@ responses, sideways overflow, clipped text, text under 11px, dim text, tap targe
 | Empty account: deposit, withdraw, transfer, buy, sell, launch | Each says what is missing |
 | The site's server stops answering | Each page says so and offers a retry |
 | The chain stops answering | Each page says so within its time limit; nothing is sent |
+| Two tabs on one wallet | The second tab asks for the password; a deposit made in one shows in the other on return; both can act |
+| A 32-letter name and 10-letter ticker; names with characters that cannot be shown | Pages still fit at 320px; the bad names are refused with a reason |
 | After all of it | Escrow still covers every Ring balance; no payout left pending |
 
 The flow tests cover the same ground at the server, plus: two concurrent credits of one
@@ -134,6 +136,14 @@ Each has a test or a scripted check that fails without the fix.
 | 24 | One unit test failed at random: a lower-cased address is sometimes still a valid address | The test now asserts what is actually true | 3 runs in a row |
 
 Bugs 13 and 14 were only found because the browser run started from a fresh validator.
+
+### Added after the first report
+
+Each privacy claim now states what carries it out in this build and the source file, in
+the panel before every signature and in the docs table, with a link to "Check it
+yourself" on the technical page. Coin pages draw the recorded price. The wallet tab and
+the buy or sell side are kept in the address, so a reload or a shared link opens in the
+same place. Explore shows 24 coins at a time. The launchpad uses ports of its own.
 
 ## 3. Code quality pass: what changed and why
 
@@ -226,12 +236,12 @@ Most visible first. The first ten that could be fixed without you were fixed in 
 | 10 | The docs were one long page with no contents | Fixed |
 | 11 | Every coin tab was titled "Coin" | Fixed: named after the coin |
 | 12 | Homepage lines promised encryption the mock does not do | Fixed |
-| 13 | No price chart on a coin page | Open. Price points are recorded; nothing draws them |
+| 13 | No price chart on a coin page | Fixed: the price as this site has read it, drawn as a stepped line |
 | 14 | On a phone, the end of the sequence leaves empty space under "How it works" before the list | Open |
-| 15 | While scrolling the sequence the page's main heading is replaced by second-level headings | Open |
+| 15 | While scrolling the sequence the page's main heading is replaced by second-level headings | Fixed: one steady heading for assistive technology |
 | 16 | Market cap in SOL only | Open: needs a price source |
-| 17 | The password field has no "show" option and no strength hint beyond 8 characters | Open |
-| 18 | Explore loads every coin at once: no paging | Open: fine for tens, not thousands |
+| 17 | The password field has no "show" option and no strength hint beyond 8 characters | "Show" added. No strength hint |
+| 18 | Explore loads every coin at once: no paging | Shows 24 at a time. The server still sends the whole list |
 | 19 | The top notice's "Status" link shifts sideways once on load (layout shift 0.004) | Open |
 | 20 | No message when a copy to the clipboard is blocked beyond "Select it to copy" | Open |
 | 21 | Terms and Privacy Policy read as drafts | Waits for a lawyer |

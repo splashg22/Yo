@@ -10,12 +10,16 @@ import { site } from "@/site.config";
 import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
+import { PriceChart } from "../ui/PriceChart";
 import { RingBadge } from "../ui/RingBadge";
+import { useHashChoice } from "../ui/useHashChoice";
 import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
 import { changeLabel } from "./ExplorePage";
 import { AppPage } from "./shell";
+
+const SIDES = ["buy", "sell"] as const;
 
 export function CoinPage({ mint }: { mint: string }) {
   const [coin, setCoin] = useState<CoinView | null>(null);
@@ -115,6 +119,8 @@ export function CoinPage({ mint }: { mint: string }) {
           <TradeAndFees coin={coin} onDone={refresh} />
         </WalletGate>
       )}
+      <h2 className="h3">Price, as this site has read it</h2>
+      <PriceChart mint={mint} version={coin.microLamportsPerCoin} />
       <h2 className="h3">Recent activity on the curve</h2>
       <p className="body">The latest transactions that touched this coin&apos;s bonding curve: its launch, and every buy and sell. All public.</p>
       {/* The market cap moves with every trade, so a change in it is the cue to read the list again. */}
@@ -126,7 +132,7 @@ export function CoinPage({ mint }: { mint: string }) {
 function TradeAndFees({ coin, onDone }: { coin: CoinView; onDone: () => Promise<void> }) {
   const { signer } = useWallet();
   const { run, busy, line } = useRun();
-  const [side, setSide] = useState<"buy" | "sell">("buy");
+  const [side, setSide] = useHashChoice(SIDES);
   const [amount, setAmount] = useState("");
   const [problem, setProblem] = useState("");
   const [reviewing, setReviewing] = useState<"trade" | "fees" | null>(null);
@@ -203,7 +209,7 @@ function TradeAndFees({ coin, onDone }: { coin: CoinView; onDone: () => Promise<
   return (
     <>
       <div className="tabs" role="group" aria-label="Side">
-        {(["buy", "sell"] as const).map((name) => (
+        {SIDES.map((name) => (
           <button
             key={name}
             type="button"

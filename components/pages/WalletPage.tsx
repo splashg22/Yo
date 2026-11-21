@@ -10,12 +10,13 @@ import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
 import { RingEventRow } from "../ui/RingEventRow";
 import { useCoins } from "../ui/useCoins";
+import { useHashChoice } from "../ui/useHashChoice";
 import { useRun, type Outcome } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
 import { AppPage } from "./shell";
 
-type Tab = "deposit" | "transfer" | "withdraw";
+const TABS = ["deposit", "transfer", "withdraw"] as const;
 type Mine = Api["ring/mine"]["output"];
 
 export function WalletPage() {
@@ -39,7 +40,7 @@ function OpenWallet() {
   const [mine, setMine] = useState<Mine | null>(null);
   const [inWallet, setInWallet] = useState<Record<string, string> | null>(null);
   const [loadProblem, setLoadProblem] = useState("");
-  const [tab, setTab] = useState<Tab>("deposit");
+  const [tab, setTab] = useHashChoice(TABS);
   const [form, setForm] = useState({ mint: NATIVE, amount: "", to: "", memo: "" });
   const [reviewing, setReviewing] = useState(false);
   const [formProblem, setFormProblem] = useState("");
@@ -58,6 +59,20 @@ function OpenWallet() {
   useEffect(() => {
     void refresh();
   }, [refresh, coins?.length]);
+  // Coming back to this tab after acting in another one must not show stale balances. Only for the wallet
+  // made in the browser: reading a Ring balance is a signed request, and an extension would ask to approve each one.
+  useEffect(() => {
+    if (me.kind !== "browser") return;
+    const onReturn = () => {
+      if (!document.hidden) void refresh();
+    };
+    window.addEventListener("focus", onReturn);
+    document.addEventListener("visibilitychange", onReturn);
+    return () => {
+      window.removeEventListener("focus", onReturn);
+      document.removeEventListener("visibilitychange", onReturn);
+    };
+  }, [me.kind, refresh]);
 
   const mints = [...new Set([NATIVE, ...(coins ?? []).map((coin) => coin.mint), ...Object.keys(mine?.balances ?? {})])];
 
@@ -204,7 +219,7 @@ function OpenWallet() {
       </div>
 
       <div className="tabs" role="group" aria-label="Action">
-        {(["deposit", "transfer", "withdraw"] as const).map((name) => (
+        {TABS.map((name) => (
           <button
             key={name}
             type="button"

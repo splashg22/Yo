@@ -137,16 +137,18 @@ export function Sequence() {
           <CalloutBoxes centre={site.objectX} />
         </div>
         <div className="words">
+          {/* The page's one main heading stays in place for assistive technology while the words on screen change with the scroll. */}
+          <h1 className="visually-hidden">Launch in public. Hold in the Ring. Move it sealed.</h1>
           <Glitch id={Math.min(step, 3)}>
             {step === 0 && (
               <>
-                <h1 className="h1">
+                <p className="h1" aria-hidden="true">
                   Launch in public.
                   <br />
                   Hold in the Ring.
                   <br />
                   Move it sealed.
-                </h1>
+                </p>
                 <Link className="btn" href="/launch">
                   Launch a coin
                 </Link>

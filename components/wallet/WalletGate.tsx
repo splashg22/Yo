@@ -10,6 +10,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
   const [again, setAgain] = useState("");
   const [file, setFile] = useState("");
   const [restoring, setRestoring] = useState(false);
+  const [visible, setVisible] = useState(false);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
   if (wallet.signer) return <>{children}</>;
@@ -65,7 +66,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
         </label>
         <input
           id="wallet-password"
-          type="password"
+          type={visible ? "text" : "password"}
           autoComplete={creating ? "new-password" : "current-password"}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
@@ -76,9 +77,19 @@ export function WalletGate({ children }: { children: ReactNode }) {
           <label className="label" htmlFor="wallet-password-again">
             Password again
           </label>
-          <input id="wallet-password-again" type="password" autoComplete="new-password" value={again} onChange={(event) => setAgain(event.target.value)} />
+          <input
+            id="wallet-password-again"
+            type={visible ? "text" : "password"}
+            autoComplete="new-password"
+            value={again}
+            onChange={(event) => setAgain(event.target.value)}
+          />
         </div>
       )}
+      <label className="check">
+        <input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} />
+        <span>Show the password as I type</span>
+      </label>
       <div className="actions">
         <button className="btn" type="submit" disabled={busy || !password || (restoring && !file)}>
           {restoring ? "Restore" : wallet.hasBackup ? "Unlock" : "Create wallet"}

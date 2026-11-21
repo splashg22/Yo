@@ -59,6 +59,7 @@ export async function publicBalance(wallet: string, mint: string): Promise<bigin
 }
 
 const ACTIVITY_SHOWN = 20;
+const PRICE_POINTS_SHOWN = 300;
 
 /** The chain's own list of transactions that touched an address. Nothing here comes from this site's records. */
 async function activityOf(address: PublicKey): Promise<Activity[]> {
@@ -67,7 +68,17 @@ async function activityOf(address: PublicKey): Promise<Activity[]> {
 }
 
 export const market: Handlers<
-  "explore" | "coin" | "coin/activity" | "wallet/activity" | "stats" | "wallet/public" | "launch/build" | "trade/build" | "fees/claimable" | "fees/build"
+  | "explore"
+  | "coin"
+  | "coin/prices"
+  | "coin/activity"
+  | "wallet/activity"
+  | "stats"
+  | "wallet/public"
+  | "launch/build"
+  | "trade/build"
+  | "fees/claimable"
+  | "fees/build"
 > = {
   explore: async () => ({ coins: await Promise.all([...state().coins].reverse().map(coinView)) }),
 
@@ -76,6 +87,12 @@ export const market: Handlers<
     const coin = state().coins.find((candidate) => candidate.mint === mint);
     if (!coin) throw new Error("that coin was not launched here");
     return coinView(coin);
+  },
+
+  "coin/prices": (input) => {
+    const mint = addressOf(input.mint, "coin address");
+    if (!state().coins.some((candidate) => candidate.mint === mint)) throw new Error("that coin was not launched here");
+    return { points: (state().prices[mint] ?? []).slice(-PRICE_POINTS_SHOWN) };
   },
 
   "coin/activity": async (input) => {

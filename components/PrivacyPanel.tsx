@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { visibilityOf } from "@/lib/visibility";
 
 /** What one action reveals and what it encrypts. Shown before every signature. */
@@ -29,6 +30,13 @@ export function PrivacyPanel({ action }: { action: string }) {
         </div>
       </dl>
       {row.note && <p className="body">{row.note}</p>}
+      <p className="body">
+        {row.proof.real ? "How it is done: " : "In this build: "}
+        {row.proof.today}{" "}
+        <Link className="link" href="/technical#check-it-yourself">
+          How to check
+        </Link>
+      </p>
     </div>
   );
 }

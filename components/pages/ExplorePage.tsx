@@ -18,11 +18,14 @@ const ORDERS = {
   ring: ["Most in Ring balances", (a: CoinView, b: CoinView) => b.privacy.shareInRingPartsPerMillion - a.privacy.shareInRingPartsPerMillion],
 } as const;
 type Order = keyof typeof ORDERS;
+/** Coins listed before "Show more" is needed. */
+const PAGE = 24;
 
 export function ExplorePage() {
   const { coins: all, problem, refresh } = useCoins(5000);
   const [query, setQuery] = useState("");
   const [order, setOrder] = useState<Order>("newest");
+  const [shown, setShown] = useState(PAGE);
   const coins = useMemo(() => {
     if (all === null) return null;
     const wanted = query.trim().toLowerCase();
@@ -85,7 +88,7 @@ export function ExplorePage() {
       )}
       {coins !== null && coins.length > 0 && (
         <ul className="coins">
-          {coins.map((coin) => (
+          {coins.slice(0, shown).map((coin) => (
             <li key={coin.mint}>
               <div>
                 <Link href={`/coin/${coin.mint}`}>
@@ -108,6 +111,16 @@ export function ExplorePage() {
             </li>
           ))}
         </ul>
+      )}
+      {coins !== null && coins.length > shown && (
+        <div className="actions">
+          <button className="btn" type="button" onClick={() => setShown(shown + PAGE)}>
+            Show {Math.min(PAGE, coins.length - shown)} more
+          </button>
+          <span className="label">
+            {shown} of {coins.length} shown
+          </span>
+        </div>
       )}
     </AppPage>
   );

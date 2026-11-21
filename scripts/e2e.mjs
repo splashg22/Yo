@@ -4,7 +4,7 @@
 // Needs the validator and `npm run start -- -p 4711`. Run: npm run e2e
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
-import { formatCoin, formatShare, parseAmount } from "../lib/format.ts";
+import { formatCoin, formatPrice, formatShare, parseAmount } from "../lib/format.ts";
 import { NATIVE, decimalsOf } from "../lib/constants.ts";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -446,6 +446,14 @@ await step("privacy score, three times: the coin page's two figures are the chai
     if (BigInt(served.supply) !== supply || BigInt(served.inRing) !== inRing) throw new Error("the server's supply or Ring total is not the chain's");
     await ana.goto(`${base}/coin/${mint}`);
   });
+  // The price record: a drawn line, and a low and a high that are the lowest and highest readings the server holds.
+  await ana.waitForSelector(".chart svg path");
+  const readings = (await app("coin/prices", { mint })).points.map((point) => BigInt(point.microLamportsPerCoin));
+  const caption = (await ana.locator(".chart figcaption").innerText()).replace(/\s+/g, " ");
+  const [lowest, highest] = [readings.reduce((a, b) => (b < a ? b : a)), readings.reduce((a, b) => (b > a ? b : a))];
+  if (!caption.includes(`LOW ${formatPrice(lowest)}`) || !caption.includes(`HIGH ${formatPrice(highest)}`) || !caption.includes(`READINGS ${readings.length}`))
+    throw new Error(`chart caption reads "${caption}"`);
+  if (highest <= lowest) throw new Error("three buys did not raise the recorded price");
   // The coin's history on the curve: its launch, three buys and a sell, each with a receipt.
   await settles(
     async () => String(await ana.locator("h2:text-is('Recent activity on the curve') ~ ul.events li a:text-is('Receipt')").count()),
@@ -493,6 +501,23 @@ await step("creator fees: the seller claims them into the Ring, and the escrow g
   move("seller", NATIVE, gained);
   await ana.goto(`${base}/wallet`);
   await walletMatches(ana, "seller", NATIVE);
+});
+
+await step("a reload keeps your place: the wallet's tab and the coin page's side are in the address", async () => {
+  await ben.goto(`${base}/wallet`);
+  await ben.waitForSelector("#w-amount");
+  await ben.click(".tabs button:text-is('transfer')");
+  if (!ben.url().endsWith("#transfer")) throw new Error(`the address is ${ben.url()}`);
+  await ben.reload();
+  await ben.waitForSelector("#w-to");
+  if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "transfer") throw new Error("the tab was lost on reload");
+  await ben.goto(`${base}/coin/${mint}#sell`);
+  await ben.waitForSelector("#t-amount");
+  if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "sell") throw new Error("a link to #sell opened on buy");
+  await ben.goto(`${base}/wallet#nonsense`);
+  await ben.waitForSelector("#w-amount");
+  if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "deposit")
+    throw new Error("an unknown tab name did not fall back");
 });
 
 await step("the wallet locks and unlocks with the password; addresses keep their case", async () => {

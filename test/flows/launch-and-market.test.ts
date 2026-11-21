@@ -208,3 +208,22 @@ describe("public history, read from the chain", () => {
     expect(missing).toMatchObject({ status: "not-found", changes: [], deposits: [] });
   });
 });
+
+describe("the price record", () => {
+  it("keeps a reading each time the price is seen to change, oldest first, and refuses coins it does not know", async () => {
+    const creator = await fundedClient();
+    const launched = await creator.launch({ name: "Record", symbol: "RCRD" });
+    const first = BigInt((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
+    await creator.trade(launched.mint, "buy", SOL / 20n);
+    const second = BigInt((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
+    expect(second).toBeGreaterThan(first);
+    const { points } = await call("coin/prices", { mint: launched.mint });
+    expect(points.map((point) => BigInt(point.microLamportsPerCoin))).toEqual([first, second]);
+    expect(points[0]!.at).toBeLessThanOrEqual(points[1]!.at);
+    // Reading again without a trade adds nothing: the record is of changes, not of visits.
+    await call("coin", { mint: launched.mint });
+    expect((await call("coin/prices", { mint: launched.mint })).points).toHaveLength(2);
+    await expect(call("coin/prices", { mint: newActor().address })).rejects.toThrow(/not launched here/);
+    await expect(call("coin/prices", { mint: "x" })).rejects.toThrow(/valid Solana address/);
+  });
+});

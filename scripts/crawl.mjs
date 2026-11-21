@@ -62,7 +62,13 @@ async function inspect(page, where) {
       if (!el.childNodes.length || ![...el.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim())) continue;
       const style = getComputedStyle(el);
       const box = el.getBoundingClientRect();
-      if (style.visibility === "hidden" || style.display === "none" || box.width === 0 || box.height === 0 || el.closest("[aria-hidden='true'], .sr, .skip"))
+      if (
+        style.visibility === "hidden" ||
+        style.display === "none" ||
+        box.width === 0 ||
+        box.height === 0 ||
+        el.closest("[aria-hidden='true'], .visually-hidden, .skip")
+      )
         continue;
       const text = el.textContent.trim().slice(0, 40);
       const size = parseFloat(style.fontSize);

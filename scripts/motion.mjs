@@ -131,7 +131,7 @@ await check(
     const page = await open({ width: 390, height: 844 }, { slow: true, mobile: true, scale: 2 });
     const started = Date.now();
     await page.goto(base, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector(".seq h1", { state: "visible" });
+    await page.waitForSelector(".seq .words .h1", { state: "visible" });
     const headline = Date.now() - started;
     const early = await look(page);
     if (!early.words) throw new Error("no headline at first paint");

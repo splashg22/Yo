@@ -89,6 +89,8 @@ export interface Api {
   faucet: Op<{ wallet: string }, { ok: true }>;
   explore: Op<Nothing, { coins: CoinView[] }>;
   coin: Op<{ mint: string }, CoinView>;
+  /** The prices this site has read from a coin's curve, oldest first. A point is kept when the price changed or a minute passed. */
+  "coin/prices": Op<{ mint: string }, { points: { at: number; microLamportsPerCoin: string }[] }>;
   /** The latest public transactions on a coin's bonding curve, newest first. */
   "coin/activity": Op<{ mint: string }, { activity: Activity[] }>;
   /** The latest public transactions a wallet signed or received in, newest first. */
