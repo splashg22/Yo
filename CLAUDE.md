@@ -3,7 +3,8 @@
 A private launchpad and trading suite on Helius Privacy Rings: launch a coin on a pump.fun
 bonding curve and register it with a Ring, a Ring wallet, an explore feed, and an OTC desk.
 
-Status: step 1 of 5 (research and plan). No application code yet. See `docs/PLAN.md`.
+Status: step 1 of 6 (research and plan) is done. Step 2, the homepage, is waiting on the
+media in `brand/`. No application code yet. See `docs/PLAN.md`.
 
 ## Read first
 
@@ -21,8 +22,8 @@ Status: step 1 of 5 (research and plan). No application code yet. See `docs/PLAN
   site come from the chain or are not shown. Alpha technology is labelled alpha.
 - The project is independent of Helius, pump.fun, rings.run, hushrings.app and
   mazerealestate.fun, and says so in the footer. Take inspiration from the references; copy
-  none of their text, code, images, names or logos. The branding reference is a GTA fan
-  site: use none of its game imagery, names or logos.
+  none of their text, code, images, names or logos. The style screenshots in `brand/` (a
+  jacket product site and a GTA fan site) give approach and mood only.
 - No real names or personal details anywhere. Invented names only in demos and tests.
 - Secrets (the Helius API key above all) never go in the repo, in `NEXT_PUBLIC_*` variables
   or in client bundles. The browser reaches Helius through our own proxy route.
@@ -42,15 +43,29 @@ asset of a transfer between Ring balances are encrypted; the two addresses are p
 
 ## Site style
 
-Mood from the branding reference: very dark wine ground, rose-white text, light-weight
-large headings with tight tracking, generous spacing, small type for labels.
+- Pure black page, white text only. All colour comes from the media in `brand/`.
+- One typeface for everything: an open-licence pixel / dot-matrix display font, self-hosted,
+  all caps, wide tracking. No second font. Exception that is not a style choice: wallet and
+  coin addresses are case-sensitive, so they are never upper-cased, only set in the same font.
+- Square corners. 1px white outlines. No fills except black.
+- Hero: `brand/hero.png` on the right, a three-line headline on the left, one outlined
+  button. Nothing else.
+- How it works: `brand/layers.png` with five numbered callouts (01 to 05) in 1px outlined
+  boxes, each joined to its layer by a thin line. Layers, top to bottom: your wallet, the
+  coin, the amount, the Ring (sealed), the public chain.
+- Scroll: `brand/hero.mp4` played frame by frame against scroll position. Text changes
+  with a brief glitch (two offset copies, about 150 ms). With reduced motion: stills only.
+- Phone: object on top, text below, callouts become a numbered list under the image.
+- Logo: a clean SVG redrawn from `brand/logo.png`. Link previews use `brand/banner.png`.
+- Media is compressed, lazy-loaded below the fold, and first load stays fast.
 
-Never use: harsh gradients, Lucide icons, em dashes, Inter / Geist / Space Grotesk,
-coloured left stripes, bento grids, terminal windows, "it's not X, it's Y" copy, checkmark
-bullets, pricing tiers, purple and black, skeleton loaders, radial orbs, dot grids, sparkle
-icons, animated arrows, hover animations, neon or pastel colours, soft corner radius.
+Never use: gradients, icon libraries (draw the few icons needed as pixel glyphs), em
+dashes, Inter / Geist / Space Grotesk, coloured left stripes, bento grids, cards with soft
+corners, terminal windows, "it's not X, it's Y" copy, checkmark bullets, pricing tiers,
+purple and black, skeleton loaders, radial orbs, background grids, sparkle icons, animated
+arrows, hover animations, neon or pastel colours.
 
-The hero shows the real product working, not an illustration.
+`brand/README.md` lists the media files the site expects and their exact specifications.
 
 ## Stack (planned)
 
