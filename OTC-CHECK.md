@@ -5,11 +5,24 @@
 ## The answer
 
 The work in this folder is the Rings launchpad (RINGPAD). Its OTC page is a feature of the
-launchpad, written from scratch here. **I could not find a separate OTC project anywhere I
-can reach**, so I have not touched one, and there was nothing to reverse.
+launchpad, written from scratch here.
 
-If you do have one, it is not on this machine and not in a repository I can see by that
-name. Tell me its folder or repository name and I will repeat sections 2 and 3 against it.
+**The separate OTC project exists.** It is the artifact "Agent OTC Desk: Working Spec" in
+your claude.ai artifacts, last updated 20 November 2026, the day before this session. The
+owner confirmed on 21 November that this is the separate project and that it is a spec
+only, with no code. I did not create it, and I have not opened, edited, republished or
+deleted it. I saw only its title and date in a listing of artifacts.
+
+**Nothing in the launchpad is connected to it.** No text, design, code, key, port, package
+or name in this folder comes from that spec, and nothing here refers to it except this
+file. There was nothing to reverse.
+
+**It is parked.** It will not be opened, edited, run, republished, deleted or referenced
+from the launchpad work. The launchpad's own OTC feature is unrelated and carries on.
+
+The first version of this file said no separate project had been found. That was true of
+the places searched then (this machine and the GitHub repositories) and is corrected here:
+the project is an artifact, which those searches do not cover.
 
 ## 1. Every OTC thing found
 
@@ -72,10 +85,12 @@ taken was inside the launchpad: its ports (see `README.md`, "Ports and folders")
 
 ## 5. Unsure
 
-- Whether the separate OTC project exists, and where. See `BLOCKED.md`.
+- Nothing about the separate project is unclear any more: it is the artifact named above.
 - Whether its ports matched the launchpad's old ones. Now moot.
 
 ## 6. Parked
 
-No separate OTC project will be opened, edited, run or referenced from here. The
-launchpad keeps its own OTC feature.
+The separate OTC project (the "Agent OTC Desk: Working Spec" artifact) will not be opened,
+edited, run, republished, deleted or referenced from here. The same goes for the
+ShadowTerminal artifact, which is not part of this work. The launchpad keeps its own OTC
+feature.

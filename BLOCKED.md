@@ -4,7 +4,7 @@
 | --- | --- | --- | --- |
 | 1 | A private repository for the launchpad | Creating one is refused for this session (`403 Resource not accessible by integration`, tried twice) | Create an empty **private** repository on GitHub (no README, licence or .gitignore). Give the Claude GitHub App access to it (github.com/apps/claude, Configure, Repository access). Tell me its name. Or push it yourself: `git remote add origin git@github.com:<you>/<name>.git && git push -u origin main` from a copy unpacked from `ringpad.bundle` |
 | 2 | Removing the launchpad from the public `Yo` repository | You asked for nothing to be deleted there | When ready: `git push https://github.com/splashg22/Yo.git --delete claude/exciting-gates-vdquz4`, or on GitHub: `Yo`, Branches, the bin icon. The branch holds research notes, the homepage and stand-in media, no secrets |
-| 3 | The separate OTC project, if there is one | I cannot find it (see `OTC-CHECK.md`) | Tell me its folder or repository name if you want it checked |
+| 3 | The separate OTC project | Resolved: it is your "Agent OTC Desk: Working Spec" artifact. Untouched and parked (see `OTC-CHECK.md`) | Nothing |
 | 4 | Devnet | No Helius key | Put `HELIUS_API_KEY=<key>` in `.env.local`. The site works without it on the local chain |
 | 5 | The real ring images and video | They come from your Higgsfield runs | Save them over the files in `brand/` under the same names, then tell me. Prompts: `brand/HIGGSFIELD-PROMPTS.md` |
 | 6 | Real Ring balances | A real Ring deposit failed on the local validator (`InvalidTreeAccounts`); it needs devnet and the Helius endpoints | Follows from 4 |
