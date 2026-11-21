@@ -4,6 +4,15 @@
  */
 export const site = {
   name: "RINGPAD",
+  /**
+   * Who runs the site, for the legal pages. Placeholders until the owner decides: anything in
+   * square brackets is shown on the page marked as not yet filled in.
+   */
+  operator: {
+    name: "[OPERATOR NAME: TO BE FILLED IN]",
+    country: "[COUNTRY: TO BE FILLED IN]",
+    contact: "[CONTACT EMAIL: TO BE FILLED IN]",
+  },
   description:
     "Launch a coin on a pump.fun curve, register it with a Privacy Ring, and move it between Ring balances without publishing the coin or the amount.",
   /** Where the object's centre sits in every frame of brand/hero.mp4, as a share of the frame width. */

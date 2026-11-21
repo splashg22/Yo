@@ -5,7 +5,8 @@
  *  1. No wallet needed: a key made in this browser, kept as a password-encrypted backup.
  *  2. A browser wallet, through the Wallet Standard.
  */
-import { noteKeysFor } from "@/lib/notes";
+import { utf8 } from "@/lib/bytes";
+import { NOTE_KEY_MESSAGE, noteKeysFor, type NoteKeys } from "@/lib/notes";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet as StandardWallet, WalletAccount } from "@wallet-standard/base";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -75,10 +76,19 @@ async function extensionSigner(wallet: StandardWallet): Promise<Signer> {
     if (first === undefined) throw new Error(`${wallet.name} did not sign. Nothing was sent.`);
     return [first];
   };
+  // One extra signature when connecting: a fixed message whose signature seeds the wallet's note key. An Ed25519
+  // signature of the same message is the same every time, so reconnecting gives the same key and old notes still open.
+  // It is asked for once per page load and kept in memory only.
+  let notes: Promise<NoteKeys> | undefined;
+  const noteKeys = (): Promise<NoteKeys> =>
+    (notes ??= asked(features["solana:signMessage"].signMessage({ account, message: utf8(NOTE_KEY_MESSAGE) })).then(([result]) =>
+      noteKeysFor(result.signature),
+    ));
   return {
     kind: "extension",
     label: wallet.name,
     address: account.address,
+    noteKeys,
     signMessage: async (message) => {
       const [result] = await asked(features["solana:signMessage"].signMessage({ account, message }));
       return result.signature;
@@ -103,7 +113,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     // A wallet publishes its Ring keys once, so that it can receive transfers. If this
     // fails the wallet still works; a transfer to it reports "not registered" until it succeeds.
     // With it goes the wallet's public note key, so that others can seal notes to it.
+    // A wallet that declines the note-key signature is still registered, without a note key: it can hold and move coins, not notes.
     Promise.resolve(next.noteKeys?.())
+      .catch(() => undefined)
       .then((keys) => signedApi("ring/register", next, keys ? { noteKey: toBase64(keys.publicKey) } : {}))
       .catch((error: unknown) => console.warn("Ring registration did not complete:", error));
   }, []);

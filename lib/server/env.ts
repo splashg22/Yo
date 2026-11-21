@@ -8,7 +8,20 @@ export interface Settings {
   heliusApiKey: string;
   /** How long one RPC call may take before it counts as a dead connection. */
   rpcTimeoutMs: number;
+  /** Parts of the product that are built but switched off unless asked for. */
+  features: Features;
 }
+
+export interface Features {
+  /** The sealed launch window: buyers commit before a coin exists and all buy in its first transaction. Holds buyers' funds. Off unless FEATURE_SEALED_WINDOW=on. */
+  sealedWindow: boolean;
+}
+
+const flag = (name: string): boolean => {
+  const value = process.env[name] ?? "off";
+  if (value !== "on" && value !== "off") throw new Error(`${name} must be "on" or "off"`);
+  return value === "on";
+};
 
 export function settings(): Settings {
   const network = process.env.RING_NETWORK ?? "local";
@@ -21,6 +34,7 @@ export function settings(): Settings {
     dataDir: process.env.APP_DATA_DIR ?? ".data",
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
     rpcTimeoutMs,
+    features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },
   };
 }
 

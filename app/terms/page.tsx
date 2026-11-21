@@ -1,3 +1,4 @@
+import { Operator } from "@/components/Operator";
 import type { Metadata } from "next";
 import { site } from "@/site.config";
 
@@ -9,6 +10,7 @@ export default function Page() {
       <div className="wrap">
         <span className="label">Draft. Not yet reviewed by a lawyer.</span>
         <h1 className="h2">Terms</h1>
+        <Operator />
         <div className="prose">
           <p>These terms cover your use of {site.name}. The project is a pre-release. It runs on a test chain, where coins have no value.</p>
           <h2>What {site.name} is</h2>

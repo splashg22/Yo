@@ -12,6 +12,8 @@ export interface Config {
   network: "local" | "devnet";
   /** "mock": Ring balances are kept by the local stand-in, not by the Privacy Rings program. */
   ring: "mock";
+  /** Parts of the product that are built but switched off unless the operator turns them on. */
+  features: { sealedWindow: boolean };
 }
 export interface CoinView {
   mint: string;

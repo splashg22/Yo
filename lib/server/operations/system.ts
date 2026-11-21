@@ -99,7 +99,7 @@ async function transactionView(signature: string): Promise<TransactionView> {
 }
 
 export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/status"> = {
-  config: () => ({ network: settings().network, ring: "mock" }),
+  config: () => ({ network: settings().network, ring: "mock", features: settings().features }),
 
   status,
 

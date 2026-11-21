@@ -35,7 +35,8 @@
     "site.config.ts",
     "*.config.ts",
     ".next/types/**/*.ts",
-    ".next/dev/types/**/*.ts"
+    ".next/dev/types/**/*.ts",
+    "proxy.ts"
   ],
   "exclude": ["node_modules", "prototypes"]
 }

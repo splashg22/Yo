@@ -16,6 +16,12 @@ import { deriveKey } from "./keys";
 import { isPrintable } from "./text";
 
 export const NOTE_MAX_CHARACTERS = 140;
+/**
+ * What a wallet extension is asked to sign, once, when it connects. The signature never leaves the
+ * browser; it seeds the note key. The text says what it is for, because the wallet shows it to its owner.
+ */
+export const NOTE_KEY_MESSAGE =
+  "Sign to create your note key.\n\nThis lets you read and send sealed notes on transfers. It moves nothing and costs nothing. Only sign this on a site you trust: the signature is the key to your notes.";
 /** A sealed box adds 48 bytes; a character is at most 4 bytes. In base64. */
 export const SEALED_NOTE_MAX_LENGTH = Math.ceil(((48 + NOTE_MAX_CHARACTERS * 4) * 4) / 3) + 4;
 
@@ -29,7 +35,10 @@ export interface SealedNote {
   forSender: string;
 }
 
-/** A wallet's note key pair. The same wallet seed always gives the same pair, so a restored backup can read old notes. */
+/**
+ * A wallet's note key pair, from a secret only that wallet has: its seed, or for a wallet extension its
+ * signature of NOTE_KEY_MESSAGE. The same secret always gives the same pair, so a restored backup can read old notes.
+ */
 export async function noteKeysFor(walletSeed: Uint8Array): Promise<NoteKeys> {
   await sodium.ready;
   const pair = sodium.crypto_box_seed_keypair(deriveKey(walletSeed, "note-key"));

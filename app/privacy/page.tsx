@@ -1,3 +1,4 @@
+import { Operator } from "@/components/Operator";
 import type { Metadata } from "next";
 import { site } from "@/site.config";
 
@@ -9,6 +10,7 @@ export default function Page() {
       <div className="wrap">
         <span className="label">Draft. Not yet reviewed by a lawyer.</span>
         <h1 className="h2">Privacy Policy</h1>
+        <Operator />
         <div className="prose">
           <p>This page is about what {site.name} itself collects. What a blockchain shows the world is a different matter, covered on the Docs page.</p>
           <h2>What we do not collect</h2>

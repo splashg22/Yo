@@ -89,6 +89,14 @@ async function fillWallet(page, tab, { mint = NATIVE, amount, to }) {
   if (to !== undefined) await page.fill("#w-to", to);
   await page.click("button:text-is('Review')");
 }
+/** Waits until a wallet has published a note key. */
+async function settlesNoteKey(wallet) {
+  for (let attempt = 0; attempt < 40; attempt++) {
+    if ((await app("ring/note-key", { wallet })).key) return;
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+  throw new Error("the wallet extension never published a note key");
+}
 const ringCell = async (page, symbol) =>
   (
     await page
@@ -407,6 +415,22 @@ await check("a wallet that declines to sign: the page says so, says nothing was 
   await declining.waitForSelector("#w-amount", { timeout: 15000 });
   const address = await declining.locator(".kv .address").first().getAttribute("title");
   await app("faucet", { wallet: address });
+  // Connecting asked the extension for one extra signature, which gave it a note key. A note sent to it can be read there.
+  await settlesNoteKey(address);
+  await page.bringToFront();
+  await page.goto(`${base}/wallet`);
+  await page.waitForSelector("#w-amount");
+  await fillWallet(page, "transfer", { amount: "0.001", to: address });
+  await page.click("button:text-is('Back')");
+  await page.fill("#w-memo", "hello extension");
+  await page.click("button:text-is('Review')");
+  await page.click("text=Sign and transfer");
+  await page.waitForFunction(() => /sent/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 30000 });
+  await declining.bringToFront();
+  await declining.click("text=Check for anything missing");
+  await declining.waitForFunction(() => /READABLE ONLY BY YOU AND THE OTHER WALLET: "HELLO EXTENSION"/i.test(document.body.innerText), null, {
+    timeout: 20000,
+  });
   declining.sent.length = 0;
   await fillWallet(declining, "deposit", { amount: "1" });
   await declining.click("text=Sign and deposit");
