@@ -3,5 +3,11 @@ import { defineConfig } from "vitest/config";
 
 export default defineConfig({
   resolve: { alias: { "@": fileURLToPath(new URL(".", import.meta.url)) } },
-  test: { include: ["test/**/*.test.ts"] },
+  test: {
+    include: ["test/**/*.test.ts"],
+    globalSetup: ["test/global-setup.ts"],
+    fileParallelism: false, // the flow tests share one local chain
+    testTimeout: 60_000,
+    hookTimeout: 180_000,
+  },
 });

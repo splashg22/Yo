@@ -2,7 +2,6 @@ import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import { GET } from "../app/api/stats/route";
 import media from "../lib/media.json";
 import { FORBIDDEN_CLAIMS, VISIBILITY, visibilityOf } from "../lib/visibility";
 import { nav, site } from "../site.config";
@@ -67,11 +66,9 @@ describe("what the site may say", () => {
   it("never upper-cases an address", () => {
     expect(readFileSync(join(root, "app/globals.css"), "utf8")).toMatch(/\.address \{[^}]*text-transform: none/);
   });
-  it("shows no number that was not read from the chain", async () => {
-    const stats = await GET().json();
-    expect(stats.available).toBe(false);
-    expect(Object.values(stats).some((value) => typeof value === "number")).toBe(false);
+  it("shows no number that was not read from the chain", () => {
     expect(readFileSync(join(root, "components/Stats.tsx"), "utf8")).toContain("stats?.available &&");
+    expect(readFileSync(join(root, "lib/server/handlers.ts"), "utf8")).toMatch(/available: coins\.length > 0/);
   });
 });
 

@@ -1,0 +1,36 @@
+{
+  "source": "devnet",
+  "programs": [
+    "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P",
+    "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s",
+    "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
+    "pfeeUxB6jkeY1Hxd7CsFCAjcbHA9rWtchMGdZ6VojVZ",
+    "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
+    "MAyhSmzXzV1pTf7LsNkrNwkWKTo4ougAJ1PPg47MD4e",
+    "pAMMBay6oceH9fJKBRHGP5D4bD4sWpmSwMn52FMfXEA",
+    "ring1GaLCuJnkUMVkX2JeZLTTX17wKsV4fZmPVzXANW",
+    "regy3WAeRXMYuMYxr5iK3Bf9Arr3PcxGxyzAddbiqDQ"
+  ],
+  "accounts": [
+    "TSLvdd1pWpHVjahSpsvCXUbgwsL3JAcvokwaKt1eokM",
+    "4wTV1YmiEkRvAtNtsSGPtUrqRYQMe5SKy2uB4Jjaxnjf",
+    "SysvarRent111111111111111111111111111111111",
+    "Ce6TQqeHC9p8KetsN6JsjHK7UTZk7nasjjnr7XxXp9F1",
+    "9GDepfBcjJMvNgmijXWVWa97Am7VZYCqXx7kJV44E9ij",
+    "Hq2wp8uJ9jCPsYgNHex8RtqdvMPfVGoYwjvF1ATiwn2Y",
+    "8Wf5TiAheLUqBrKXeYg2JtAFFMWtKdG2BSFgqUcPVwTt",
+    "3BpXnfJaUTiwXnJNe7Ej1rcbzqTTQUvLShZaWazebsVR",
+    "13ec7XdrjF3h3YcqBTFDSReRcUFwbCnJaAQspM4j6DDJ",
+    "BwWK17cbHxwWBKZkUYvzxLcNQ1YVyaFezduWbtm2de6s",
+    "DDMCfwbcaNYTeMk1ca8tr8BQKFaUfFCWFwBJq8JcnyCw",
+    "EHAAiTxcdDwQ3U4bU6YcMsQGaekdzLS3B5SmYo46kJtL",
+    "So11111111111111111111111111111111111111112",
+    "GS4CU59F31iL7aR2Q8zVS8DRrcRnXX1yjQ66TqNVQnaR",
+    "777pvSGe5LaBd9nCczvE2FXEauiwtfGJ5XRpjKyniGor",
+    "CiNmas621VuyofiDSrEPfTXHKrdZuB6jMKECyNiMpLXE"
+  ],
+  "extra": [
+    "EienwBSpsbAetT3RAAMzVA9rB5RHgCF7yTH7FFST6AK5",
+    "5Nr5ghJqrQwXZqsQvLTSL23kMsH3kQp2JsUUtiN1DF17"
+  ]
+}

@@ -2,6 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
+  // These load as CommonJS on the server; bundling them breaks the pump SDK.
+  serverExternalPackages: ["@pump-fun/pump-sdk", "@coral-xyz/anchor", "@heliuslabs/spr"],
   async headers() {
     return [
       { source: "/(.*)", headers: [
