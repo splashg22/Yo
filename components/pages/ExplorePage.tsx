@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import type { CoinView } from "@/lib/contract";
 import { formatChange, formatSol } from "@/lib/format";
 import { Address } from "../ui/Address";
+import { CoinPicture } from "../ui/CoinPicture";
 import { RingBadge } from "../ui/RingBadge";
 import { useCoins } from "../ui/useCoins";
 import { AppPage } from "./shell";
@@ -90,12 +91,15 @@ export function ExplorePage() {
         <ul className="coins">
           {coins.slice(0, shown).map((coin) => (
             <li key={coin.mint}>
-              <div>
-                <Link href={`/coin/${coin.mint}`}>
-                  <b className="h3 wrap-anywhere">{coin.name}</b> <span className="label">{coin.symbol}</span>
-                </Link>
-                <br />
-                <Address value={coin.mint} short />
+              <div className="coin-head">
+                <CoinPicture image={coin.image} symbol={coin.symbol} />
+                <div>
+                  <Link href={`/coin/${coin.mint}`}>
+                    <b className="h3 wrap-anywhere">{coin.name}</b> <span className="label">{coin.symbol}</span>
+                  </Link>
+                  <br />
+                  <Address value={coin.mint} short />
+                </div>
               </div>
               <div className="figure num">
                 <span className="label">Market cap</span>

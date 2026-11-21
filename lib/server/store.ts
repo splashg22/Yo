@@ -29,12 +29,15 @@ export interface Coin {
   creator: string;
   createdAt: number;
   signature: string;
+  /** Where the coin's picture can be fetched. Absent for a coin launched without one. */
+  image?: string;
 }
 export interface PendingLaunch {
   wallet: string;
   name: string;
   symbol: string;
   at: number;
+  image?: string;
 }
 export interface PendingPayout {
   eventId: string;

@@ -1,4 +1,7 @@
 /** Launching, the curve, Explore, the privacy score and creator fees, on the real pump.fun program. */
+import { TOKEN_2022_PROGRAM_ID } from "@solana/spl-token";
+import { PublicKey } from "@solana/web3.js";
+import sharp from "sharp";
 import { beforeAll, describe, expect, it } from "vitest";
 import { NATIVE } from "../../lib/constants";
 import { newActor } from "../../lib/keys";
@@ -225,5 +228,40 @@ describe("the price record", () => {
     expect((await call("coin/prices", { mint: launched.mint })).points).toHaveLength(2);
     await expect(call("coin/prices", { mint: newActor().address })).rejects.toThrow(/not launched here/);
     await expect(call("coin/prices", { mint: "x" })).rejects.toThrow(/valid Solana address/);
+  });
+});
+
+describe("a coin's picture and description", () => {
+  it("launches with a picture, a description and a first buy into the Ring in one transaction, and lists the coin with its picture", async () => {
+    const creator = await fundedClient();
+    const png = await sharp({ create: { width: 200, height: 120, channels: 3, background: "#f5a524" } })
+      .png()
+      .toBuffer();
+    const launched = await creator.launch({
+      name: "Pictured",
+      symbol: "PICT",
+      description: "A coin with a picture, for the tests.",
+      picture: png.toString("base64"),
+      firstBuyLamports: SOL / 50n,
+      toRing: true,
+    });
+    const coin = await call("coin", { mint: launched.mint });
+    expect(coin.image).toMatch(/^\/u\/[a-f0-9]{24}\.webp$/);
+    expect(await creator.ringBalance(launched.mint)).toBe(launched.firstBuyTokens);
+    // The address pump.fun wrote on-chain for the coin's details is the file this server stored.
+    const { getTokenMetadata } = await import("@solana/spl-token");
+    const onChainDetails = await getTokenMetadata(chain, new PublicKey(launched.mint), "confirmed", TOKEN_2022_PROGRAM_ID);
+    expect(onChainDetails?.uri).toMatch(/\/u\/[a-f0-9]{24}\.json$/);
+    expect(onChainDetails?.name).toBe("Pictured");
+  });
+
+  it("lists a coin launched without a picture with none, and refuses a file that is not a picture before anything is built", async () => {
+    const creator = await fundedClient();
+    const plain = await creator.launch({ name: "Unpictured", symbol: "NOPIC" });
+    expect((await call("coin", { mint: plain.mint })).image).toBeUndefined();
+    const notAPicture = Buffer.from("<svg xmlns='http://www.w3.org/2000/svg'><script>1</script></svg>").toString("base64");
+    await expect(creator.launch({ name: "Bad", symbol: "BAD", picture: notAPicture })).rejects.toThrow(/must be a PNG, JPEG, WebP or GIF/);
+    await expect(creator.launch({ name: "Bad", symbol: "BAD", description: "x".repeat(281) })).rejects.toThrow(/too long/);
+    expect((await call("explore", {})).coins.some((listed) => listed.symbol === "BAD")).toBe(false);
   });
 });

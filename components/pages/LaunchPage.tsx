@@ -34,7 +34,20 @@ interface Launched {
   toRing: boolean;
   signature: string;
 }
-const EMPTY = { name: "", symbol: "", firstBuy: "", toRing: true };
+const EMPTY = { name: "", symbol: "", firstBuy: "", toRing: true, description: "", picture: "", pictureName: "" };
+const PICTURE_MAX_BYTES = 1_500_000;
+
+/** Reads a chosen file as base64, for sending. The server checks it again and redraws it. */
+function readPicture(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (file.size > PICTURE_MAX_BYTES) return reject(new Error("the picture is larger than 1.5 MB"));
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("the picture could not be read"));
+    // Read as a data address, "data:image/png;base64,....": the part after the comma is the file itself.
+    reader.onload = () => resolve(typeof reader.result === "string" ? (reader.result.split(",")[1] ?? "") : "");
+    reader.readAsDataURL(file);
+  });
+}
 
 function LaunchForm() {
   const { signer } = useWallet();
@@ -67,6 +80,8 @@ function LaunchForm() {
         name: form.name.trim(),
         symbol: form.symbol.trim(),
         firstBuyLamports: buying ? parseAmount(form.firstBuy, SOL_DECIMALS).toString() : undefined,
+        description: form.description.trim() || undefined,
+        picture: form.picture || undefined,
         toRing: form.toRing,
       });
       const sent = await signAndSend(me, built.transaction, [mint.seed]);
@@ -131,7 +146,8 @@ function LaunchForm() {
         onCancel={() => setReviewing(false)}
       >
         <p className="body">
-          Launch {form.name.trim()} ({form.symbol.trim().toUpperCase()}){buying ? ` with a first buy of ${form.firstBuy.trim()} SOL` : ""}.
+          Launch {form.name.trim()} ({form.symbol.trim().toUpperCase()}){buying ? ` with a first buy of ${form.firstBuy.trim()} SOL` : ""}
+          {form.pictureName ? `, with the picture ${form.pictureName}` : ", with no picture"}.
         </p>
         {line}
       </Confirm>
@@ -164,6 +180,40 @@ function LaunchForm() {
             onChange={(event) => setForm({ ...form, symbol: event.target.value })}
           />
         </div>
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="l-description">
+          Description, optional
+        </label>
+        <input id="l-description" maxLength={280} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
+      </div>
+      <div className="field">
+        <label className="label" htmlFor="l-picture">
+          Picture, optional. PNG, JPEG, WebP or GIF, up to 1.5 MB
+        </label>
+        <input
+          id="l-picture"
+          type="file"
+          accept="image/png,image/jpeg,image/webp,image/gif"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (!file) return setForm({ ...form, picture: "", pictureName: "" });
+            readPicture(file).then(
+              (picture) => {
+                setForm((current) => ({ ...current, picture, pictureName: file.name }));
+                setProblem("");
+              },
+              (error: unknown) => {
+                event.target.value = "";
+                setForm((current) => ({ ...current, picture: "", pictureName: "" }));
+                setProblem(error instanceof Error ? error.message : String(error));
+              },
+            );
+          }}
+        />
+        <span className="label">
+          The picture and description are public. Hidden data in the file, such as where a photo was taken, is removed before it is kept.
+        </span>
       </div>
       <div className="field">
         <label className="label" htmlFor="l-buy">

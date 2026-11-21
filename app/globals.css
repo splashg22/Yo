@@ -1183,3 +1183,31 @@ pre.code {
 .coins li b {
   overflow-wrap: anywhere;
 }
+
+/* A coin's picture, or its first letter in the same square when there is none. */
+.coin-picture {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  border: 1px solid var(--rule);
+  object-fit: cover;
+  font-weight: 900;
+  font-size: 18px;
+  background: #000;
+}
+input[type="file"] {
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  color: var(--mute);
+  max-width: 100%;
+}
+.coin-head {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  min-width: 0;
+}
+.coin-head > div {
+  min-width: 0;
+}

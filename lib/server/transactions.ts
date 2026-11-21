@@ -46,6 +46,8 @@ export interface LaunchRequest {
   mint: string;
   name: string;
   symbol: string;
+  /** Where the coin's description file can be fetched. Written on-chain by pump.fun. */
+  uri: string;
   firstBuyLamports: bigint;
   /** Put the first buy straight into the creator's Ring balance. */
   toRing: boolean;
@@ -56,7 +58,14 @@ export async function buildLaunch(request: LaunchRequest): Promise<{ transaction
   if (settings().network === "local") await bootstrap();
   const wallet = new PublicKey(request.wallet);
   const mint = new PublicKey(request.mint);
-  const plan = await launchInstructions({ wallet, mint, name: request.name, symbol: request.symbol, uri: "", firstBuyLamports: request.firstBuyLamports });
+  const plan = await launchInstructions({
+    wallet,
+    mint,
+    name: request.name,
+    symbol: request.symbol,
+    uri: request.uri,
+    firstBuyLamports: request.firstBuyLamports,
+  });
   const instructions = [...plan.instructions];
   if (request.toRing && plan.firstBuyTokens > 0n) instructions.push(...depositInstructions(wallet, request.mint, plan.firstBuyTokens));
   return { transaction: await compile(wallet, instructions, 900_000), firstBuyTokens: plan.firstBuyTokens };

@@ -9,6 +9,7 @@ import { formatAmount, formatChange, formatPrice, formatSol, formatTime, parseAm
 import { site } from "@/site.config";
 import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
+import { CoinPicture } from "../ui/CoinPicture";
 import { Confirm } from "../ui/Confirm";
 import { PriceChart } from "../ui/PriceChart";
 import { RingBadge } from "../ui/RingBadge";
@@ -81,6 +82,7 @@ export function CoinPage({ mint }: { mint: string }) {
           These figures may be out of date: {problem}
         </p>
       )}
+      <CoinPicture image={coin.image} symbol={coin.symbol} size={96} />
       <dl className="kv">
         <dt>Coin address</dt>
         <dd>

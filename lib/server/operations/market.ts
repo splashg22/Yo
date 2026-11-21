@@ -9,7 +9,8 @@ import { claimableFees, curveAddress, curveOf, tokenProgramOf } from "../pump";
 import { ring } from "../ring";
 import { connection } from "../solana";
 import { save, state, type Coin } from "../store";
-import { addressOf, amountOf, plainText } from "../validate";
+import { PICTURE_MAX_BYTES, storeCoinDetails } from "../pictures";
+import { addressOf, amountOf, plainText, text } from "../validate";
 import type { Handlers } from "./types";
 
 const DAY_MS = 86_400_000;
@@ -129,9 +130,14 @@ export const market: Handlers<
     const symbol = plainText(input.symbol, "ticker", 10).toUpperCase();
     if (!/^[A-Z0-9]{1,10}$/.test(symbol)) throw new Error("the ticker must be 1 to 10 letters or digits");
     const firstBuyLamports = input.firstBuyLamports === undefined || input.firstBuyLamports === "" ? 0n : amountOf(input.firstBuyLamports, "first buy");
-    const built = await buildLaunch({ wallet, mint, name, symbol, firstBuyLamports, toRing: input.toRing === true });
+    const description = input.description === undefined || input.description === "" ? "" : plainText(input.description, "description", 280);
+    const picture =
+      input.picture === undefined || input.picture === "" ? undefined : text(input.picture, "picture", Math.ceil((PICTURE_MAX_BYTES * 4) / 3) + 4);
+    // The coin's details are stored first, so the address written on-chain already answers when the coin exists.
+    const details = await storeCoinDetails({ name, symbol, description, picture });
+    const built = await buildLaunch({ wallet, mint, name, symbol, uri: details.uri, firstBuyLamports, toRing: input.toRing === true });
     // Remembered so the coin can be listed, under this name, once its launch is confirmed on-chain.
-    state().pendingLaunches[mint] = { wallet, name, symbol, at: Date.now() };
+    state().pendingLaunches[mint] = { wallet, name, symbol, at: Date.now(), ...(details.image ? { image: details.image } : {}) };
     save();
     return { transaction: built.transaction, firstBuyTokens: built.firstBuyTokens.toString() };
   },

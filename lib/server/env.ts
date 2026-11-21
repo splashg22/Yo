@@ -10,6 +10,10 @@ export interface Settings {
   databaseSchema: string;
   /** For the devnet pass. Unused on a local validator. */
   heliusApiKey: string;
+  /** This site's own address, for links it writes into a coin's details. */
+  siteUrl: string;
+  /** A Pinata key for keeping coin pictures on IPFS. Empty: pictures are kept in a folder on this server. */
+  pinataJwt: string;
   /** How long one RPC call may take before it counts as a dead connection. */
   rpcTimeoutMs: number;
   /** Parts of the product that are built but switched off unless asked for. */
@@ -39,6 +43,8 @@ export function settings(): Settings {
     databaseUrl: process.env.DATABASE_URL ?? "",
     databaseSchema: process.env.DATABASE_SCHEMA ?? "ringpad",
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
+    siteUrl: (process.env.SITE_URL ?? "http://localhost:4710").replace(/\/$/, ""),
+    pinataJwt: process.env.PINATA_JWT ?? "",
     rpcTimeoutMs,
     features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },
   };

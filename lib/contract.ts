@@ -22,6 +22,8 @@ export interface CoinView {
   creator: string;
   createdAt: number;
   signature: string;
+  /** Where the coin's picture can be fetched. Absent for a coin launched without one. */
+  image?: string;
   marketCapLamports: string;
   /** The price of one whole coin, in millionths of a lamport. */
   microLamportsPerCoin: string;
@@ -100,7 +102,18 @@ export interface Api {
   "wallet/activity": Op<{ wallet: string }, { activity: Activity[] }>;
   "wallet/public": Op<{ wallet: string }, { balances: Record<string, string> }>;
   "launch/build": Op<
-    { wallet: string; mint: string; name: string; symbol: string; firstBuyLamports?: string; toRing?: boolean },
+    {
+      wallet: string;
+      mint: string;
+      name: string;
+      symbol: string;
+      firstBuyLamports?: string;
+      toRing?: boolean;
+      /** Up to 280 characters. */
+      description?: string;
+      /** A PNG, JPEG, WebP or GIF of at most 1.5 MB, in base64. It is redrawn as a 512px WebP before it is kept. */
+      picture?: string;
+    },
     { transaction: string; firstBuyTokens: string }
   >;
   "trade/build": Op<{ wallet: string; mint: string; side: "buy" | "sell"; amount: string }, { transaction: string; expected: string }>;

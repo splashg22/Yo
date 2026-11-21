@@ -109,6 +109,10 @@ async function settles(read, want, what) {
 
 /** Milliseconds from each click to the first word of status, with the control that was clicked. */
 const responses = [];
+/** A small real PNG, made here, to launch a coin with. */
+const PICTURE = await createRequire(import.meta.url)("sharp")({ create: { width: 240, height: 160, channels: 3, background: "#f5a524" } })
+  .png()
+  .toBuffer();
 const symbols = { [NATIVE]: "SOL" };
 /** What each person should hold in the Ring, kept by this script from the actions it took. */
 const expected = { seller: {}, buyer: {} };
@@ -219,6 +223,11 @@ await step("launch, three times: create on the curve + register with the Ring + 
       await ana.fill("#l-name", name);
       await ana.fill("#l-symbol", symbol);
       await ana.fill("#l-buy", "0.02");
+      // The first coin gets a picture and a description; the other two are launched without, as most test coins are.
+      if (index === 0) {
+        await ana.fill("#l-description", "A lantern, for the tests.");
+        await ana.setInputFiles("#l-picture", { name: "lantern.png", mimeType: "image/png", buffer: PICTURE });
+      }
       await ana.click("button:text-is('Review')");
       await ana.waitForSelector(".confirm .panel");
       if ((await ana.locator(".confirm .panel").count()) !== 3) throw new Error("expected three privacy panels: launch, curve trade, deposit");
@@ -250,6 +259,17 @@ await step("explore lists all three coins, newest first, each with a market cap 
   if (rows.length !== 3) throw new Error(`${rows.length} coins listed`);
   for (const text of rows)
     if (!/SOL/.test(text) || !/OF SUPPLY IN RING BALANCES/i.test(text) || !/1 WALLET HAS DEPOSITED IT/i.test(text)) throw new Error(text.replace(/\n/g, " | "));
+  // The coin launched with a picture shows it, drawn; the two without show their first letter in the same square.
+  await ana.waitForFunction(
+    () => [...document.querySelectorAll(".coins img.coin-picture")].some((image) => image.complete && image.naturalWidth === 512),
+    null,
+    { timeout: 15000 },
+  );
+  const pictures = await ana.evaluate(() => ({
+    drawn: document.querySelectorAll(".coins img.coin-picture").length,
+    letters: [...document.querySelectorAll(".coins span.coin-picture")].map((box) => box.innerText),
+  }));
+  if (pictures.drawn !== 1 || pictures.letters.sort().join("") !== "EQ") throw new Error(`pictures: ${JSON.stringify(pictures)}`);
   await ana.fill("#e-search", "ember");
   await settles(async () => String(await ana.locator(".coins li").count()), "1", "coins matching a search for ember");
   await ana.fill("#e-search", "no such coin");

@@ -58,7 +58,7 @@ export class RingClient {
   }
 
   /** Creates a coin on the curve and registers it with the Ring, in one transaction. */
-  async launch(coin: { name: string; symbol: string; firstBuyLamports?: bigint; toRing?: boolean }): Promise<Launch> {
+  async launch(coin: { name: string; symbol: string; firstBuyLamports?: bigint; toRing?: boolean; description?: string; picture?: string }): Promise<Launch> {
     const mint = newActor(); // the coin's own key: it signs this one transaction and is then discarded
     const built = await this.open("launch/build", {
       wallet: this.address,
@@ -67,6 +67,8 @@ export class RingClient {
       symbol: coin.symbol,
       firstBuyLamports: coin.firstBuyLamports?.toString(),
       toRing: coin.toRing,
+      description: coin.description,
+      picture: coin.picture,
     });
     const sent = await this.send(built.transaction, [mint.seed]);
     return { mint: mint.address, signature: sent.signature, firstBuyTokens: BigInt(built.firstBuyTokens) };

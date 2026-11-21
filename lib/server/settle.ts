@@ -44,7 +44,15 @@ async function listLaunches(accounts: string[], payer: string, signature: string
     if (!(await curveExists(mint))) continue;
     const curve = await curveOf(mint);
     if (curve.creator !== pending.wallet) continue;
-    store.coins.push({ mint, name: pending.name, symbol: pending.symbol, creator: curve.creator, createdAt: Date.now(), signature });
+    store.coins.push({
+      mint,
+      name: pending.name,
+      symbol: pending.symbol,
+      creator: curve.creator,
+      createdAt: Date.now(),
+      signature,
+      ...(pending.image ? { image: pending.image } : {}),
+    });
     delete store.pendingLaunches[mint];
     listed.push(mint);
   }
