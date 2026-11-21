@@ -6,7 +6,8 @@
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import type { Settlement } from "../contract";
-import { escrow, escrowReceipts, payoutStatus } from "./escrow";
+import { ringAvailable } from "./env";
+import { escrow, escrowReceipts, payoutStatus, type Receipts } from "./escrow";
 import { curveExists, curveOf, tokenProgramOf } from "./pump";
 import { ring } from "./ring";
 import { connection } from "./solana";
@@ -23,7 +24,8 @@ export async function settle(signature: string): Promise<Settlement> {
   store.credited.push(signature);
   let receipts;
   try {
-    receipts = await escrowReceipts(signature);
+    // Without the stand-in Ring there is no escrow to have received anything: only the launch, if it was one, is recorded.
+    receipts = ringAvailable() ? await escrowReceipts(signature) : await plainReceipt(signature);
   } catch (error) {
     // Nothing was credited: release the claim so a later call can try again.
     store.credited = store.credited.filter((claimed) => claimed !== signature);
@@ -72,7 +74,18 @@ async function listLaunches(accounts: string[], payer: string, signature: string
  * Repairs anything a crash or a dead connection left half done: deposits that reached
  * escrow but were never credited, and withdrawals whose payout was sent but never confirmed.
  */
+/** What a confirmed transaction touched and who paid for it, where there is no escrow to look for. */
+async function plainReceipt(signature: string): Promise<Receipts> {
+  const transaction = await connection().getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  if (!transaction?.meta) throw new Error("that transaction is not confirmed on this chain");
+  if (transaction.meta.err) throw new Error("that transaction failed on-chain");
+  const keys = transaction.transaction.message.getAccountKeys({ accountKeysFromLookups: transaction.meta.loadedAddresses });
+  const accounts = Array.from({ length: keys.length }, (_, index) => keys.get(index)!.toBase58());
+  return { payer: accounts[0]!, accounts, receipts: [], spent: 0n };
+}
+
 export async function reconcile(): Promise<{ credited: number; payoutsResolved: number }> {
+  if (!ringAvailable()) return { credited: 0, payoutsResolved: 0 };
   const chain = connection();
   const store = state();
   const owner = escrow().publicKey;

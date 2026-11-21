@@ -12,7 +12,7 @@ import {
 } from "@solana/web3.js";
 import { NATIVE } from "../constants";
 import { bootstrap } from "./bootstrap";
-import { assertLocalOnly, settings } from "./env";
+import { assertLocalOnly, assertRing, ringAvailable } from "./env";
 import { depositInstructions, escrow } from "./escrow";
 import { claimFeesInstructions, claimableFees, launchInstructions, tokenProgramOf, tradeInstructions } from "./pump";
 import { connection } from "./solana";
@@ -67,7 +67,13 @@ export interface LaunchRequest {
 
 /** A launch: create the coin on the curve, optionally make the first buy, register the coin with the Ring. One signature. */
 export async function buildLaunch(request: LaunchRequest): Promise<{ transaction: string; firstBuyTokens: bigint }> {
-  if (settings().network === "local") await bootstrap();
+  if (request.toRing && request.firstBuyLamports > 0n) assertRing();
+  if (ringAvailable()) await bootstrap();
+  else if (request.firstBuyLamports > 0n && !state().lookupTable) {
+    throw new Error(
+      "a launch with a first buy needs this site's lookup table, which has not been made on this network yet. Launch without a first buy, or ask the operator to run the network set-up.",
+    );
+  }
   const wallet = new PublicKey(request.wallet);
   const mint = new PublicKey(request.mint);
   const plan = await launchInstructions({
@@ -98,7 +104,7 @@ export async function buildWindowLaunch(request: {
   total: bigint;
 }): Promise<{ transaction: string; lastValidBlockHeight: number }> {
   assertLocalOnly("The sealed launch window");
-  if (settings().network === "local") await bootstrap();
+  await bootstrap();
   const wallet = new PublicKey(request.wallet);
   const holder = escrow();
   // Sized so that the buy at its 1% slippage limit, plus the rent for escrow's token account, cannot exceed what was committed.
@@ -140,6 +146,7 @@ export async function buildClaimFees(request: { wallet: string; toRing: boolean 
   const wallet = new PublicKey(request.wallet);
   const claimable = await claimableFees(request.wallet);
   if (claimable <= 0n) throw new Error("there are no creator fees to claim yet");
+  if (request.toRing) assertRing();
   const instructions = await claimFeesInstructions(wallet);
   if (request.toRing) instructions.push(...depositInstructions(wallet, NATIVE, claimable));
   return { transaction: await compile(wallet, instructions, 600_000), claimable };

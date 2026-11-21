@@ -3,7 +3,7 @@ import { PublicKey, type ConfirmedTransactionMeta } from "@solana/web3.js";
 import { NATIVE } from "../../constants";
 import type { Status, TransactionView } from "../../contract";
 import { airdrop } from "../bootstrap";
-import { settings } from "../env";
+import { ringAvailable, settings } from "../env";
 import { escrow, escrowBalance } from "../escrow";
 import { ring } from "../ring";
 import { settle } from "../settle";
@@ -25,13 +25,13 @@ async function status(): Promise<Status> {
   const store = state();
   const base: Status = {
     network,
-    ring: "mock",
+    ring: ringAvailable() ? "mock" : "unavailable",
     checkedAt: Date.now(),
     chain: { reachable: false },
     programs: [],
     launchTable: false,
     coins: store.coins.length,
-    escrowAddress: escrow().publicKey.toBase58(),
+    escrowAddress: ringAvailable() ? escrow().publicKey.toBase58() : "",
     escrow: [],
     pendingPayouts: store.pendingPayouts.length,
   };
@@ -46,7 +46,7 @@ async function status(): Promise<Status> {
   const infos = await chain.getMultipleAccountsInfo(PROGRAMS.map((program) => new PublicKey(program.address)));
   base.programs = PROGRAMS.map((program, index) => ({ ...program, present: infos[index]?.executable === true }));
   base.launchTable = store.lookupTable !== undefined && (await chain.getAccountInfo(new PublicKey(store.lookupTable))) !== null;
-  for (const mint of [NATIVE, ...store.coins.map((coin) => coin.mint)]) {
+  for (const mint of ringAvailable() ? [NATIVE, ...store.coins.map((coin) => coin.mint)] : []) {
     const owed = ring.total(mint);
     if (owed === 0n) continue;
     const held = await escrowBalance(mint);
@@ -99,7 +99,7 @@ async function transactionView(signature: string): Promise<TransactionView> {
 }
 
 export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/status"> = {
-  config: () => ({ network: settings().network, ring: "mock", features: settings().features }),
+  config: () => ({ network: settings().network, ring: ringAvailable() ? "mock" : "unavailable", features: settings().features }),
 
   status,
 

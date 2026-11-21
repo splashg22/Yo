@@ -13,6 +13,7 @@ import { useCoins } from "../ui/useCoins";
 import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
+import { NeedsRing } from "../ui/NeedsRing";
 import { AppPage } from "./shell";
 
 /** A QR code drawn as plain squares, dark on white so any camera reads it. */
@@ -62,15 +63,19 @@ export function PayPage() {
         </p>
       )}
       {request === "none" && (
-        <WalletGate>
-          <MakeLink />
-        </WalletGate>
+        <NeedsRing>
+          <WalletGate>
+            <MakeLink />
+          </WalletGate>
+        </NeedsRing>
       )}
       {asked && (
-        <WalletGate>
-          {/* Keyed by the request, so a second link starts clean instead of showing the first one as paid. */}
-          <PayRequestView key={JSON.stringify(request)} request={request} />
-        </WalletGate>
+        <NeedsRing>
+          <WalletGate>
+            {/* Keyed by the request, so a second link starts clean instead of showing the first one as paid. */}
+            <PayRequestView key={JSON.stringify(request)} request={request} />
+          </WalletGate>
+        </NeedsRing>
       )}
     </AppPage>
   );

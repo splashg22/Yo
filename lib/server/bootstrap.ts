@@ -89,10 +89,20 @@ async function setUp(): Promise<void> {
     save();
   }
 
+  await makeLookupTable(payer, true);
+}
+
+/**
+ * Makes the table of accounts every launch shares, paid for by `payer`, and records its address.
+ * A launch with a first buy only fits in one transaction through it. On a network without the
+ * stand-in Ring the escrow's accounts are left out.
+ */
+export async function makeLookupTable(payer: Keypair, withEscrow: boolean): Promise<string> {
+  const chain = connection();
   // The accounts a launch touches, minus the two that differ every time.
   const sample = { wallet: Keypair.generate().publicKey, mint: Keypair.generate().publicKey };
   const plan = await launchInstructions({ ...sample, name: "sample", symbol: "SAMPLE", uri: "", firstBuyLamports: 1_000_000n });
-  const instructions = [...plan.instructions, ...depositInstructions(sample.wallet, sample.mint.toBase58(), 1n)];
+  const instructions = [...plan.instructions, ...(withEscrow ? depositInstructions(sample.wallet, sample.mint.toBase58(), 1n) : [])];
   const unique = new Set(
     instructions.flatMap((instruction) => [instruction.programId, ...instruction.keys.map((key) => key.pubkey)]).map((key) => key.toBase58()),
   );
@@ -121,7 +131,7 @@ async function setUp(): Promise<void> {
     if (info && info.state.addresses.length === shared.length && (await chain.getSlot()) > info.state.lastExtendedSlot + 1) {
       state().lookupTable = table.toBase58();
       save();
-      return;
+      return table.toBase58();
     }
     await new Promise((resolve) => setTimeout(resolve, 400));
   }

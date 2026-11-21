@@ -1,5 +1,6 @@
 /** The Ring wallet: deposit, transfer, withdraw. Reading or moving a Ring balance takes a wallet-signed request. */
 import { verifyRequest, type Signed } from "../../auth";
+import { assertRing } from "../env";
 import { payFromEscrow } from "../escrow";
 import { ring } from "../ring";
 import { reconcile, settle } from "../settle";
@@ -10,6 +11,8 @@ import type { Handlers } from "./types";
 
 /** Checks the wallet's signature and remembers the request so it cannot be replayed, even across a restart. */
 export function signedBody(op: string, input: Input): Input & { wallet: string } {
+  // Everything signed here reads or moves a Ring balance (or an OTC offer or sealed window built on one).
+  assertRing();
   const body = verifyRequest<Input>(op, input as unknown as Signed<Input>, state().nonces);
   save();
   return body;
@@ -18,8 +21,14 @@ export function signedBody(op: string, input: Input): Input & { wallet: string }
 export const ringOperations: Handlers<
   "ring/deposit/build" | "ring/credit" | "ring/reconcile" | "ring/public" | "ring/register" | "ring/note-key" | "ring/transfer" | "ring/withdraw" | "ring/mine"
 > = {
-  "ring/deposit/build": (input) =>
-    buildDeposit({ wallet: addressOf(input.wallet, "wallet address"), mint: addressOf(input.mint, "coin address"), amount: amountOf(input.amount, "amount") }),
+  "ring/deposit/build": (input) => {
+    assertRing();
+    return buildDeposit({
+      wallet: addressOf(input.wallet, "wallet address"),
+      mint: addressOf(input.mint, "coin address"),
+      amount: amountOf(input.amount, "amount"),
+    });
+  },
 
   "ring/credit": (input) => settle(signatureOf(input.signature)),
 

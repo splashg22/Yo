@@ -33,6 +33,7 @@
     "window": "node scripts/window.mjs",
     "scan": "node scripts/scan-secrets.mjs",
     "doctor": "tsx scripts/doctor.ts",
+    "devnet:setup": "tsx scripts/devnet-setup.ts",
     "postgres:start": "bash scripts/local-postgres.sh start",
     "postgres:stop": "bash scripts/local-postgres.sh stop",
     "local:plan": "tsx scripts/plan-local-accounts.ts"

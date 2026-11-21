@@ -14,6 +14,7 @@ import { Confirm } from "../ui/Confirm";
 import { PriceChart } from "../ui/PriceChart";
 import { RingBadge } from "../ui/RingBadge";
 import { useHashChoice } from "../ui/useHashChoice";
+import { useRingOn } from "../ui/NeedsRing";
 import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
@@ -139,7 +140,9 @@ function TradeAndFees({ coin, onDone }: { coin: CoinView; onDone: () => Promise<
   const [problem, setProblem] = useState("");
   const [reviewing, setReviewing] = useState<"trade" | "fees" | null>(null);
   const [claimable, setClaimable] = useState<string | null>(null);
-  const [toRing, setToRing] = useState(true);
+  const ringOn = useRingOn();
+  const [wantsRing, setToRing] = useState(true);
+  const toRing = ringOn && wantsRing;
   const me = signer!;
   const isCreator = me.address === coin.creator;
   const tradeDecimals = side === "buy" ? SOL_DECIMALS : COIN_DECIMALS;
@@ -263,10 +266,12 @@ function TradeAndFees({ coin, onDone }: { coin: CoinView; onDone: () => Promise<
                 ? "Nothing to claim yet. Fees build up as people trade."
                 : `${formatSol(claimable, 6)} to claim, across your coins.`}
           </p>
-          <label className="check">
-            <input type="checkbox" checked={toRing} onChange={(event) => setToRing(event.target.checked)} />
-            <span>Send the claim straight to my Ring balance. The claim and its amount are public either way.</span>
-          </label>
+          {ringOn && (
+            <label className="check">
+              <input type="checkbox" checked={toRing} onChange={(event) => setToRing(event.target.checked)} />
+              <span>Send the claim straight to my Ring balance. The claim and its amount are public either way.</span>
+            </label>
+          )}
           <div className="actions">
             <button className="btn" type="button" disabled={claimable === null || claimable === "0"} onClick={() => setReviewing("fees")}>
               Review

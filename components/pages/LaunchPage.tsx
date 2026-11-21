@@ -12,6 +12,7 @@ import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
 import { SealedWindows } from "./SealedWindows";
+import { useRingOn } from "../ui/NeedsRing";
 import { AppPage } from "./shell";
 
 export function LaunchPage() {
@@ -66,6 +67,9 @@ function LaunchForm() {
   const [launched, setLaunched] = useState<Launched | null>(null);
   const me = signer!;
   const buying = form.firstBuy.trim() !== "";
+  const ringOn = useRingOn();
+  // Where there is no Ring, a first buy can only go to the wallet.
+  const toRing = ringOn && form.toRing;
 
   const review = () => {
     try {
@@ -90,14 +94,14 @@ function LaunchForm() {
         firstBuyLamports: buying ? parseAmount(form.firstBuy, SOL_DECIMALS).toString() : undefined,
         description: form.description.trim() || undefined,
         picture: form.picture || undefined,
-        toRing: form.toRing,
+        toRing,
       });
       const sent = await signAndSend(me, built.transaction, [mint.seed]);
       setLaunched({
         mint: mint.address,
         symbol: form.symbol.trim().toUpperCase(),
         firstBuyTokens: built.firstBuyTokens,
-        toRing: form.toRing,
+        toRing,
         signature: sent.signature,
       });
       setReviewing(false);
@@ -147,7 +151,7 @@ function LaunchForm() {
   if (reviewing) {
     return (
       <Confirm
-        actions={["launch", ...(buying ? ["curve-trade"] : []), ...(buying && form.toRing ? ["deposit"] : [])]}
+        actions={["launch", ...(buying ? ["curve-trade"] : []), ...(buying && toRing ? ["deposit"] : [])]}
         label="Sign and launch"
         busy={busy}
         onConfirm={() => void launch()}
@@ -236,10 +240,12 @@ function LaunchForm() {
           onChange={(event) => setForm({ ...form, firstBuy: event.target.value })}
         />
       </div>
-      <label className="check">
-        <input type="checkbox" checked={form.toRing} onChange={(event) => setForm({ ...form, toRing: event.target.checked })} />
-        <span>Put my first buy straight into my Ring balance. The buy itself is public either way.</span>
-      </label>
+      {ringOn && (
+        <label className="check">
+          <input type="checkbox" checked={form.toRing} onChange={(event) => setForm({ ...form, toRing: event.target.checked })} />
+          <span>Put my first buy straight into my Ring balance. The buy itself is public either way.</span>
+        </label>
+      )}
       <div className="actions">
         <button className="btn" type="submit">
           Review

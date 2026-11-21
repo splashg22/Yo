@@ -11,6 +11,7 @@ import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
 import { RingEventRow } from "../ui/RingEventRow";
+import { NeedsRing } from "../ui/NeedsRing";
 import { useCoins } from "../ui/useCoins";
 import { useHashChoice } from "../ui/useHashChoice";
 import { useRun, type Outcome } from "../ui/useRun";
@@ -29,9 +30,55 @@ export function WalletPage() {
       intro="Moving coins into or out of a Ring balance is public. Moving them between Ring balances encrypts the coin and the amount; both wallet addresses stay public."
     >
       <WalletGate>
-        <OpenWallet />
+        <NeedsRing instead={<PublicWallet />}>
+          <OpenWallet />
+        </NeedsRing>
       </WalletGate>
     </AppPage>
+  );
+}
+
+/** The wallet where there is no Ring to hold anything in: its address, what it holds in public, and its transactions. */
+function PublicWallet() {
+  const { signer, lock } = useWallet();
+  const { coins, symbol } = useCoins();
+  const me = signer!;
+  const [inWallet, setInWallet] = useState<Record<string, string> | null>(null);
+  const [problem, setProblem] = useState("");
+  useEffect(() => {
+    api("wallet/public", { wallet: me.address }).then(
+      (answer) => setInWallet(answer.balances),
+      (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),
+    );
+  }, [me.address, coins?.length]);
+  const loadActivity = useCallback(() => api("wallet/activity", { wallet: me.address }), [me.address]);
+  return (
+    <>
+      <dl className="kv">
+        <dt>{me.kind === "browser" ? "Wallet address" : me.label}</dt>
+        <dd>
+          <Address value={me.address} />
+        </dd>
+        {Object.entries(inWallet ?? {}).map(([mint, amount]) => (
+          <span key={mint} style={{ display: "contents" }}>
+            <dt>{symbol(mint)}, public</dt>
+            <dd className="num">{formatCoin(mint, amount)}</dd>
+          </span>
+        ))}
+      </dl>
+      {problem && (
+        <p className="notice" role="alert">
+          Your balances could not be read: {problem}
+        </p>
+      )}
+      <div className="actions">
+        <button className="link" type="button" onClick={lock}>
+          Lock
+        </button>
+      </div>
+      <h2 className="h3">Your wallet&apos;s public transactions</h2>
+      <ActivityList load={loadActivity} empty="None yet. Funding the wallet will be the first." />
+    </>
   );
 }
 

@@ -9,7 +9,7 @@ import { utf8 } from "@/lib/bytes";
 import { NOTE_KEY_MESSAGE, noteKeysFor, type NoteKeys } from "@/lib/notes";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet as StandardWallet, WalletAccount } from "@wallet-standard/base";
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode, useRef } from "react";
 import { decryptBackup, encryptBackup, type Backup } from "@/lib/backup";
 import { fromBase64, toBase64 } from "@/lib/bytes";
 import { api, signedApi, type Signer } from "@/lib/client/api";
@@ -108,20 +108,30 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [hasBackup, setHasBackup] = useState(false);
   const [extensions, setExtensions] = useState<StandardWallet[]>([]);
 
-  const open = useCallback((next: Signer) => {
-    setSigner(next);
-    // A wallet publishes its Ring keys once, so that it can receive transfers. If this
-    // fails the wallet still works; a transfer to it reports "not registered" until it succeeds.
-    // With it goes the wallet's public note key, so that others can seal notes to it.
-    // A wallet that declines the note-key signature is still registered, without a note key: it can hold and move coins, not notes.
-    Promise.resolve(next.noteKeys?.())
-      .catch(() => undefined)
-      .then((keys) => signedApi("ring/register", next, keys ? { noteKey: toBase64(keys.publicKey) } : {}))
-      .catch((error: unknown) => console.warn("Ring registration did not complete:", error));
-  }, []);
+  // Asked once; the wallet's registration waits for the answer, so it is not attempted where there is no Ring to register with.
+  const settings = useRef<Promise<Config | "offline">>(undefined);
+  const settingsOnce = useCallback(() => (settings.current ??= api("config").catch(() => "offline" as const)), []);
+
+  const open = useCallback(
+    (next: Signer) => {
+      setSigner(next);
+      // A wallet publishes its Ring keys once, so that it can receive transfers. If this
+      // fails the wallet still works; a transfer to it reports "not registered" until it succeeds.
+      // With it goes the wallet's public note key, so that others can seal notes to it.
+      // A wallet that declines the note-key signature is still registered, without a note key: it can hold and move coins, not notes.
+      void settingsOnce().then((known) => {
+        if (known === "offline" || known.ring !== "mock") return;
+        Promise.resolve(next.noteKeys?.())
+          .catch(() => undefined)
+          .then((keys) => signedApi("ring/register", next, keys ? { noteKey: toBase64(keys.publicKey) } : {}))
+          .catch((error: unknown) => console.warn("Ring registration did not complete:", error));
+      });
+    },
+    [settingsOnce],
+  );
 
   useEffect(() => {
-    api("config").then(setConfig, () => setConfig("offline"));
+    void settingsOnce().then(setConfig);
     setHasBackup(localStorage.getItem(BACKUP_KEY) !== null);
     const session = sessionStorage.getItem(SESSION_KEY);
     if (session) {
@@ -140,7 +150,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     discover();
     const timer = setTimeout(discover, 800); // extensions announce themselves shortly after load
     return () => clearTimeout(timer);
-  }, [open]);
+  }, [open, settingsOnce]);
 
   const adopt = useCallback(
     (actor: Actor, backup: Backup) => {

@@ -10,8 +10,8 @@ export type PublicRingEvent = Omit<RingEvent, "sealed" | "parties">;
 
 export interface Config {
   network: "local" | "devnet";
-  /** "mock": Ring balances are kept by the local stand-in, not by the Privacy Rings program. */
-  ring: "mock";
+  /** "mock": Ring balances are kept by the local stand-in, not by the Privacy Rings program. "unavailable": not connected on this network. */
+  ring: "mock" | "unavailable";
   /** Parts of the product that are built but switched off unless the operator turns them on. */
   features: { sealedWindow: boolean };
 }
@@ -42,7 +42,7 @@ export interface Settlement {
 }
 export interface Status {
   network: "local" | "devnet";
-  ring: "mock";
+  ring: "mock" | "unavailable";
   checkedAt: number;
   chain: { reachable: boolean; slot?: number; version?: string; problem?: string };
   programs: { name: string; address: string; present: boolean }[];

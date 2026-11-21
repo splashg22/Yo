@@ -31,6 +31,17 @@ const flag = (name: string): boolean => {
   return value === "on";
 };
 
+/**
+ * Where the chain is reached. Local: a validator on this machine. Devnet: Helius, with the key;
+ * or DEVNET_RPC_URL if that is set, which is how devnet mode is tested without a key.
+ */
+function rpcUrlFor(network: "local" | "devnet"): string {
+  if (network === "local") return process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
+  if (process.env.DEVNET_RPC_URL) return process.env.DEVNET_RPC_URL;
+  if (process.env.HELIUS_API_KEY) return `https://devnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+  throw new Error("RING_NETWORK is devnet but neither HELIUS_API_KEY nor DEVNET_RPC_URL is set");
+}
+
 export function settings(): Settings {
   const network = process.env.RING_NETWORK ?? "local";
   if (network !== "local" && network !== "devnet") throw new Error('RING_NETWORK must be "local" or "devnet"');
@@ -38,7 +49,7 @@ export function settings(): Settings {
   if (!Number.isInteger(rpcTimeoutMs) || rpcTimeoutMs < 100) throw new Error("RPC_TIMEOUT_MS must be a whole number of milliseconds, 100 or more");
   return {
     network,
-    rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799",
+    rpcUrl: rpcUrlFor(network),
     dataDir: process.env.APP_DATA_DIR ?? ".data",
     databaseUrl: process.env.DATABASE_URL ?? "",
     databaseSchema: process.env.DATABASE_SCHEMA ?? "ringpad",
@@ -48,6 +59,18 @@ export function settings(): Settings {
     rpcTimeoutMs,
     features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },
   };
+}
+
+/**
+ * Whether Ring balances exist on this network in this build. They are a stand-in that runs only beside a local
+ * validator. On devnet they are not connected: the real Ring has not been wired in.
+ */
+export function ringAvailable(): boolean {
+  const { network, rpcUrl } = settings();
+  return network === "local" && ["127.0.0.1", "localhost", "[::1]"].includes(new URL(rpcUrl).hostname);
+}
+export function assertRing(): void {
+  if (!ringAvailable()) throw new Error("Ring balances are not connected on this network in this build");
 }
 
 /**

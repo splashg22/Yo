@@ -11,6 +11,7 @@ import { useCoins } from "../ui/useCoins";
 import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
+import { NeedsRing } from "../ui/NeedsRing";
 import { AppPage } from "./shell";
 
 export function OtcPage() {
@@ -20,9 +21,11 @@ export function OtcPage() {
       title="Sell a block to a named buyer"
       intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together inside the Ring, or nothing moves. Each side must hold what it is giving in its Ring balance."
     >
-      <WalletGate>
-        <Desk />
-      </WalletGate>
+      <NeedsRing>
+        <WalletGate>
+          <Desk />
+        </WalletGate>
+      </NeedsRing>
     </AppPage>
   );
 }

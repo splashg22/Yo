@@ -19,7 +19,7 @@ function BuildNotice() {
         ? "This site's server is not answering."
         : config.network === "local"
           ? LOCAL
-          : "Runs on Solana devnet.";
+          : "Runs on Solana devnet. Ring balances are not connected yet. Coins have no value.";
   const simulated = config !== null && config !== "offline" && config.ring === "mock";
   return (
     <p className="strip">

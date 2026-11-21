@@ -10,6 +10,7 @@ import { fromBase64 } from "../../lib/bytes";
 import { NATIVE } from "../../lib/constants";
 import { newActor, signMessage } from "../../lib/keys";
 import { RingClient } from "../../lib/sdk";
+import { escrow } from "../../lib/server/escrow";
 import { ring } from "../../lib/server/ring";
 import { state } from "../../lib/server/store";
 import { signTransaction } from "../../lib/sign";
@@ -233,20 +234,29 @@ describe("the local faucet", () => {
 });
 
 describe("the mock stays local", () => {
-  it("refuses to run against anything but a local validator", async () => {
+  it("refuses to run against anything but a local validator, at the door and again underneath", async () => {
     const wallet = new RingClient(call, newActor());
     process.env.LOCAL_RPC_URL = "https://api.devnet.solana.com";
     try {
-      await expect(wallet.register()).rejects.toThrow(/local-validator mock/);
+      // At the door: every request that touches a Ring balance is turned away.
+      await expect(wallet.register()).rejects.toThrow(/not connected on this network/);
       await expect(call("faucet", { wallet: wallet.address })).rejects.toThrow(/local-validator mock/);
+      // Underneath: the ledger and the escrow key refuse by themselves, whoever calls them.
+      expect(() => ring.register(wallet.address)).toThrow(/local-validator mock/);
+      expect(() => ring.transfer(wallet.address, holder.address, NATIVE, 1n)).toThrow(/local-validator mock/);
+      expect(() => escrow()).toThrow(/local-validator mock/);
     } finally {
       process.env.LOCAL_RPC_URL = RPC_URL;
     }
     process.env.RING_NETWORK = "devnet";
+    process.env.DEVNET_RPC_URL = RPC_URL; // devnet mode, even when pointed at this machine, has no stand-in
     try {
-      await expect(wallet.register()).rejects.toThrow(/local-validator mock/);
+      await expect(wallet.register()).rejects.toThrow(/not connected on this network/);
+      expect(() => ring.register(wallet.address)).toThrow(/local-validator mock/);
+      expect(() => escrow()).toThrow(/local-validator mock/);
     } finally {
       process.env.RING_NETWORK = "local";
+      delete process.env.DEVNET_RPC_URL;
     }
   });
 });
