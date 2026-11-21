@@ -14,7 +14,7 @@ checked against, not something it does or is ready to do.
 | Check | Command | Result |
 | --- | --- | --- |
 | Fresh clone: install, typecheck, lint, format, build | `npm ci`, `npm run check`, `npm run build` | Clean. Zero lint warnings, no rule switched off, no `any` |
-| Unit tests, no chain | `npm run test:site` | 57 of 57 |
+| Unit tests, no chain | `npm run test:site` | 61 of 61 |
 | Flow tests on the local validator | `npm run test:flows` | 55 of 55 |
 | Every flow in a browser, as two people | `npm run e2e` | 17 of 17 steps, 0 browser errors |
 | Every page, every control | `npm run crawl` | 0 findings |
@@ -25,7 +25,7 @@ checked against, not something it does or is ready to do.
 | SDK example | `npm run example` | Runs: a launch and a Ring transfer from a script |
 
 **Test count.** Before this audit: 45 tests (15 site, 30 flow) and a 12-step browser run.
-Now: 112 tests (57 unit, 55 flow), a 17-step browser run, and four new browser checks
+Now: 116 tests (61 unit, 55 flow), a 17-step browser run, and four new browser checks
 (crawler, break-it, motion, secrets scan).
 
 ### The flows, end to end (part 3)
@@ -144,6 +144,8 @@ the panel before every signature and in the docs table, with a link to "Check it
 yourself" on the technical page. Coin pages draw the recorded price. The wallet tab and
 the buy or sell side are kept in the address, so a reload or a shared link opens in the
 same place. Explore shows 24 coins at a time. The launchpad uses ports of its own.
+The server now caps requests per address per minute (30 faucet, 240 writes, 1,200 reads),
+answers only POST, and refuses to start from a damaged state file rather than begin empty.
 
 ## 3. Code quality pass: what changed and why
 
@@ -191,8 +193,8 @@ the docs' "What is real in this build", and the footer.
 - **Not verified: a screen reader.** Labels, headings and roles are checked by script only.
 - **Not verified: the real brand media.** `npm run media` was not re-run on real files.
 - **Not verified: load.** One or two users at a time; no concurrency beyond a few requests.
-- **Not verified: the state file under a crash mid-write**, or with more than a few hundred
-  coins. It is one JSON file, right for a local build and wrong for anything else.
+- **Not verified: the state file with more than a few hundred coins.** A write replaces the
+  file whole, and a damaged file stops the server instead of being overwritten (tested), but It is one JSON file, right for a local build and wrong for anything else.
 - **Not verified: the 17 `npm audit` advisories** (7 high, 7 moderate, 3 low). All are inside
   the Solana and pump.fun SDKs' dependencies (`uuid`, `toml`, `stream-json` and their
   dependants). I did not trace each to a reachable path.
@@ -214,7 +216,7 @@ of the background beyond "it draws, stops and resumes".
 5. An outside security review before any coin of value is involved.
 6. Trace or remove the audited dependencies; consider dropping the pump SDK for hand-built
    instructions to shrink the dependency tree.
-7. Rate limiting on the server routes. There is none.
+7. The request ceiling is counted in memory by one process; several servers would need a shared count.
 8. Ask for the password again after a reload, as an option, instead of keeping the
    unlocked key in session storage.
 

@@ -86,10 +86,23 @@ export function state(): State {
   const path = file();
   let current = open.get(path);
   if (!current) {
-    current = existsSync(path) ? { ...empty(), ...(JSON.parse(readFileSync(path, "utf8")) as Partial<State>) } : empty();
+    current = existsSync(path) ? { ...empty(), ...read(path) } : empty();
     open.set(path, current);
   }
   return current;
+}
+
+/** A state file that cannot be read stops the server. Starting again from empty would silently erase every balance. */
+function read(path: string): Partial<State> {
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
+    if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("not an object");
+    return parsed;
+  } catch (error) {
+    throw new Error(
+      `the state file ${path} is damaged (${error instanceof Error ? error.message : String(error)}). It was left untouched. Restore it or move it aside.`,
+    );
+  }
 }
 
 /** Writes the whole state. A crash leaves either the old file or the new one, never half of each. */

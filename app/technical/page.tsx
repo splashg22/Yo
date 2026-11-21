@@ -83,7 +83,7 @@ const LIMITS = [
   "Ring balances are simulated. Nothing here is encrypted by the Ring today.",
   "OTC offers are held on the server in readable form.",
   "State is one file on the server. It is right for a test build and wrong for anything else.",
-  "No rate limiting.",
+  "The ceiling on requests is counted in memory by one server process. It would need a shared store to hold across several.",
   "No price chart and no price in dollars.",
   "Tested in Chromium only. No real phone, no real wallet extension.",
   "Not audited by anyone outside the project.",

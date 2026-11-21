@@ -56,6 +56,9 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 50 | Balances refresh when you return to a tab, for the browser-made wallet only | Reading a Ring balance is a signed request; an extension would ask for approval every time | `components/pages/WalletPage.tsx` |
 | 51 | A second tab on the same wallet asks for the password | The unlocked key is per tab by design (decision 40) | n/a |
 | 52 | Explore shows 24 coins and a "Show more" button | Enough for now without a paged server call | `components/pages/ExplorePage.tsx` |
+| 53 | A ceiling on requests per address per minute: 30 faucet, 240 that build, send or are signed, 1,200 reads. Over it: status 429 and how long to wait | One caller should not starve the rest or drain the faucet. Reads are high because pages refresh themselves | `PER_MINUTE` in `lib/server/limit.ts` |
+| 54 | The server answers POST only | A GET can be fired by a link or image on another site | `app/api/[...op]/route.ts` |
+| 55 | A state file that cannot be read stops the server and is left untouched | Starting again from empty would erase every balance without a word | `read` in `lib/server/store.ts` |
 
 ## Only you
 
