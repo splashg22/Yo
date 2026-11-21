@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Background prototypes</title>
+<style>
+  @font-face { font-family: "Doto"; src: url("doto.woff2") format("woff2"); font-weight: 100 900; font-display: swap; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #000; color: #fff; overflow-x: hidden; }
+  body { font: 700 14px/1.6 "Doto", monospace; text-transform: uppercase; letter-spacing: 0.14em; }
+  canvas { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+  .page { position: relative; z-index: 1; min-height: 100vh; padding: 28px clamp(20px, 5vw, 72px); display: flex; flex-direction: column; }
+  nav { display: flex; justify-content: space-between; gap: 16px; font-size: 13px; }
+  nav span + span { display: flex; gap: 28px; }
+  .hero { margin-top: auto; margin-bottom: auto; max-width: 560px; }
+  h1 { font-size: clamp(34px, 5.4vw, 68px); line-height: 1.08; font-weight: 900; letter-spacing: 0.06em; margin: 0 0 22px; }
+  p { margin: 0 0 30px; max-width: 420px; font-weight: 600; }
+  .btn { display: inline-block; border: 1px solid #fff; padding: 13px 22px; font-size: 13px; }
+  .tag { font-size: 11px; opacity: 0.75; }
+  @media (max-width: 700px) { nav span + span { display: none; } .hero { margin-top: 46vh; margin-bottom: 40px; } }
+</style>
+</head>
+<body>
+<canvas id="bg"></canvas>
+<div class="page">
+  <nav><span>[NAME]</span><span><span>Explore</span><span>Launch</span><span>Ring wallet</span><span>OTC</span><span>Docs</span></span></nav>
+  <div class="hero">
+    <h1>Launch in the open.<br>Hold in the Ring.<br>Show what you choose.</h1>
+    <p>Sample text only. It is here to judge how the background sits behind a headline and a button.</p>
+    <span class="btn">Open the app</span>
+  </div>
+  <div class="tag" id="tag"></div>
+</div>
+<script>
+const params = new URLSearchParams(location.search);
+const concept = params.get("c") || "1";
+const fixedTime = params.has("t") ? Number(params.get("t")) : null;
+const dim = params.get("mode") === "app" ? 0.45 : 1;      // app pages: dimmer and pushed out
+const ACCENT = "#e0531f";                                  // provisional, until the accent colour is chosen
+const canvas = document.getElementById("bg");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0;
+
+function resize() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = innerWidth; H = innerHeight;
+  canvas.width = Math.round(W * dpr); canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+addEventListener("resize", resize); resize();
+
+// The same pseudo-random numbers every time, so a still frame is reproducible.
+function rand(seed) { let s = seed >>> 0; return () => ((s = (s * 1664525 + 1013904223) >>> 0) / 4294967296); }
+const phone = () => W < 700;
+// The quiet area: where the headline and button sit. Marks fade out inside it.
+function quiet(x, y) {
+  const r = phone() ? { x: 0, y: H * 0.44, w: W, h: H * 0.56 } : { x: 0, y: H * 0.18, w: Math.min(660, W * 0.5), h: H * 0.64 };
+  const dx = Math.max(r.x - x, 0, x - (r.x + r.w)), dy = Math.max(r.y - y, 0, y - (r.y + r.h));
+  return Math.min(1, Math.hypot(dx, dy) / 140) * 0.92 + 0.08;
+}
+const white = (a) => `rgba(255,255,255,${(a * dim).toFixed(3)})`;
+
+// ---- 1. PASSING: great rings that go behind walls you cannot see ----
+function passing(t) {
+  const m = Math.max(W, H);
+  const cx = phone() ? W * 0.95 : W * 0.86, cy = phone() ? H * 0.02 : H * 1.02;
+  const walls = phone() ? [[0.30, 0.44], [0.70, 0.80]] : [[0.36, 0.43], [0.58, 0.68], [0.83, 0.87]];
+  const hidden = (x) => walls.some(([a, b]) => x > a * W && x < b * W);
+  const rings = [0.34, 0.55, 0.80, 1.08].map((k, i) => ({ r: k * m, speed: (i % 2 ? -1 : 1) * 0.012 / (k + 0.3), band: 10 + i * 6 }));
+  rings.forEach((ring, index) => {
+    const steps = 720;
+    for (const offset of [0, ring.band]) {
+      for (let i = 0; i < steps; i++) {
+        const a0 = (i / steps) * Math.PI * 2, a1 = ((i + 1) / steps) * Math.PI * 2;
+        const x0 = cx + Math.cos(a0) * (ring.r + offset), y0 = cy + Math.sin(a0) * (ring.r + offset);
+        if (x0 < -20 || x0 > W + 20 || y0 < -20 || y0 > H + 20 || hidden(x0)) continue;
+        ctx.strokeStyle = white((offset ? 0.34 : 0.7) * quiet(x0, y0));
+        ctx.beginPath(); ctx.moveTo(x0, y0);
+        ctx.lineTo(cx + Math.cos(a1) * (ring.r + offset), cy + Math.sin(a1) * (ring.r + offset)); ctx.stroke();
+      }
+    }
+    // One travelling block per ring fills the band, and goes dark behind each wall.
+    const length = 0.10 / (ring.r / m + 0.2);
+    for (let i = 0; i < 720; i++) {
+      const block = Math.floor(i / 60);
+      const a = t * ring.speed + index * 1.7 + block * (Math.PI * 2 / 12) + ((i % 60) / 60) * length;
+      const x = cx + Math.cos(a) * (ring.r + ring.band / 2), y = cy + Math.sin(a) * (ring.r + ring.band / 2);
+      if (x < 0 || x > W || y < 0 || y > H || hidden(x) || quiet(x, y) < 0.95) continue; // never behind the text
+      const accent = index === 1 && block % 4 === 0;
+      ctx.fillStyle = accent ? ACCENT : white(0.8 * quiet(x, y));
+      ctx.globalAlpha = accent ? dim * quiet(x, y) : 1;
+      ctx.beginPath(); ctx.arc(x, y, ring.band / 2 - 1.5, 0, Math.PI * 2); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+  });
+}
+
+// ---- 2. SEALED: amounts of every length go into the ring and come out the same ----
+function sealed(t) {
+  const R = phone() ? W * 0.40 : Math.min(H * 0.40, W * 0.24);
+  const cx = phone() ? W * 0.5 : W * 0.72, cy = phone() ? H * 0.23 : H * 0.5;
+  ctx.lineWidth = 1;
+  for (const [r, a] of [[R, 0.5], [R + 16, 0.2]]) { ctx.strokeStyle = white(a); ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI * 2); ctx.stroke(); }
+  const lanes = phone() ? 13 : 15, next = rand(11);
+  for (let lane = 0; lane < lanes; lane++) {
+    const y = Math.round(H * (0.05 + 0.9 * (lane + 0.5) / lanes)) + 0.5;
+    const speed = 7 + next() * 9, count = phone() ? 3 : 5, span = W + 400;
+    for (let k = 0; k < count; k++) {
+      const amount = 18 + next() * 190;                      // the public length
+      const x = ((next() * span + t * speed) % span) - 200;  // leading edge
+      const inside = Math.hypot(x - cx, y - cy) < R;
+      const edge = Math.min(1, Math.abs(Math.hypot(x - cx, y - cy) - R) / 26);
+      const length = inside ? 34 : 34 + (amount - 34) * edge; // sealed: every mark is the same
+      const accent = inside && lane === Math.floor(lanes / 2);
+      ctx.fillStyle = accent ? ACCENT : white((inside ? 0.85 : 0.3) * quiet(x, y));
+      ctx.globalAlpha = accent ? dim : 1;
+      ctx.fillRect(Math.round(x - length), y - 1.5, Math.round(length), inside ? 3 : 2);
+      ctx.globalAlpha = 1;
+    }
+  }
+}
+
+// ---- 3. STACK: the hero object's five layers, seen from the side, opening and closing ----
+function stack(t) {
+  const cx = phone() ? W * 0.5 : W * 0.74, cy = phone() ? H * 0.24 : H * 0.52;
+  const rx = phone() ? W * 0.44 : Math.min(W * 0.27, H * 0.5), ry = rx * 0.26;
+  const gap = rx * (0.20 + 0.07 * Math.sin(t * 0.18));
+  const tilt = 0.05 * Math.sin(t * 0.07);
+  for (let layer = 0; layer < 5; layer++) {
+    const y = cy + (layer - 2) * gap;
+    const accent = layer === 3;                              // the Ring layer
+    for (const [from, to, alpha] of [[Math.PI, Math.PI * 2, 0.16], [0, Math.PI, 0.5]]) { // far edge dimmer than near edge
+      ctx.strokeStyle = accent ? ACCENT : white(alpha * quiet(cx - rx * 0.8, y));
+      ctx.globalAlpha = accent ? (alpha + 0.3) * dim : 1;
+      ctx.lineWidth = accent ? 1.5 : 1;
+      ctx.beginPath(); ctx.ellipse(cx, y, rx, ry, tilt, from, to); ctx.stroke();
+      ctx.globalAlpha = 1;
+    }
+    // Each layer has a thickness: a second, fainter rim just below the first.
+    ctx.strokeStyle = white(0.14); ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(cx, y + 7, rx, ry, tilt, 0, Math.PI); ctx.stroke();
+  }
+  // The coin: one small solid ellipse that sinks through the stack and is hidden inside the Ring layer.
+  const cycle = (t * 0.035) % 1, top = cy - 2.6 * gap, bottom = cy + 2.6 * gap;
+  const y = top + (bottom - top) * cycle, ringY = cy + gap;
+  if (Math.abs(y - ringY) > gap * 0.42) {
+    ctx.strokeStyle = white(0.85); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.ellipse(cx, y, rx * 0.13, ry * 0.13, tilt, 0, Math.PI * 2); ctx.stroke();
+  }
+}
+
+const concepts = { 1: ["Passing", passing], 2: ["Sealed", sealed], 3: ["Stack", stack] };
+document.getElementById("tag").textContent = `Concept ${concept}: ${concepts[concept][0]}. Accent is provisional.`;
+const still = fixedTime !== null || matchMedia("(prefers-reduced-motion: reduce)").matches;
+function frame(now) {
+  ctx.clearRect(0, 0, W, H);
+  concepts[concept][1](fixedTime !== null ? fixedTime : still ? 40 : now / 1000);
+  if (!still && !document.hidden) requestAnimationFrame(frame);
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && !still) requestAnimationFrame(frame); });
+document.fonts.ready.then(() => requestAnimationFrame(frame));
+</script>
+</body>
+</html>
