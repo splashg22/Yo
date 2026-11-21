@@ -1,4 +1,4 @@
-/** The server's small database: one JSON file. Amounts are kept as decimal strings. */
+/** The server's small database: one JSON file. Amounts are kept as decimal strings, never as floating-point numbers. */
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { settings } from "./env";
@@ -14,6 +14,8 @@ export interface RingEvent {
   /** Who may read the sealed part. */
   parties: string[];
   signature?: string;
+  /** A withdrawal whose payout is not yet known to have landed. */
+  pending?: boolean;
 }
 export interface Coin {
   mint: string;
@@ -22,7 +24,17 @@ export interface Coin {
   creator: string;
   createdAt: number;
   signature: string;
-  tokenProgram: string;
+}
+export interface PendingLaunch {
+  wallet: string;
+  name: string;
+  symbol: string;
+  at: number;
+}
+export interface PendingPayout {
+  eventId: string;
+  signature: string;
+  lastValidBlockHeight: number;
 }
 export interface Offer {
   id: string;
@@ -35,39 +47,60 @@ export interface Offer {
   expiresAt: number;
   status: "open" | "settled" | "cancelled";
 }
+export interface PricePoint {
+  at: number;
+  /** Millionths of a lamport for one whole coin, as a decimal string. */
+  microLamportsPerCoin: string;
+}
 export interface State {
   registered: string[];
   balances: Record<string, Record<string, string>>;
   events: RingEvent[];
+  /** Transaction signatures already credited to the Ring ledger, or being credited right now. */
   credited: string[];
   nonces: string[];
   coins: Coin[];
-  prices: Record<string, { at: number; lamportsPerMillion: number }[]>;
+  pendingLaunches: Record<string, PendingLaunch>;
+  pendingPayouts: PendingPayout[];
+  prices: Record<string, PricePoint[]>;
   offers: Offer[];
   lookupTable?: string;
-  bootstrapped?: boolean;
 }
-const empty = (): State => ({ registered: [], balances: {}, events: [], credited: [], nonces: [], coins: [], prices: {}, offers: [] });
+const empty = (): State => ({
+  registered: [],
+  balances: {},
+  events: [],
+  credited: [],
+  nonces: [],
+  coins: [],
+  pendingLaunches: {},
+  pendingPayouts: [],
+  prices: {},
+  offers: [],
+});
 
 const open = new Map<string, State>();
-const file = () => join(settings().dataDir, "state.json");
+const file = (): string => join(settings().dataDir, "state.json");
 
 export function state(): State {
   const path = file();
   let current = open.get(path);
   if (!current) {
-    current = existsSync(path) ? { ...empty(), ...(JSON.parse(readFileSync(path, "utf8")) as State) } : empty();
+    current = existsSync(path) ? { ...empty(), ...(JSON.parse(readFileSync(path, "utf8")) as Partial<State>) } : empty();
     open.set(path, current);
   }
   return current;
 }
+
+/** Writes the whole state. A crash leaves either the old file or the new one, never half of each. */
 export function save(): void {
   const path = file();
   mkdirSync(settings().dataDir, { recursive: true });
   writeFileSync(`${path}.tmp`, JSON.stringify(state()));
   renameSync(`${path}.tmp`, path);
 }
-/** Tests only. */
+
+/** Tests only: drop what is in memory so the next read comes from disk. */
 export function forget(): void {
   open.clear();
 }

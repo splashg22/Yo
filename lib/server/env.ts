@@ -1,15 +1,26 @@
-/** Server settings. The Helius key is read here and nowhere else, and never reaches the browser. */
-export const NATIVE = "So11111111111111111111111111111111111111112"; // how SOL is named wherever a coin address is expected
+/** Server settings, all in one place. The Helius key is read here and never reaches the browser. */
 
-export function settings() {
+export interface Settings {
+  network: "local" | "devnet";
+  rpcUrl: string;
+  dataDir: string;
+  /** For the devnet pass. Unused on a local validator. */
+  heliusApiKey: string;
+  /** How long one RPC call may take before it counts as a dead connection. */
+  rpcTimeoutMs: number;
+}
+
+export function settings(): Settings {
   const network = process.env.RING_NETWORK ?? "local";
   if (network !== "local" && network !== "devnet") throw new Error('RING_NETWORK must be "local" or "devnet"');
+  const rpcTimeoutMs = Number(process.env.RPC_TIMEOUT_MS ?? 20_000);
+  if (!Number.isInteger(rpcTimeoutMs) || rpcTimeoutMs < 100) throw new Error("RPC_TIMEOUT_MS must be a whole number of milliseconds, 100 or more");
   return {
-    network: network as "local" | "devnet",
+    network,
     rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899",
     dataDir: process.env.APP_DATA_DIR ?? ".data",
-    /** For the devnet pass. Unused on a local validator. */
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
+    rpcTimeoutMs,
   };
 }
 
@@ -20,7 +31,7 @@ export function settings() {
 export function assertLocalOnly(what: string): void {
   const { network, rpcUrl } = settings();
   const host = new URL(rpcUrl).hostname;
-  if (network !== "local" || !["127.0.0.1", "localhost", "::1"].includes(host)) {
+  if (network !== "local" || !["127.0.0.1", "localhost", "[::1]"].includes(host)) {
     throw new Error(`${what} is a local-validator mock and refuses to run against ${host} (${network})`);
   }
 }

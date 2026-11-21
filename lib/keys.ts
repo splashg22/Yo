@@ -4,7 +4,10 @@ import { hkdf } from "@noble/hashes/hkdf.js";
 import { sha256 } from "@noble/hashes/sha2.js";
 import bs58 from "bs58";
 import { randomBytes, utf8 } from "./bytes";
-export interface Actor { address: string; seed: Uint8Array }
+export interface Actor {
+  address: string;
+  seed: Uint8Array;
+}
 
 export function actorFromSeed(seed: Uint8Array): Actor {
   if (seed.length !== 32) throw new Error("a wallet seed is 32 bytes");

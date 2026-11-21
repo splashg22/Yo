@@ -13,7 +13,11 @@ export interface PayRequest {
   memo?: string;
 }
 const isAddress = (text: string) => {
-  try { return bs58.decode(text).length === 32; } catch { return false; }
+  try {
+    return bs58.decode(text).length === 32;
+  } catch {
+    return false;
+  }
 };
 
 export function payLink(origin: string, request: PayRequest): string {
@@ -36,7 +40,16 @@ export function checkPayRequest(request: Partial<PayRequest>): PayRequest {
 
 export function parsePayLink(link: string): PayRequest {
   let url: URL;
-  try { url = new URL(link, "http://localhost"); } catch { throw new Error("that is not a link"); }
+  try {
+    url = new URL(link, "http://localhost");
+  } catch {
+    throw new Error("that is not a link");
+  }
   const p = url.searchParams;
-  return checkPayRequest({ to: p.get("to") ?? undefined, mint: p.get("coin") ?? undefined, amount: p.get("amount") ?? undefined, memo: p.get("memo") ?? undefined });
+  return checkPayRequest({
+    to: p.get("to") ?? undefined,
+    mint: p.get("coin") ?? undefined,
+    amount: p.get("amount") ?? undefined,
+    memo: p.get("memo") ?? undefined,
+  });
 }

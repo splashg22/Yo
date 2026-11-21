@@ -12,7 +12,10 @@ export function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(",")}]`;
   if (value && typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>).filter(([, v]) => v !== undefined);
-    return `{${entries.sort(([a], [b]) => (a < b ? -1 : 1)).map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`).join(",")}}`;
+    return `{${entries
+      .sort(([a], [b]) => (a < b ? -1 : 1))
+      .map(([k, v]) => `${JSON.stringify(k)}:${canonical(v)}`)
+      .join(",")}}`;
   }
   return JSON.stringify(value);
 }
@@ -24,7 +27,11 @@ export interface Signed<T> {
 export const messageFor = (body: unknown): Uint8Array => utf8(DOMAIN + canonical(body));
 
 export async function signRequest<T extends object>(
-  op: string, wallet: string, payload: T, sign: (message: Uint8Array) => Promise<Uint8Array> | Uint8Array, now = Date.now(),
+  op: string,
+  wallet: string,
+  payload: T,
+  sign: (message: Uint8Array) => Promise<Uint8Array> | Uint8Array,
+  now = Date.now(),
 ): Promise<Signed<T>> {
   const nonce = toBase64(globalThis.crypto.getRandomValues(new Uint8Array(12)));
   const body = { ...payload, wallet, nonce, at: now, op };
@@ -38,7 +45,11 @@ export function verifyRequest<T>(op: string, request: Signed<T>, usedNonces: str
   if (body.op !== op) throw new Error("the signature is for a different action");
   if (Math.abs(now - body.at) > 90_000) throw new Error("the request is too old, sign it again");
   let ok = false;
-  try { ok = verifyMessage(body.wallet, messageFor(body), fromBase64(signature)); } catch { /* not a signature */ }
+  try {
+    ok = verifyMessage(body.wallet, messageFor(body), fromBase64(signature));
+  } catch {
+    /* not a signature */
+  }
   if (!ok) throw new Error("the signature does not match the wallet");
   const key = `${body.wallet}:${body.nonce}`;
   if (usedNonces.includes(key)) throw new Error("this request was already used");
