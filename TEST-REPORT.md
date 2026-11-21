@@ -134,6 +134,7 @@ Each has a test or a scripted check that fails without the fix.
 | 22 | The Ring line read "balances2 wallets" to a screen reader | A space | e2e: privacy score |
 | 23 | Failures on send lost their cause, so an operator could not see why | Logged on the server with the cause, without inputs | none: seen in the log while fixing 13 |
 | 24 | One unit test failed at random: a lower-cased address is sometimes still a valid address | The test now asserts what is actually true | 3 runs in a row |
+| 25 | A coin with a 32-letter name pushed the coin page wider than a phone screen, leaving a Copy button out of reach while the page itself did not scroll | Long names and addresses wrap inside their column | break: awkward names; crawl |
 
 Bugs 13 and 14 were only found because the browser run started from a fresh validator.
 
