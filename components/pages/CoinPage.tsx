@@ -6,6 +6,8 @@ import { api, signAndSend } from "@/lib/client/api";
 import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
 import type { CoinView } from "@/lib/contract";
 import { formatAmount, formatChange, formatPrice, formatSol, formatTime, parseAmount } from "@/lib/format";
+import { site } from "@/site.config";
+import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
 import { RingBadge } from "../ui/RingBadge";
@@ -33,6 +35,11 @@ export function CoinPage({ mint }: { mint: string }) {
     }, 6000);
     return () => clearInterval(timer);
   }, [refresh]);
+  const loadActivity = useCallback(() => api("coin/activity", { mint }), [mint]);
+  // The tab is named after the coin once it is known, so several coin tabs can be told apart.
+  useEffect(() => {
+    if (coin) document.title = `${coin.name} (${coin.symbol}) · ${site.name}`;
+  }, [coin]);
 
   if (!coin) {
     return (
@@ -61,7 +68,7 @@ export function CoinPage({ mint }: { mint: string }) {
   }
   return (
     <AppPage
-      label={coin.symbol}
+      label={`Coin, ticker ${coin.symbol}`}
       title={coin.name}
       intro="Buying and selling happens on the public bonding curve: your wallet, the amount and the price are visible to everyone."
     >
@@ -108,6 +115,10 @@ export function CoinPage({ mint }: { mint: string }) {
           <TradeAndFees coin={coin} onDone={refresh} />
         </WalletGate>
       )}
+      <h2 className="h3">Recent activity on the curve</h2>
+      <p className="body">The latest transactions that touched this coin&apos;s bonding curve: its launch, and every buy and sell. All public.</p>
+      {/* The market cap moves with every trade, so a change in it is the cue to read the list again. */}
+      <ActivityList load={loadActivity} version={coin.marketCapLamports} empty="Nothing yet." />
     </AppPage>
   );
 }

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
+import { NATIVE } from "@/lib/constants";
 import type { TransactionView } from "@/lib/contract";
 import { formatCoin, formatSol, formatTime } from "@/lib/format";
 import { Address } from "../ui/Address";
@@ -82,6 +83,15 @@ export function TransactionPage({ signature }: { signature: string }) {
               <dd>{view.programs.map((id) => PROGRAM_NAMES[id] ?? id).join(", ")}</dd>
             </>
           )}
+          {view.changes.map((change) => (
+            <span key={change.mint} style={{ display: "contents" }}>
+              <dt>{change.amount.startsWith("-") ? "Paying wallet spent" : "Paying wallet received"}</dt>
+              <dd className="num">
+                {formatCoin(change.mint, change.amount.replace("-", ""))} {symbol(change.mint)}
+                {change.mint === NATIVE && change.amount.startsWith("-") ? ", network fee included" : ""}
+              </dd>
+            </span>
+          ))}
           {view.deposits.map((deposit, index) => (
             <span key={index} style={{ display: "contents" }}>
               <dt>Paid into the Ring</dt>

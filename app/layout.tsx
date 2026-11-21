@@ -10,6 +10,8 @@ export const metadata: Metadata = {
   title: { default: site.name, template: `%s · ${site.name}` },
   description: site.description,
   icons: { icon: "/logo.svg" },
+  // A pre-release on a test chain has no business in a search index.
+  robots: { index: false, follow: false },
   openGraph: { title: site.name, description: site.description, images: [{ url: "/media/og.png", width: 1200, height: 630 }] },
   twitter: { card: "summary_large_image", images: ["/media/og.png"] },
 };

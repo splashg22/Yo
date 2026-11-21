@@ -7,7 +7,7 @@ import { Logo } from "./Logo";
 import { useWallet } from "./wallet/WalletProvider";
 
 const SIMULATED = "Ring balances are simulated here. Coins have no value.";
-const LONGEST_WHERE = "This site's server is not answering.";
+const LOCAL = "Runs on a local test chain.";
 
 /** One line, on every page, saying plainly what this build is. Nothing here is live. */
 function BuildNotice() {
@@ -18,14 +18,14 @@ function BuildNotice() {
       : config === "offline"
         ? "This site's server is not answering."
         : config.network === "local"
-          ? "Runs on a local test chain."
+          ? LOCAL
           : "Runs on Solana devnet.";
   const simulated = config !== null && config !== "offline" && config.ring === "mock";
   return (
     <p className="strip">
-      {/* The longest wording, unseen, holds the height, so the line does not jump when the real one arrives. */}
+      {/* The longest wording this line can take, unseen, holds the height, so the line does not jump when the real one arrives. */}
       <span className="strip-size" aria-hidden="true">
-        Pre-release. {LONGEST_WHERE} {SIMULATED} Status
+        Pre-release. {LOCAL} {SIMULATED} Status
       </span>
       <span>
         Pre-release. {where} {simulated ? SIMULATED : ""}{" "}

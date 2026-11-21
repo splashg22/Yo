@@ -9,7 +9,7 @@ const ADDED = [
   [
     "01",
     "Privacy score",
-    "Each coin shows the share of its supply held in Ring balances, and how many wallets have deposited it. Both are public facts. The number of holders inside the Ring is encrypted and cannot be shown.",
+    "Each coin shows the share of its supply held in Ring balances, and how many wallets have deposited it. Both are public facts. The number of holders inside the Ring is not public and cannot be shown.",
     "Works on the local test chain",
   ],
   ["02", "Pay links", "A link or QR code that asks for an amount of a coin and opens a Ring transfer with it filled in.", "Works on the local test chain"],
@@ -22,13 +22,13 @@ const ADDED = [
   [
     "04",
     "Creator fees to your Ring",
-    "Claiming fees is public. The claim lands in your Ring balance in the same transaction, so what you do next is encrypted.",
+    "Claiming fees is public. The claim lands in your Ring balance in the same transaction, so what you do next is not on public view.",
     "Works on the local test chain",
   ],
   [
     "05",
     "A privacy panel on every action",
-    "Before you sign, one panel lists what this transaction makes public and what it encrypts.",
+    "Before you sign, one panel lists what this transaction makes public and what it keeps off the public record.",
     "Works on the local test chain",
   ],
   [
@@ -41,9 +41,9 @@ const ADDED = [
 
 const PRODUCTS = [
   ["01", "Launch", "/launch", "Create a coin on a pump.fun curve and register it with a Ring in one signature."],
-  ["02", "Ring wallet", "/wallet", "Deposit, transfer with encrypted amounts, withdraw."],
+  ["02", "Ring wallet", "/wallet", "Deposit, transfer without publishing the coin or the amount, withdraw."],
   ["03", "Explore", "/explore", "Every coin launched here, with its market cap and how much of it sits in Rings."],
-  ["04", "OTC", "/otc", "Sell a block to a named buyer at a size and price only the two of you can read."],
+  ["04", "OTC", "/otc", "Sell a block to a named buyer. The size and the price are not published."],
   ["05", "Pay links", "/pay", "Ask for a payment by link or QR code, paid from one Ring balance to another."],
 ] as const;
 
@@ -150,7 +150,7 @@ export default function Home() {
             <br />
             on the curve.
           </h2>
-          <p className="body">The launch is public. After it, holders can move the coin between Ring balances with the amounts encrypted.</p>
+          <p className="body">The launch is public. After it, holders can move the coin between Ring balances without publishing the coin or the amount.</p>
           <p>
             <Link className="btn" href="/launch">
               Launch a coin

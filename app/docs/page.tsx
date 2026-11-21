@@ -23,8 +23,52 @@ export default function Docs() {
         <span className="label">Docs</span>
         <h1 className="h2">What a Ring hides, what this build does, and how to run it</h1>
 
+        <nav aria-label="On this page">
+          <ol className="contents">
+            <li>
+              <a className="link" href="#what-is-real-in-this-build">
+                What is real in this build
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#what-a-ring-hides">
+                What a Ring hides
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#what-follows-from-that">
+                What follows from that
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#a-worked-example">
+                A worked example
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#the-privacy-score">
+                The privacy score
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#costs">
+                Costs
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#run-it-yourself">
+                Run it yourself
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#what-is-alpha-and-what-is-not-built">
+                What is alpha, and what is not built
+              </a>
+            </li>
+          </ol>
+        </nav>
         <div className="prose">
-          <h2>What is real in this build</h2>
+          <h2 id="what-is-real-in-this-build">What is real in this build</h2>
           <p>{site.name} is a pre-release. It runs on a local test chain. Nothing here is live and coins have no value.</p>
         </div>
         <div className="scroll-x">
@@ -47,7 +91,7 @@ export default function Docs() {
         </div>
 
         <div className="prose">
-          <h2>What a Ring hides</h2>
+          <h2 id="what-a-ring-hides">What a Ring hides</h2>
           <p>
             Solana Privacy Rings is a program by Helius. {site.name} is built for its permissionless Default Ring, which is confidential: it encrypts the coin
             and the amount of a transfer between Ring balances. Both wallet addresses of every transfer stay public. The table below is that design, action by
@@ -78,7 +122,7 @@ export default function Docs() {
         </div>
 
         <div className="prose">
-          <h2>What follows from that</h2>
+          <h2 id="what-follows-from-that">What follows from that</h2>
           <ul>
             <li>Anything on the bonding curve is public: creating a coin, every buy and sell, the creator&apos;s first buy, claiming fees.</li>
             <li>A balance is only as hidden as its history. One public deposit and nothing else leaves the balance known.</li>
@@ -86,7 +130,7 @@ export default function Docs() {
             <li>Each side of a transfer can read that transfer.</li>
           </ul>
 
-          <h2>A worked example</h2>
+          <h2 id="a-worked-example">A worked example</h2>
           <p>Names here are invented. Amounts are the kind you can try on the test chain.</p>
           <ul>
             <li>
@@ -108,7 +152,7 @@ export default function Docs() {
             </li>
           </ul>
 
-          <h2>The privacy score</h2>
+          <h2 id="the-privacy-score">The privacy score</h2>
           <p>Two numbers, both public facts read from the chain, each named for exactly what it measures:</p>
           <ul>
             <li>Share of supply in Ring balances: the coin&apos;s total held by the Ring, divided by its supply.</li>
@@ -116,7 +160,7 @@ export default function Docs() {
           </ul>
           <p>Neither is a count of holders inside the Ring. That number is what the encryption hides.</p>
 
-          <h2>Costs</h2>
+          <h2 id="costs">Costs</h2>
           <p>These are Solana&apos;s and the Ring&apos;s own costs, as their documentation states them. {site.name} adds no fee.</p>
           <ul>
             <li>The Solana network fee: 5,000 lamports per signature, plus any priority fee.</li>
@@ -125,7 +169,7 @@ export default function Docs() {
             <li>pump.fun&apos;s own trading fees, as the program reports them at the time.</li>
           </ul>
 
-          <h2>Run it yourself</h2>
+          <h2 id="run-it-yourself">Run it yourself</h2>
           <p>The README has the full steps. In short, with Node 22 and the Solana tools installed:</p>
         </div>
         <pre className="code">{`npm install
@@ -145,7 +189,7 @@ npm run example       # launches a coin and makes a Ring transfer, from a script
             lists what changed.
           </p>
 
-          <h2>What is alpha, and what is not built</h2>
+          <h2 id="what-is-alpha-and-what-is-not-built">What is alpha, and what is not built</h2>
           <ul>
             <li>The Privacy Rings SDK is an alpha release and its endpoints are labelled beta by Helius.</li>
             <li>{site.name} is unaudited.</li>

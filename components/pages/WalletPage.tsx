@@ -5,6 +5,7 @@ import { api, signAndSend, signedApi } from "@/lib/client/api";
 import { NATIVE, decimalsOf } from "@/lib/constants";
 import type { Api } from "@/lib/contract";
 import { formatCoin, parseAmount } from "@/lib/format";
+import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
 import { RingEventRow } from "../ui/RingEventRow";
@@ -70,6 +71,8 @@ function OpenWallet() {
       setFormProblem(error instanceof Error ? error.message : String(error));
     }
   };
+
+  const loadActivity = useCallback(() => api("wallet/activity", { wallet: me.address }), [me.address]);
 
   const submit = () =>
     run("Waiting for the chain to confirm", async (): Promise<Outcome> => {
@@ -309,6 +312,10 @@ function OpenWallet() {
           <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} />
         ))}
       </ul>
+
+      <h2 className="h3">Your wallet&apos;s public transactions</h2>
+      <p className="body">The latest transactions this wallet took part in, as anyone can list them from the chain.</p>
+      <ActivityList load={loadActivity} version={mine?.history.length ?? 0} empty="None yet. Funding the wallet will be the first." />
     </>
   );
 }
