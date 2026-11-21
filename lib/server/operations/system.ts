@@ -1,5 +1,5 @@
 /** Configuration, health, the local faucet, and submitting and looking up transactions. */
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, type ConfirmedTransactionMeta } from "@solana/web3.js";
 import { NATIVE } from "../../constants";
 import type { Status, TransactionView } from "../../contract";
 import { airdrop } from "../bootstrap";
@@ -55,21 +55,43 @@ async function status(): Promise<Status> {
   return base;
 }
 
+/** What the paying wallet's own balances did, from the balances the chain recorded before and after. */
+function payerChanges(meta: ConfirmedTransactionMeta, payer: string | undefined): TransactionView["changes"] {
+  const changes: TransactionView["changes"] = [];
+  const sol = BigInt(meta.postBalances[0] ?? 0) - BigInt(meta.preBalances[0] ?? 0);
+  if (sol !== 0n) changes.push({ mint: NATIVE, amount: sol.toString() });
+  const held = (balances: ConfirmedTransactionMeta["preTokenBalances"]): Map<string, bigint> => {
+    const totals = new Map<string, bigint>();
+    for (const balance of balances ?? []) {
+      if (balance.owner === payer) totals.set(balance.mint, (totals.get(balance.mint) ?? 0n) + BigInt(balance.uiTokenAmount.amount));
+    }
+    return totals;
+  };
+  const [before, after] = [held(meta.preTokenBalances), held(meta.postTokenBalances)];
+  for (const mint of new Set([...before.keys(), ...after.keys()])) {
+    const delta = (after.get(mint) ?? 0n) - (before.get(mint) ?? 0n);
+    if (delta !== 0n) changes.push({ mint, amount: delta.toString() });
+  }
+  return changes;
+}
+
 async function transactionView(signature: string): Promise<TransactionView> {
   const found = await connection().getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
-  if (!found?.meta) return { signature, status: "not-found", programs: [], deposits: [] };
+  if (!found?.meta) return { signature, status: "not-found", programs: [], changes: [], deposits: [] };
   const keys = found.transaction.message.getAccountKeys({ accountKeysFromLookups: found.meta.loadedAddresses });
   const invoked = new Set(
     (found.meta.logMessages ?? []).map((line) => /^Program (\S+) invoke \[1\]$/.exec(line)?.[1]).filter((id): id is string => id !== undefined),
   );
+  const payer = keys.get(0)?.toBase58();
   return {
     signature,
     status: found.meta.err ? "failed" : "confirmed",
     slot: found.slot,
     blockTime: found.blockTime ?? undefined,
     feeLamports: String(found.meta.fee),
-    payer: keys.get(0)?.toBase58(),
+    payer,
     programs: [...invoked],
+    changes: payerChanges(found.meta, payer),
     deposits: state()
       .events.filter((event) => event.signature === signature && event.kind === "deposit")
       .map((event) => event.public),

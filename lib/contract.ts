@@ -58,8 +58,17 @@ export interface TransactionView {
   feeLamports?: string;
   payer?: string;
   programs: string[];
+  /** What the paying wallet gained (positive) or lost (negative) in this transaction, per coin, in base units. The SOL figure includes the network fee. */
+  changes: { mint: string; amount: string }[];
   /** What this transaction paid into the Ring, if anything. Public. */
   deposits: Record<string, string>[];
+}
+/** One public transaction that touched an address. */
+export interface Activity {
+  signature: string;
+  /** Seconds since 1970, as the chain recorded it. */
+  blockTime?: number;
+  failed: boolean;
 }
 export interface Stats {
   network: "local" | "devnet";
@@ -80,6 +89,10 @@ export interface Api {
   faucet: Op<{ wallet: string }, { ok: true }>;
   explore: Op<Nothing, { coins: CoinView[] }>;
   coin: Op<{ mint: string }, CoinView>;
+  /** The latest public transactions on a coin's bonding curve, newest first. */
+  "coin/activity": Op<{ mint: string }, { activity: Activity[] }>;
+  /** The latest public transactions a wallet signed or received in, newest first. */
+  "wallet/activity": Op<{ wallet: string }, { activity: Activity[] }>;
   "wallet/public": Op<{ wallet: string }, { balances: Record<string, string> }>;
   "launch/build": Op<
     { wallet: string; mint: string; name: string; symbol: string; firstBuyLamports?: string; toRing?: boolean },

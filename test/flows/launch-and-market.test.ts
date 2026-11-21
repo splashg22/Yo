@@ -171,3 +171,40 @@ describe("the curve and Explore", () => {
     await expect(call("tx/status", { signature: "garbage" })).rejects.toThrow(/not a transaction signature/);
   });
 });
+
+describe("public history, read from the chain", () => {
+  it("lists a coin's curve activity and a wallet's transactions newest first, and a receipt states what the wallet spent and received", async () => {
+    const creator = await fundedClient();
+    const buyer = await fundedClient();
+    const launched = await creator.launch({ name: "Ledger", symbol: "LDGR" });
+    const [solBefore, coinBefore] = [await onChain(buyer.address, NATIVE), await onChain(buyer.address, launched.mint)];
+    const bought = await buyer.trade(launched.mint, "buy", SOL / 20n);
+    const [solAfter, coinAfter] = [await onChain(buyer.address, NATIVE), await onChain(buyer.address, launched.mint)];
+
+    const onCurve = (await call("coin/activity", { mint: launched.mint })).activity;
+    expect(onCurve.map((entry) => entry.signature)).toEqual([bought.signature, launched.signature]);
+    expect(onCurve.every((entry) => !entry.failed && typeof entry.blockTime === "number")).toBe(true);
+    const mine = (await call("wallet/activity", { wallet: buyer.address })).activity;
+    expect(mine[0]!.signature).toBe(bought.signature);
+    expect(mine).toHaveLength(2); // the faucet's airdrop, then the buy
+
+    // The receipt's figures are the chain's own before-and-after balances, to the base unit.
+    const receipt = await call("tx/status", { signature: bought.signature });
+    expect(receipt.payer).toBe(buyer.address);
+    expect(Object.fromEntries(receipt.changes.map((change) => [change.mint, BigInt(change.amount)]))).toEqual({
+      [NATIVE]: solAfter - solBefore,
+      [launched.mint]: coinAfter - coinBefore,
+    });
+    expect(solAfter - solBefore).toBeLessThan(-(SOL / 20n));
+    expect(coinAfter - coinBefore).toBeGreaterThan(0n);
+  });
+
+  it("refuses a malformed address, a coin that was not launched here, and reports an unknown signature as not found", async () => {
+    await expect(call("coin/activity", { mint: "nonsense" })).rejects.toThrow(/valid Solana address/);
+    await expect(call("coin/activity", { mint: newActor().address })).rejects.toThrow(/not launched here/);
+    await expect(call("wallet/activity", { wallet: "" })).rejects.toThrow(/wallet address/);
+    expect((await call("wallet/activity", { wallet: newActor().address })).activity).toEqual([]);
+    const missing = await call("tx/status", { signature: unknownSignature() });
+    expect(missing).toMatchObject({ status: "not-found", changes: [], deposits: [] });
+  });
+});

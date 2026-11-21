@@ -2,10 +2,10 @@
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { PublicKey } from "@solana/web3.js";
 import { NATIVE } from "../../constants";
-import type { CoinView } from "../../contract";
+import type { Activity, CoinView } from "../../contract";
 import { buildClaimFees, buildLaunch, buildTrade } from "../transactions";
 import { settings } from "../env";
-import { claimableFees, curveOf, tokenProgramOf } from "../pump";
+import { claimableFees, curveAddress, curveOf, tokenProgramOf } from "../pump";
 import { ring } from "../ring";
 import { connection } from "../solana";
 import { save, state, type Coin } from "../store";
@@ -58,7 +58,17 @@ export async function publicBalance(wallet: string, mint: string): Promise<bigin
   return BigInt(balance?.value.amount ?? "0");
 }
 
-export const market: Handlers<"explore" | "coin" | "stats" | "wallet/public" | "launch/build" | "trade/build" | "fees/claimable" | "fees/build"> = {
+const ACTIVITY_SHOWN = 20;
+
+/** The chain's own list of transactions that touched an address. Nothing here comes from this site's records. */
+async function activityOf(address: PublicKey): Promise<Activity[]> {
+  const found = await connection().getSignaturesForAddress(address, { limit: ACTIVITY_SHOWN }, "confirmed");
+  return found.map((entry) => ({ signature: entry.signature, blockTime: entry.blockTime ?? undefined, failed: entry.err !== null }));
+}
+
+export const market: Handlers<
+  "explore" | "coin" | "coin/activity" | "wallet/activity" | "stats" | "wallet/public" | "launch/build" | "trade/build" | "fees/claimable" | "fees/build"
+> = {
   explore: async () => ({ coins: await Promise.all([...state().coins].reverse().map(coinView)) }),
 
   coin: async (input) => {
@@ -67,6 +77,14 @@ export const market: Handlers<"explore" | "coin" | "stats" | "wallet/public" | "
     if (!coin) throw new Error("that coin was not launched here");
     return coinView(coin);
   },
+
+  "coin/activity": async (input) => {
+    const mint = addressOf(input.mint, "coin address");
+    if (!state().coins.some((candidate) => candidate.mint === mint)) throw new Error("that coin was not launched here");
+    return { activity: await activityOf(curveAddress(mint)) };
+  },
+
+  "wallet/activity": async (input) => ({ activity: await activityOf(new PublicKey(addressOf(input.wallet, "wallet address"))) }),
 
   stats: () => {
     const { coins, events } = state();

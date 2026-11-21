@@ -54,6 +54,25 @@ describe("what the site may say", () => {
     expect(visibilityOf("curve-trade").encrypted).toEqual([]);
     for (const row of VISIBILITY) expect(row.public.length, row.id).toBeGreaterThan(0); // nothing is ever fully hidden
   });
+  it("does not call anything the mock does encrypted in the homepage's own copy", () => {
+    // The mock's server can read Ring transfers, so this build may say "not published" but not "encrypted".
+    // Statements about what a Ring does are allowed where they name the Ring as the one doing it.
+    const page = readFileSync(join(root, "app/page.tsx"), "utf8");
+    const copy = page.slice(0, page.indexOf("export default")).replace(/an encrypted backup file/g, "");
+    expect(copy).not.toMatch(/encrypt/i);
+    expect(site.description).not.toMatch(/encrypt/i);
+    for (const layer of site.layers.filter((entry) => /encrypt/i.test(entry.text))) expect(layer.text).toMatch(/^(A Ring|It) (encrypts|keeps)/);
+    expect(site.layers.find((layer) => layer.label === "The Ring")!.text).toMatch(/Simulated in this build/);
+  });
+
+  it("puts no untrue sentence in the page source, seen or unseen", () => {
+    // An unseen copy of the build notice holds its height. It must be the true wording, not a placeholder.
+    const chrome = readFileSync(join(root, "components/Chrome.tsx"), "utf8");
+    const unseen = /className="strip-size"[^>]*>([\s\S]*?)<\/span>/.exec(chrome)![1]!;
+    expect(unseen).toMatch(/\{LOCAL\} \{SIMULATED\}/);
+    expect(unseen).not.toMatch(/not answering/);
+  });
+
   it("only shows privacy panels for actions in the table", () => {
     for (const file of site_files) {
       for (const [, id] of file.text.matchAll(/<PrivacyPanel action="([^"]+)"/g)) expect(() => visibilityOf(id!), `${file.path}: ${id}`).not.toThrow();

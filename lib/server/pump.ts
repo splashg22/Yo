@@ -199,6 +199,9 @@ export async function curveOf(mint: string): Promise<Curve> {
   };
 }
 
+/** The account that holds a coin's bonding curve: every buy and sell touches it. */
+export const curveAddress = (mint: string): PublicKey => sdk.bondingCurvePda(new PublicKey(mint));
+
 export async function curveExists(mint: string): Promise<boolean> {
   return (await connection().getAccountInfo(sdk.bondingCurvePda(new PublicKey(mint)))) !== null;
 }
