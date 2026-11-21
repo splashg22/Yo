@@ -6,7 +6,7 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | --- | --- | --- | --- |
 | 1 | Working name RINGPAD, accent amber #F5A524 | Your instruction | `name` in `site.config.ts`; `--accent` in `app/globals.css` |
 | 2 | Typeface: Doto, self-hosted | Open licence (SIL OFL 1.1, checked), a true dot-matrix face with weights | Replace `public/fonts/doto.woff2` and the `@font-face` rule |
-| 3 | Background concept "Passing" | It leaves the hero object alone and turns down cleanly on app pages | `components/Background.tsx`; the other two concepts are in `prototypes/background/` |
+| 3 | Background concept "Passing" | It leaves the hero object alone and turns down cleanly on app pages | `components/Background.tsx`; the other two concepts are in git history (`prototypes/background/`, removed in the audit) |
 | 4 | Media black is keyed to transparency at build time | So the background passes behind the object, not across it | `keyed()` in `scripts/build-media.mjs` |
 | 5 | Addresses keep their real case everywhere | Your instruction; they are case-sensitive | n/a |
 | 6 | Project moved out of the public `Yo` repository into its own git repository, history kept | Your instruction: it must end up private, and nothing new should be pushed to `Yo` | n/a |
@@ -20,7 +20,7 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 14 | Transactions are built on the server and signed in the browser; the server submits them | The server never sees a user key, and the browser never needs an RPC address or an API key | `lib/client/api.ts` |
 | 15 | No-wallet mode: the key is made in the browser, stored only as a password-encrypted backup (scrypt N=32768, AES-256-GCM). The unlocked key lives in the tab's session storage until the tab closes or "Lock" | So a reload does not ask for the password every time | Remove `SESSION_KEY` in `components/Wallet.tsx` to ask on every load |
 | 16 | Privacy score = share of supply in Ring balances + number of wallets that have deposited the coin, each labelled as exactly that | Your instruction. Both are public facts. Holders inside the Ring cannot be counted | `coinStats` in `lib/server/ring.ts` |
-| 17 | The 24-hour change is measured from the oldest price inside the last 24 hours, and labelled "since launch" for a younger coin | There is no price history before launch | `coinView` in `lib/server/handlers.ts` |
+| 17 | The 24-hour change is measured from the oldest price inside the last 24 hours, and labelled "since launch" for a younger coin | There is no price history before launch | `coinView` in `lib/server/operations/market.ts` |
 | 18 | Market cap is shown in SOL | There is no USD price source on a local chain, and inventing one would be a fake figure | Add a price source in the devnet pass |
 | 19 | OTC: the seller names the buyer, size and price; the buyer accepts; both legs settle in one step or not at all. Payment is in SOL held in the Ring. No fee | The simplest thing that matches "sealed size and price to a named buyer". No fee because no token or revenue model has been agreed | `otc/*` in `lib/server/handlers.ts` |
 | 20 | OTC offers are held by the server in the clear in this local build, shown only to the two wallets | End-to-end encryption of offers belongs with the real Ring keys in the devnet pass | n/a |
@@ -31,6 +31,24 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 25 | A "Pay" link was added to the navigation, and a coin detail page at `/coin/<address>` | Pay links need a home; buying, selling and creator fees need a page per coin | `site.config.ts`, `app/coin/[mint]` |
 | 26 | The pump.fun program's code is not committed. `npm run local:fetch` downloads it from devnet into `local/accounts/`, which is git-ignored | It is someone else's program | n/a |
 | 27 | Terms and Privacy Policy are written as plain-language drafts and marked "not yet reviewed by a lawyer" | They need a lawyer before launch; a draft is better than a blank | `app/terms`, `app/privacy` |
+| 28 | The server submits signed transactions and settles them itself: a deposit is credited from what the chain shows escrow received, by signature, once | A browser that closes after signing must not leave a deposit uncredited; two requests must not credit it twice | `settle()` in `lib/server/settle.ts` |
+| 29 | A withdrawal ends as landed, not sent, or unknown. Unknown is kept as a pending payout and resolved from the chain; the balance stays reduced meanwhile | Refunding on any error could pay twice | `payFromEscrow`, `payoutStatus` in `lib/server/escrow.ts` |
+| 30 | A coin is listed only from the launch this server built, after checking the creator on the chain. There is no "record a launch" request | Anyone could otherwise list any coin under any name | `pendingLaunches` in `lib/server/settle.ts` |
+| 31 | Prices are whole micro-lamports per coin; change is basis points; share is parts per million | No floating point anywhere near money; whole lamports per coin rounded to zero | `lib/format.ts`, `lib/contract.ts` |
+| 32 | TypeScript is held at 5.9.3 and ESLint at 9, every dependency pinned to an exact version | The type-aware lint rules do not support newer TypeScript yet; pinned versions make a clone reproducible | `package.json` |
+| 33 | Lint: `recommendedTypeChecked`, zero warnings allowed, no rule switched off in code. Prettier at 160 columns | Your standard: no "any", no silenced rules | `eslint.config.mjs`, `.prettierrc.json` |
+| 34 | A notice on every page: pre-release, local test chain, Ring balances simulated, coins have no value. Copy about the mock says "not published", not "encrypted" | The mock's server can read transfers, so "encrypted" would be untrue today | `BuildNotice` in `components/Chrome.tsx`; a test in `test/unit/site.test.ts` |
+| 35 | The escrow keeps a 5 SOL float of its own for network fees and token-account rent on withdrawals, marked so it is never credited to anyone | Fees must not come out of users' deposits | `setUp()` in `lib/server/bootstrap.ts` |
+| 36 | The status page shows the escrow wallet's address and, per coin, what it holds on-chain against what the ledger owes | So the stand-in can be checked by anyone, not taken on trust | `status` in `lib/server/operations/system.ts` |
+| 37 | The server keeps one copy of web3.js (not bundled), and fee wallets are recognised by shape, not class | A second bundled copy made the built server find no fee wallets, so first buys failed on a fresh chain while tests passed | `next.config.mjs`, `recipientsIn` in `lib/server/pump.ts` |
+| 38 | The local faucet runs airdrops one at a time and never hands out the same signature twice | Two identical airdrops in the same moment are one transaction to the chain; the second click was told it had been paid when it had not | `airdrop` in `lib/server/bootstrap.ts` |
+| 39 | Server errors are logged with their cause; the caller gets one plain sentence. Inputs are not logged | An operator needs the cause; a signed request must not end up in a log | `run` in `lib/server/handlers.ts` |
+| 40 | The unlocked browser wallet's key is in the tab's session storage until Lock or the tab closes | So a reload mid-action does not lose the wallet. The privacy policy says so. A stricter choice is to ask for the password after every reload | `SESSION_KEY` in `components/wallet/WalletProvider.tsx` |
+| 41 | On the homepage the header lies over the hero; on phones the five callouts follow the sequence as a list; a page is at least one window tall | Nothing that arrives late may move what is on screen; five callouts do not fit under the object on a short phone | `app/globals.css` |
+| 42 | Phone controls are at least 44px tall; link underlines are text decoration | Small targets were the crawler's main finding | `app/globals.css` |
+| 43 | Coin and wallet pages list recent public transactions straight from the chain; receipts show what the paying wallet spent and received | History and receipts should not depend on this site's own records | `coin/activity`, `wallet/activity`, `payerChanges` |
+| 44 | Search engines are asked not to index the site | A pre-release on a test chain should not be found by search | `robots` in `app/layout.tsx` |
+| 45 | The prototypes folder and one-off probe scripts were removed; browser check scripts were added | Dead code out; every check repeatable by one command | git history; `scripts/` |
 
 ## Only you
 

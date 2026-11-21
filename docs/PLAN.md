@@ -1,5 +1,10 @@
 # Plan
 
+> Where this stands: steps 1 to 4 are built **on a local validator**, with Ring balances
+> as a mock (see `README.md`, `TEST-REPORT.md`). The devnet pass, which replaces the mock
+> with the real Ring calls, has not started: it needs `HELIUS_API_KEY`. The sealed launch
+> window is not built and waits on the owner. The rest of this file is the original plan.
+
 ## What it is
 
 One web app, working name RINGPAD: launch a coin on a pump.fun curve with its Ring

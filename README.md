@@ -3,8 +3,12 @@
 A launchpad and trading suite on Solana Privacy Rings. Working name. Independent of
 Helius, pump.fun and every other site built on Privacy Rings.
 
+**This is a pre-release. It runs on a local test chain. Ring balances are simulated by a
+stand-in on that chain. Nothing here is live, audited, or handles coins of value.**
+
 Read `CLAUDE.md` for how the project is laid out, `docs/RESEARCH.md` for what a Ring
-hides and what it does not, and `DECISIONS.md` for the calls made along the way.
+hides and what it does not, `DECISIONS.md` for the calls made along the way, and
+`TEST-REPORT.md` for what has been proven and what has not.
 
 ## Run it
 
@@ -12,7 +16,7 @@ Needs Node 22.12 or newer and the Solana tools (`solana-test-validator`). If the
 at `/opt/solana/bin`, set `SOLANA_BIN` to the folder that holds them.
 
 ```bash
-npm install
+npm ci
 npm run local:fetch     # once, needs network: copies pump.fun and the Rings programs from devnet
 npm run local           # the local validator, in its own terminal
 npm run dev             # http://localhost:3000
@@ -20,23 +24,83 @@ npm run dev             # http://localhost:3000
 
 Open Ring wallet, make a wallet with a password, press "Get test SOL", then Launch.
 
+Configuration is in one place: environment variables, read by `lib/server/env.ts` and
+listed in `.env.example`. The Helius key for the later devnet pass is `HELIUS_API_KEY`
+and is only ever read on the server.
+
 ## Check it
 
 ```bash
-npm test                # 45 tests: 15 on the site, 30 flows on the local validator
+npm run check           # typecheck, lint (zero warnings), format check, then every test
+npm run test:site       # 55 unit tests. No chain needed.
+npm run test:flows      # 53 flow tests. Starts the local validator if none is running.
+```
+
+The browser checks drive the built site. Start from a fresh validator and an empty
+`.data/` folder, so that the first launch also proves the local set-up:
+
+```bash
 npm run build && npm run start -- -p 3311 &
-npm run e2e             # 12 steps through the real pages in a browser, as two people
-npm run shots           # screenshots of every page, with overflow and legibility checks
+npm run e2e             # 16 steps as two people: every flow twice and once after a reload,
+                        # each balance on screen compared with a direct read of the chain
+npm run crawl           # every page, two widths, with and without a wallet: every control clicked
+npm run break           # bad input, double clicks, declined signature, reload mid-action, dead chain
+npm run motion          # the scroll sequence and background on a slow phone and in odd windows
+npm run scan            # looks for secrets in what is served and in the git history
+npm run measure         # page weight, load time and layout shift
+npm run example         # the SDK example: a launch and a Ring transfer from a script
 ```
 
 ## What is real and what is a stand-in
 
-| Part | On the local validator |
+| Part | Today |
 | --- | --- |
-| Creating a coin, buying, selling, creator fees | The real pump.fun program, copied from devnet |
-| Registering a coin with the Ring | The real Privacy Rings program, copied from devnet |
-| Ring balances: deposit, transfer, withdraw, OTC | A mock ledger with the Ring's visibility rules. Deposits and withdrawals really move coins on the local chain |
+| Creating a coin, buying, selling, creator fees | The real pump.fun program, copied from devnet to the local validator |
+| Registering a coin with the Ring | The real Privacy Rings program, copied the same way |
+| Ring balances: deposit, transfer, withdraw, OTC, pay links | **A mock.** A ledger on this site's server with the Ring's rules for what is public. Deposits and withdrawals really move coins on the local chain, into and out of an escrow wallet. It is not encryption, and it refuses to run anywhere but a local validator |
+| The wallet made in the browser | Real. The key is made and encrypted in the browser and is never sent |
+| Devnet | Not wired up. Needs `HELIUS_API_KEY` and the real Ring calls in place of the mock |
 | Brand media | Stand-ins drawn in code. See `brand/README.md` |
+
+No program of our own is deployed. The project calls pump.fun and Privacy Rings.
+
+## Dependencies
+
+Every version is pinned exactly. Each one, and why it is here:
+
+| Package | Why |
+| --- | --- |
+| `next`, `react`, `react-dom` | The site and its server routes |
+| `@solana/web3.js` | Building and sending transactions on the server; what the pump SDK speaks |
+| `@pump-fun/pump-sdk` | pump.fun's own instructions for create, buy, sell and creator fees |
+| `@heliuslabs/spr` | Privacy Rings: the instruction that registers a coin with a Ring |
+| `@solana/kit` | The address and instruction types `@heliuslabs/spr` uses |
+| `@solana/spl-token` | Token account addresses and transfers |
+| `bn.js` | The big-number type the pump SDK takes and returns |
+| `bs58` | Reading and writing Solana addresses |
+| `@noble/curves` | Ed25519 keys and signatures in the browser, without web3.js in the page |
+| `@noble/hashes` | scrypt, for turning the wallet password into a key |
+| `@noble/ciphers` | AES-GCM, for the encrypted wallet backup |
+| `@wallet-standard/app`, `@wallet-standard/base` | Finding and talking to wallet extensions |
+| `qrcode` | The QR code of a pay link |
+
+Development only:
+
+| Package | Why |
+| --- | --- |
+| `typescript` | Held at 5.9: the linter's type-aware rules do not support newer yet |
+| `eslint`, `@eslint/js`, `typescript-eslint`, `eslint-plugin-react-hooks`, `globals` | Linting, with type-aware rules |
+| `prettier` | Formatting |
+| `vitest` | Tests |
+| `tsx` | Running TypeScript scripts and the SDK example |
+| `sharp` | Building the sized images and sequence frames from `brand/` |
+| `@types/*` | Types for Node, React, bn.js and qrcode |
+
+Playwright is not a dependency: the browser scripts use the one installed on the machine.
+
+`npm audit` reports 17 advisories, all inside the Solana and pump.fun SDKs' own
+dependency trees (`uuid`, `toml`, `stream-json` and what depends on them). None is in
+code this project calls with untrusted input. They are listed in `TEST-REPORT.md`.
 
 ## Moving this to a private repository
 

@@ -42,6 +42,20 @@
     "errors": []
   },
   {
+    "page": "/status",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/changelog",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
     "page": "/docs",
     "device": "desktop",
     "horizontalOverflow": 0,
@@ -99,6 +113,20 @@
   },
   {
     "page": "/pay",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/status",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/changelog",
     "device": "phone",
     "horizontalOverflow": 0,
     "brightestBehindText": 23,
