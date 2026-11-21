@@ -10,7 +10,8 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { createRequire } from "node:module";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+// CHECK_URL points the check at a deployed copy instead of one on this machine.
+const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const post = async (op, input = {}) =>
   (await fetch(`${base}/api/${op}`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(input) })).json();
 

@@ -2,7 +2,8 @@
 // Needs a server on PORT (default 4711). Prints one line per page.
 import { createRequire } from "node:module";
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+// CHECK_URL points the check at a deployed copy instead of one on this machine.
+const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const browser = await chromium.launch();
 const rows = [];
 for (const path of ["/", "/explore", "/wallet", "/launch", "/pay", "/docs"]) {

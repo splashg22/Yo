@@ -1,0 +1,47 @@
+# Runs on every push and pull request: everything that needs no chain.
+# The flow tests and browser checks need a local validator with programs copied from devnet,
+# so they are run by hand (npm run test:flows, npm run e2e); see GO-LIVE.md.
+name: check
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm run test:site
+      - run: npm run build
+  postgres:
+    # The Postgres store against a real Postgres. It needs no chain: only the store's own tests run here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx vitest run --config vitest.site.config.ts test/unit/database.test.ts
+        env:
+          DATABASE_URL: postgresql://postgres@127.0.0.1:5432/postgres

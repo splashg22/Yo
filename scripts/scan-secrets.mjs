@@ -5,7 +5,8 @@ import { execSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+// CHECK_URL points the check at a deployed copy instead of one on this machine.
+const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const needles = new Map();
 // The server's own local keys: any 12 consecutive bytes of one, as text, would give it away.
 for (const file of existsSync(".data") ? readdirSync(".data").filter((name) => name.endsWith(".json") && name !== "state.json") : []) {

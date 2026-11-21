@@ -6,7 +6,8 @@ import { createRequire } from "node:module";
 import { readFileSync } from "node:fs";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
-const base = `http://127.0.0.1:${process.env.PORT ?? 4711}`;
+// CHECK_URL points the check at a deployed copy instead of one on this machine.
+const base = process.env.CHECK_URL ?? `http://127.0.0.1:${process.env.PORT ?? 4711}`;
 const media = JSON.parse(readFileSync("lib/media.json", "utf8"));
 const END_OF_MOTION = 0.74; // as in components/Sequence.tsx
 
