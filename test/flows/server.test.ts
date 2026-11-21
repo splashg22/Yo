@@ -330,7 +330,7 @@ describe("sessions", () => {
     const token = await trader.session();
     await expect(call("ring/mine", { session: "x".repeat(43) })).rejects.toThrow(/session has ended/);
     await expect(call("ring/mine", { session: 7 })).rejects.toThrow(/session has ended/);
-    await call("session/close", { session: token });
+    await trader.signOut();
     await expect(call("ring/mine", { session: token })).rejects.toThrow(/session has ended/);
     process.env.SESSION_MINUTES = "1";
     try {
