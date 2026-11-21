@@ -5,9 +5,15 @@ import { existsSync } from "node:fs";
 const URL_ = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8899";
 async function healthy(): Promise<boolean> {
   try {
-    const response = await fetch(URL_, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }) });
+    const response = await fetch(URL_, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "getHealth" }),
+    });
     return ((await response.json()) as { result?: string }).result === "ok";
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 export default async function setup() {
@@ -16,7 +22,14 @@ export default async function setup() {
   const child = spawn("bash", ["scripts/local-validator.sh"], { stdio: "ignore", detached: true });
   child.unref();
   for (let i = 0; i < 90; i++) {
-    if (await healthy()) return () => { try { process.kill(-child.pid!); } catch { /* already gone */ } };
+    if (await healthy())
+      return () => {
+        try {
+          process.kill(-child.pid!);
+        } catch {
+          /* already gone */
+        }
+      };
     await new Promise((r) => setTimeout(r, 1000));
   }
   throw new Error("The local validator did not start. See local/validator.log");

@@ -1,12 +1,15 @@
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import media from "../lib/media.json";
-import { FORBIDDEN_CLAIMS, VISIBILITY, visibilityOf } from "../lib/visibility";
-import { nav, site } from "../site.config";
+import media from "../../lib/media.json";
+import { run } from "../../lib/server/handlers";
+import { forget } from "../../lib/server/store";
+import { FORBIDDEN_CLAIMS, VISIBILITY, visibilityOf } from "../../lib/visibility";
+import { nav, site } from "../../site.config";
 
-const root = join(__dirname, "..");
+const root = join(__dirname, "..", "..");
 function sources(...dirs: string[]): { path: string; text: string }[] {
   const out: { path: string; text: string }[] = [];
   const walk = (dir: string) => {
@@ -66,27 +69,38 @@ describe("what the site may say", () => {
   it("never upper-cases an address", () => {
     expect(readFileSync(join(root, "app/globals.css"), "utf8")).toMatch(/\.address \{[^}]*text-transform: none/);
   });
-  it("shows no number that was not read from the chain", () => {
+  it("shows no number that was not read from the chain", async () => {
+    process.env.APP_DATA_DIR = mkdtempSync(join(tmpdir(), "ring-site-"));
+    forget();
+    const stats = await run("stats");
+    expect(stats.available).toBe(false);
+    expect(Object.values(stats).some((value) => typeof value === "number")).toBe(false);
     expect(readFileSync(join(root, "components/Stats.tsx"), "utf8")).toContain("stats?.available &&");
-    expect(readFileSync(join(root, "lib/server/handlers.ts"), "utf8")).toMatch(/available: coins\.length > 0/);
   });
 });
 
 describe("brand media", () => {
   const size = (file: string) => sharp(join(root, "brand", file)).metadata();
   it("has every file brand/README.md asks for, at the stated shape", async () => {
-    const hero = await size("hero.png"), layers = await size("layers.png"), banner = await size("banner.png"), logo = await size("logo.png");
+    const hero = await size("hero.png"),
+      layers = await size("layers.png"),
+      banner = await size("banner.png"),
+      logo = await size("logo.png");
     for (const still of [hero, layers]) {
       expect(still.width).toBeGreaterThanOrEqual(3840);
-      expect(still.width! / still.height!).toBeCloseTo(16 / 9, 2);
+      expect(still.width / still.height).toBeCloseTo(16 / 9, 2);
     }
-    expect(banner.width! / banner.height!).toBeCloseTo(3, 2);
+    expect(banner.width / banner.height).toBeCloseTo(3, 2);
     expect(logo.width).toBe(logo.height);
     expect(statSync(join(root, "brand/hero.mp4")).size).toBeGreaterThan(100_000);
   });
   it("is on true black", async () => {
     for (const file of ["hero.png", "layers.png", "banner.png"]) {
-      const corner = await sharp(join(root, "brand", file)).extract({ left: 0, top: 0, width: 64, height: 64 }).removeAlpha().raw().toBuffer();
+      const corner = await sharp(join(root, "brand", file))
+        .extract({ left: 0, top: 0, width: 64, height: 64 })
+        .removeAlpha()
+        .raw()
+        .toBuffer();
       expect(Math.max(...corner), file).toBe(0);
     }
   });
@@ -95,7 +109,8 @@ describe("brand media", () => {
     for (const width of media.sequenceWidths) {
       expect(readdirSync(join(root, "public/media/seq", String(width))).length, String(width)).toBe(media.frames);
     }
-    for (const name of ["hero", "layers"]) for (const width of media.stillWidths) expect(existsSync(join(root, `public/media/${name}-${width}.webp`))).toBe(true);
+    for (const name of ["hero", "layers"])
+      for (const width of media.stillWidths) expect(existsSync(join(root, `public/media/${name}-${width}.webp`))).toBe(true);
     expect(existsSync(join(root, "public/media/og.png"))).toBe(true);
   });
   it("keeps the first sequence load small", () => {
@@ -119,6 +134,6 @@ describe("page structure", () => {
     expect(footer).toMatch(/independent project/);
     expect(footer).toMatch(/not affiliated with[\s\S]*Helius, pump\.fun/);
     expect(footer).toMatch(/alpha software/);
-    expect(site.network).toBe("devnet");
+    expect(footer).toMatch(/pre-release build and is unaudited/);
   });
 });
