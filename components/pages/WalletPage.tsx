@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, signAndSend, signedApi } from "@/lib/client/api";
+import { sealNoteFor } from "@/lib/client/notes";
 import { NATIVE, decimalsOf } from "@/lib/constants";
 import type { Api } from "@/lib/contract";
 import { formatCoin, parseAmount } from "@/lib/format";
@@ -98,7 +99,8 @@ function OpenWallet() {
         const sent = await signAndSend(me, transaction);
         outcome = { message: `Deposited ${form.amount} ${symbol(form.mint)} into your Ring balance.`, signature: sent.signature };
       } else if (tab === "transfer") {
-        await signedApi("ring/transfer", me, { to: form.to.trim(), mint: form.mint, amount, memo: form.memo.trim() || undefined });
+        const note = await sealNoteFor(me, form.to.trim(), form.memo);
+        await signedApi("ring/transfer", me, { to: form.to.trim(), mint: form.mint, amount, note });
         outcome = { message: `Sent ${form.amount} ${symbol(form.mint)}.` };
       } else {
         const result = await signedApi("ring/withdraw", me, { mint: form.mint, amount, destination: form.to.trim() || undefined });
@@ -300,7 +302,7 @@ function OpenWallet() {
           {tab === "transfer" && (
             <div className="field">
               <label className="label" htmlFor="w-memo">
-                Memo, encrypted, optional
+                Note, sealed in your browser, optional
               </label>
               <input id="w-memo" value={form.memo} maxLength={140} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
             </div>
@@ -324,7 +326,7 @@ function OpenWallet() {
         {mine === null && !loadProblem && <li className="pub">Reading your history.</li>}
         {mine?.history.length === 0 && <li className="pub">Nothing yet. A deposit, transfer or withdrawal will appear here.</li>}
         {mine?.history.map((event) => (
-          <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} />
+          <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} noteKeys={me.noteKeys} />
         ))}
       </ul>
 

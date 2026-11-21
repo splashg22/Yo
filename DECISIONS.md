@@ -59,6 +59,12 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 53 | A ceiling on requests per address per minute: 30 faucet, 240 that build, send or are signed, 1,200 reads. Over it: status 429 and how long to wait | One caller should not starve the rest or drain the faucet. Reads are high because pages refresh themselves | `PER_MINUTE` in `lib/server/limit.ts` |
 | 54 | The server answers POST only | A GET can be fired by a link or image on another site | `app/api/[...op]/route.ts` |
 | 55 | A state file that cannot be read stops the server and is left untouched | Starting again from empty would erase every balance without a word | `read` in `lib/server/store.ts` |
+| 56 | Notes on a transfer are sealed in the sender's browser with libsodium's sealed box, one copy to the recipient's key and one to the sender's own. The server refuses a readable note | The server has no need to read a note, so it should not be able to. The library's own construction is used; nothing cryptographic is written here | `lib/notes.ts`. To reverse: accept `memo` again in `ring/transfer` |
+| 57 | A wallet's note key is derived from its seed and published when it registers. Wallet extensions have no note key, so they cannot send or open notes | Deriving from the seed means a restored backup reads old notes. An extension does not expose its seed | `noteKeysFor` in `lib/notes.ts` |
+| 58 | A pay link carries its request after the #, and a link with the request in the query string is refused | Browsers do not send that part to servers, so the server and any log in front of it never see who asks whom for how much | `lib/paylink.ts` |
+| 59 | `Referrer-Policy: no-referrer` | A coin page or receipt address says what someone was looking at | `next.config.mjs` |
+| 60 | The site may not say "zero-knowledge", "zk" or "shielded", as well as the earlier list | The code generates and verifies no proof today | `FORBIDDEN_CLAIMS` in `lib/visibility.ts` |
+| 61 | Privacy plan: adopt the real Default Ring with proofs made in the browser; wait for Helius's anonymous rings for hidden addresses; build no circuits of our own | It is the only audited, live option that takes arbitrary coins. Our own pool would need a trusted setup and an outside audit and would start with almost no users to hide among | `PRIVACY-AUDIT.md`, section 3 |
 
 ## Only you
 

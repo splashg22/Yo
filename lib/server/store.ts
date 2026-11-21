@@ -54,6 +54,8 @@ export interface PricePoint {
 }
 export interface State {
   registered: string[];
+  /** Each wallet's public note key, published when it registers. Public by nature. */
+  noteKeys: Record<string, string>;
   balances: Record<string, Record<string, string>>;
   events: RingEvent[];
   /** Transaction signatures already credited to the Ring ledger, or being credited right now. */
@@ -68,6 +70,7 @@ export interface State {
 }
 const empty = (): State => ({
   registered: [],
+  noteKeys: {},
   balances: {},
   events: [],
   credited: [],

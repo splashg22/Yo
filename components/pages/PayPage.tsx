@@ -1,6 +1,7 @@
 "use client";
 
 import QRCode from "qrcode";
+import { sealNoteFor } from "@/lib/client/notes";
 import { useEffect, useMemo, useState } from "react";
 import { signedApi } from "@/lib/client/api";
 import { NATIVE, decimalsOf } from "@/lib/constants";
@@ -32,18 +33,24 @@ function QrCode({ text }: { text: string }) {
 }
 
 const INTRO =
-  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. On-chain, the payment shows the two wallets and encrypts the coin and the amount.";
+  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. The request travels in the part of the link that browsers do not send to servers. The payment is a transfer between the two wallets: they are public, the coin and the amount are not published.";
 
 export function PayPage() {
   // The link is read in the browser: until then nothing is known, which is its own state.
   const [request, setRequest] = useState<PayRequest | "none" | "invalid" | null>(null);
   useEffect(() => {
-    if (!window.location.search) return setRequest("none");
-    try {
-      setRequest(parsePayLink(window.location.href));
-    } catch {
-      setRequest("invalid");
-    }
+    const read = () => {
+      if (!window.location.hash && !window.location.search) return setRequest("none");
+      try {
+        setRequest(parsePayLink(window.location.href));
+      } catch {
+        setRequest("invalid");
+      }
+    };
+    read();
+    // The request lives after the #, so opening another pay link in the same tab changes only that part and loads nothing.
+    window.addEventListener("hashchange", read);
+    return () => window.removeEventListener("hashchange", read);
   }, []);
   const asked = request !== null && request !== "none" && request !== "invalid";
   return (
@@ -61,7 +68,8 @@ export function PayPage() {
       )}
       {asked && (
         <WalletGate>
-          <PayRequestView request={request} />
+          {/* Keyed by the request, so a second link starts clean instead of showing the first one as paid. */}
+          <PayRequestView key={JSON.stringify(request)} request={request} />
         </WalletGate>
       )}
     </AppPage>
@@ -76,7 +84,8 @@ function PayRequestView({ request }: { request: PayRequest }) {
   const me = signer!;
   const pay = () =>
     run("Sending", async () => {
-      await signedApi("ring/transfer", me, request);
+      const note = await sealNoteFor(me, request.to, request.memo ?? "");
+      await signedApi("ring/transfer", me, { to: request.to, mint: request.mint, amount: request.amount, note });
       setPaid(true);
       return { message: `Paid ${formatCoin(request.mint, request.amount)} ${symbol(request.mint)} from your Ring balance.` };
     });
@@ -95,7 +104,7 @@ function PayRequestView({ request }: { request: PayRequest }) {
         </dd>
         {request.memo && (
           <>
-            <dt>Memo</dt>
+            <dt>Note</dt>
             <dd className="wrap-anywhere">{request.memo}</dd>
           </>
         )}
@@ -163,7 +172,7 @@ function MakeLink() {
       </div>
       <div className="field">
         <label className="label" htmlFor="p-memo">
-          Memo, optional
+          Note, optional
         </label>
         <input id="p-memo" maxLength={140} value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
       </div>

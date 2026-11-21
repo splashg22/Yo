@@ -5,6 +5,7 @@
  *  1. No wallet needed: a key made in this browser, kept as a password-encrypted backup.
  *  2. A browser wallet, through the Wallet Standard.
  */
+import { noteKeysFor } from "@/lib/notes";
 import { getWallets } from "@wallet-standard/app";
 import type { Wallet as StandardWallet, WalletAccount } from "@wallet-standard/base";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
@@ -46,6 +47,7 @@ function browserSigner(actor: Actor): Signer {
     address: actor.address,
     signMessage: (message) => Promise.resolve(signMessage(actor, message)),
     signTransaction: (transaction, extraSeeds = []) => Promise.resolve(signTransaction(transaction, [actor.seed, ...extraSeeds])),
+    noteKeys: () => noteKeysFor(actor.seed),
   };
 }
 
@@ -100,7 +102,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setSigner(next);
     // A wallet publishes its Ring keys once, so that it can receive transfers. If this
     // fails the wallet still works; a transfer to it reports "not registered" until it succeeds.
-    signedApi("ring/register", next).catch((error: unknown) => console.warn("Ring registration did not complete:", error));
+    // With it goes the wallet's public note key, so that others can seal notes to it.
+    Promise.resolve(next.noteKeys?.())
+      .then((keys) => signedApi("ring/register", next, keys ? { noteKey: toBase64(keys.publicKey) } : {}))
+      .catch((error: unknown) => console.warn("Ring registration did not complete:", error));
   }, []);
 
   useEffect(() => {

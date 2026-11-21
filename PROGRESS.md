@@ -14,7 +14,7 @@ needed reversing. The launchpad uses ports of its own. Evidence: `OTC-CHECK.md`.
 
 ### 2. Where the code lives
 
-`/home/user/ringpad`, its own git repository, 26 commits, **not pushed anywhere**. I could
+`/home/user/ringpad`, its own git repository, 27 commits, **not pushed anywhere**. I could
 not create a private GitHub repository (refused, 403). A full copy with history is in
 `ringpad.bundle`, sent to you. An early copy (research and homepage only) is still on the
 public `Yo` branch `claude/exciting-gates-vdquz4`; nothing new has gone there. Steps for
@@ -28,7 +28,7 @@ first buy, one signature), buy and sell, deposit, Ring transfer, withdraw, OTC, 
 privacy score, creator fees into the Ring, receipts, public history, the price record,
 status. A reload or shared link opens on the same tab; two tabs on one wallet stay in step.
 
-116 tests (61 unit, 55 flow). Browser checks: 17 flow steps, crawler over 14 pages at two
+122 tests (65 unit, 57 flow). Browser checks: 17 flow steps, crawler over 14 pages at two
 widths with 0 findings, 14 break-it checks, 11 motion checks, secrets scan clean. All pass
 from a fresh clone on a just-started validator. Full detail: `TEST-REPORT.md`.
 
@@ -42,9 +42,15 @@ Not verified: anything on devnet or mainnet; a real Ring deposit, transfer or wi
 any browser but Chromium; a real phone; a real wallet extension signing; a screen reader;
 load; the 17 `npm audit` advisories inside the Solana and pump.fun SDKs; any outside review.
 
+Privacy today, exactly (`PRIVACY-AUDIT.md`): no wallet address is hidden from anyone at
+any step. We, the operator, can read every Ring transfer's wallets, coin and amount,
+because Ring balances are a stand-in on our server. Hidden from us as of stage 1: the note
+on a transfer, and what a pay link asks for until it is paid. No zero-knowledge proof is
+generated or verified by this code.
+
 ### 5. Decisions made for you
 
-All 55 are in `DECISIONS.md` with the reason and how to reverse each. The ones you would
+All 61 are in `DECISIONS.md` with the reason and how to reverse each. The ones you would
 most want to know: Ring balances are a mock locked to the local validator; the server
 settles deposits itself and never refunds a withdrawal on a guess; copy says "not
 published" instead of "encrypted" for anything the mock does; the unlocked browser key is
@@ -88,7 +94,7 @@ The full list with what was fixed: `TEST-REPORT.md`, section 7.
 
 ### 9. The next three things
 
-1. The devnet pass: replace the mock with the real Ring, then repeat the whole test report there.
+1. Privacy stage 2, which is the devnet pass: the real Default Ring with proofs made in the browser, so that we stop seeing coin and amount. Then repeat the whole test report there.
 2. Move the code to a private repository, as soon as you name one.
 3. A small indexer that rebuilds each coin's trades from the chain, for a true price history and a paged Explore.
 

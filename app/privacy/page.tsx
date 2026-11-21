@@ -19,12 +19,23 @@ export default function Page() {
           </ul>
           <h2>What reaches our server</h2>
           <ul>
-            <li>Requests your browser makes to load the site, with your IP address, as any website receives.</li>
+            <li>
+              Requests your browser makes, with your IP address, as any website receives. This site writes no log of them. To limit abuse it counts requests per
+              address in memory for one minute and then forgets them. Whoever hosts the site may keep logs of their own.
+            </li>
             <li>Transactions you sign, which this site submits to the chain for you. They are public anyway.</li>
             <li>
-              In this pre-release, everything about your Ring balance. Ring balances are simulated by a stand-in that runs on this site&apos;s server, so the
-              server sees each transfer&apos;s coin, amount and memo, and each OTC offer, in readable form. Under the real Ring it would see only encrypted
-              data.
+              In this pre-release, your Ring balance and what moves in and out of it. Ring balances are simulated by a stand-in that runs on this site&apos;s
+              server, so the server sees each transfer&apos;s wallets, coin and amount, and each OTC offer, in readable form. Under the real Ring it would see
+              the wallets and encrypted data.
+            </li>
+            <li>
+              Not the note on a transfer. A note is sealed in your browser to the recipient&apos;s key before it is sent; the server stores it and cannot read
+              it.
+            </li>
+            <li>
+              Not what a pay link asks for. The request sits after the # of the link, which browsers do not send to servers. When the link is paid, the payment
+              itself reaches the server like any other transfer.
             </li>
           </ul>
           <h2>What stays in your browser</h2>

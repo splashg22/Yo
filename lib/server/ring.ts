@@ -7,6 +7,7 @@
  * their amounts; a transfer shows both wallets and seals the coin and the amount.
  * Deposited coins really move on the local chain, into an escrow wallet (lib/server/chain.ts).
  */
+import type { SealedNote } from "../notes";
 import { randomBytes, toHex } from "../bytes";
 import { assertLocalOnly } from "./env";
 import { save, state, type RingEvent } from "./store";
@@ -30,9 +31,15 @@ function record(event: Omit<RingEvent, "id" | "at">, at = Date.now()): RingEvent
 export const ring = {
   isRegistered: (wallet: string) => state().registered.includes(wallet),
 
-  /** A wallet must publish its Ring keys once before it can receive a transfer. Public. */
-  register(wallet: string): RingEvent | null {
+  noteKey: (wallet: string): string | null => state().noteKeys[wallet] ?? null,
+
+  /** A wallet must publish its Ring keys once before it can receive a transfer. Public. Its note key can be added or replaced later. */
+  register(wallet: string, noteKey?: string): RingEvent | null {
     assertLocalOnly("The mock Ring");
+    if (noteKey !== undefined && state().noteKeys[wallet] !== noteKey) {
+      state().noteKeys[wallet] = noteKey;
+      save();
+    }
     if (state().registered.includes(wallet)) return null;
     state().registered.push(wallet);
     const event = record({ kind: "register", public: { wallet }, sealed: {}, parties: [wallet] });
@@ -51,8 +58,11 @@ export const ring = {
     return event;
   },
 
-  /** Between Ring balances. Public: both wallets and the time. Sealed: coin, amount, memo. */
-  transfer(from: string, to: string, mint: string, amount: bigint, memo?: string): RingEvent {
+  /**
+   * Between Ring balances. Public: both wallets and the time. Kept from the public: coin and amount, which this
+   * stand-in can read. The note arrives sealed to the two wallets' keys and cannot be read here at all.
+   */
+  transfer(from: string, to: string, mint: string, amount: bigint, note?: SealedNote): RingEvent {
     assertLocalOnly("The mock Ring");
     if (amount <= 0n) throw new Error("the amount must be above zero");
     if (from === to) throw new Error("you cannot send to your own wallet");
@@ -62,7 +72,7 @@ export const ring = {
     const event = record({
       kind: "transfer",
       public: { from, to },
-      sealed: { coin: mint, amount: amount.toString(), ...(memo ? { memo: memo.slice(0, 140) } : {}) },
+      sealed: { coin: mint, amount: amount.toString(), ...(note ? { noteForRecipient: note.forRecipient, noteForSender: note.forSender } : {}) },
       parties: [from, to],
     });
     save();

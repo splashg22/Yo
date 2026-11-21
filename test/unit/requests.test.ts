@@ -75,11 +75,16 @@ describe("pay links", () => {
     const link = payLink("https://example.test", { to, mint, amount: "2500000", memo: "  two prints  " });
     expect(parsePayLink(link)).toEqual({ to, mint, amount: "2500000", memo: "two prints" });
     expect(new URL(link).pathname).toBe("/pay");
-    expect([...new URL(link).searchParams.keys()].sort()).toEqual(["amount", "coin", "memo", "to"]);
+    // All of it sits after the #, which a browser never sends to a server; nothing is in the path or the query.
+    const url = new URL(link);
+    expect([...new URLSearchParams(url.hash.slice(1)).keys()].sort()).toEqual(["amount", "coin", "memo", "to"]);
+    expect(url.search).toBe("");
+    expect(url.pathname).toBe("/pay");
+    expect(() => parsePayLink(`https://example.test/pay?to=${to}&coin=${mint}&amount=2500000`)).toThrow(/not a valid pay link/);
     expect(parsePayLink(payLink("https://example.test", { to, mint, amount: "1" })).memo).toBeUndefined();
   });
   it("keep the address exactly as it is, case included", () => {
-    expect(new URL(payLink("https://example.test", { to, mint, amount: "1" })).searchParams.get("to")).toBe(to);
+    expect(new URLSearchParams(new URL(payLink("https://example.test", { to, mint, amount: "1" })).hash.slice(1)).get("to")).toBe(to);
   });
   it("reject anything tampered with or malformed", () => {
     const good = payLink("https://example.test", { to, mint, amount: "1" });

@@ -2,6 +2,7 @@
  * The contract between the browser and the server: every operation, what it takes and
  * what it returns. Amounts cross the wire as decimal strings of base units.
  */
+import type { SealedNote } from "./notes";
 import type { Offer, RingEvent } from "./server/store";
 
 export type { Offer, RingEvent };
@@ -109,8 +110,12 @@ export interface Api {
   "ring/credit": Op<{ signature: string }, Settlement>;
   "ring/reconcile": Op<Nothing, { credited: number; payoutsResolved: number }>;
   "ring/public": Op<{ wallet?: string }, { events: PublicRingEvent[] }>;
-  "ring/register": Op<Nothing, { newlyRegistered: boolean }, true>;
-  "ring/transfer": Op<{ to: string; mint: string; amount: string; memo?: string }, { event: RingEvent }, true>;
+  /** `noteKey` is the wallet's public note key, in base64, so that others can seal notes to it. */
+  "ring/register": Op<{ noteKey?: string }, { newlyRegistered: boolean }, true>;
+  /** A wallet's public note key, or null if it has not published one. */
+  "ring/note-key": Op<{ wallet: string }, { key: string | null }>;
+  /** `note` is already sealed in the sender's browser. The server cannot read it. */
+  "ring/transfer": Op<{ to: string; mint: string; amount: string; note?: SealedNote }, { event: RingEvent }, true>;
   "ring/withdraw": Op<{ mint: string; amount: string; destination?: string }, { event: RingEvent; signature: string; pending: boolean }, true>;
   "ring/mine": Op<Nothing, { registered: boolean; balances: Record<string, string>; history: RingEvent[] }, true>;
   "otc/offer": Op<{ buyer: string; mint: string; amount: string; priceLamports: string; hours?: number }, { offer: Offer }, true>;

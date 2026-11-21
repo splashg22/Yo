@@ -75,14 +75,15 @@ describe("the ledger", () => {
   it("shows the outside world the wallets of a transfer and nothing else", () => {
     ring.credit(ana, COIN, 50n, "sig-1");
     ring.register(ben);
-    ring.transfer(ana, ben, COIN, 20n, "a private note");
+    const note = { forRecipient: "c2VhbGVkLWZvci1iZW4=", forSender: "c2VhbGVkLWZvci1hbmE=" }; // the ledger stores what it is given and reads none of it
+    ring.transfer(ana, ben, COIN, 20n, note);
     const outside = JSON.stringify(ring.publicView());
     expect(outside).toContain(ana);
     expect(outside).toContain(ben);
-    expect(outside).not.toContain("a private note");
+    expect(outside).not.toContain(note.forRecipient);
     expect(JSON.stringify(ring.publicView(ben))).not.toContain('"sealed"');
     expect(ring.history(newActor().address)).toEqual([]);
-    expect(ring.history(ben)[0]!.sealed).toEqual({ coin: COIN, amount: "20", memo: "a private note" });
+    expect(ring.history(ben)[0]!.sealed).toEqual({ coin: COIN, amount: "20", noteForRecipient: note.forRecipient, noteForSender: note.forSender });
   });
 
   it("counts depositors, not holders: a transfer does not add one", () => {

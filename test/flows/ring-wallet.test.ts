@@ -1,10 +1,15 @@
 /** Deposit, transfer, withdraw, pay links and the browser-made wallet, checked against the chain after every step. */
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
+import { signRequest } from "../../lib/auth";
 import { decryptBackup, encryptBackup } from "../../lib/backup";
 import { NATIVE } from "../../lib/constants";
-import { newActor } from "../../lib/keys";
+import { newActor, signMessage } from "../../lib/keys";
+import { openNote } from "../../lib/notes";
 import { parsePayLink, payLink } from "../../lib/paylink";
 import { RingClient } from "../../lib/sdk";
+import { state } from "../../lib/server/store";
 import { SOL, call, escrowOnChain, expectCovered, freshServer, fundedClient, logsOf, onChain, restartServer } from "./helpers";
 
 freshServer();
@@ -70,7 +75,16 @@ describe("transfer", () => {
     for (const secret of ["5000000", mint, "poster"]) expect(serialised).not.toContain(secret);
 
     const inside = (await friend.ringHistory()).find((seen) => seen.id === event.id)!;
-    expect(inside.sealed).toEqual({ coin: mint, amount: "5000000", memo: "for the poster" });
+    expect(Object.keys(inside.sealed).sort()).toEqual(["amount", "coin", "noteForRecipient", "noteForSender"]);
+    expect(inside.sealed).toMatchObject({ coin: mint, amount: "5000000" });
+    // The note was sealed before it left the sender. Each side opens its own copy; nobody else can, the server included.
+    expect(await friend.readNote(inside)).toBe("for the poster");
+    expect(await holder.readNote(inside)).toBe("for the poster");
+    const stranger = new RingClient(call, newActor());
+    expect(await stranger.readNote(inside)).toBeNull();
+    expect(await openNote(inside.sealed.noteForSender!, await friend.noteKeys())).toBeNull();
+    expect(JSON.stringify(state())).not.toContain("poster");
+    expect(readFileSync(join(process.env.APP_DATA_DIR!, "state.json"), "utf8")).not.toContain("poster");
     expect(await new RingClient(call, newActor()).ringHistory()).toEqual([]); // a third wallet sees nothing of it
   });
 
@@ -82,7 +96,41 @@ describe("transfer", () => {
     await expect(holder.transfer(friend.address, mint, 0n)).rejects.toThrow(/above zero/);
     await expect(holder.transfer(friend.address, mint, before + 1n)).rejects.toThrow(/Ring balance is too low/);
     await expect(holder.transfer(friend.address, mint, 1n, "bad\u0000memo")).rejects.toThrow(/cannot be shown/);
+    await expect(holder.transfer(friend.address, mint, 1n, "x".repeat(141))).rejects.toThrow(/longer than 140/);
     expect(await holder.ringBalance(mint)).toBe(before);
+  });
+});
+
+describe("notes on a transfer", () => {
+  it("refuses a note sent as readable text, a malformed sealed note, and a note to a wallet with no note key; nothing moves", async () => {
+    const before = await holder.ringBalance(mint);
+    const signed = (payload: object) => signRequest("ring/transfer", holder.address, payload, (message) => signMessage(holder.wallet, message));
+    const base = { to: friend.address, mint, amount: "1" };
+    await expect(call("ring/transfer", await signed({ ...base, memo: "readable" }))).rejects.toThrow(/sealed in the browser/);
+    await expect(call("ring/transfer", await signed({ ...base, note: "readable" }))).rejects.toThrow(/sealed in the browser/);
+    await expect(call("ring/transfer", await signed({ ...base, note: { forRecipient: "not base64!", forSender: "AAAA" } }))).rejects.toThrow(/not valid/);
+    await expect(call("ring/transfer", await signed({ ...base, note: { forRecipient: "QUJD", forSender: "QUJD" } }))).rejects.toThrow(/not valid/);
+    // A wallet that only ever deposited is registered, but has published no note key: there is nothing to seal to.
+    const quiet = await fundedClient();
+    await quiet.deposit(NATIVE, SOL / 100n);
+    expect((await call("ring/note-key", { wallet: quiet.address })).key).toBeNull();
+    await expect(holder.transfer(quiet.address, mint, 1n, "hello")).rejects.toThrow(/not published a note key/);
+    expect(await holder.ringBalance(mint)).toBe(before);
+    // Without a note the same transfer goes through, and once the wallet registers, notes reach it.
+    await holder.transfer(quiet.address, mint, 1n);
+    await quiet.register();
+    const event = await holder.transfer(quiet.address, mint, 1n, "now you can read this");
+    expect(await quiet.readNote((await quiet.ringHistory()).find((seen) => seen.id === event.id)!)).toBe("now you can read this");
+  });
+
+  it("only the wallet itself can publish or change its note key", async () => {
+    const mine = (await call("ring/note-key", { wallet: friend.address })).key;
+    expect(mine).toMatch(/^[A-Za-z0-9+/]{43}=$/);
+    const thief = newActor();
+    const forged = await signRequest("ring/register", friend.address, { noteKey: "A".repeat(43) + "=" }, (message) => signMessage(thief, message));
+    await expect(call("ring/register", forged)).rejects.toThrow(/signature/);
+    expect((await call("ring/note-key", { wallet: friend.address })).key).toBe(mine);
+    await expect(call("ring/note-key", { wallet: "nope" })).rejects.toThrow(/valid Solana address/);
   });
 });
 

@@ -1,5 +1,6 @@
 /** Talks to this site's own server, with every operation typed by lib/contract.ts. */
 import { signRequest } from "../auth";
+import type { NoteKeys } from "../notes";
 import type { Api, OpenOpName, Settlement, SignedOpName } from "../contract";
 
 export interface Signer {
@@ -9,6 +10,8 @@ export interface Signer {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   /** Signs a transaction (base64 in, base64 out). `extraSeeds` are keys made for this one transaction, such as a new coin's. */
   signTransaction: (transaction: string, extraSeeds?: Uint8Array[]) => Promise<string>;
+  /** The key pair for sealing and opening notes. Only a wallet made in this browser has one: it is derived from the wallet's seed. */
+  noteKeys?: () => Promise<NoteKeys>;
 }
 
 /** The server answered, and said no. `offline` means the chain could not be reached, so nothing was sent. */

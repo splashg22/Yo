@@ -8,7 +8,8 @@ stand-in on that chain. Nothing here is live, audited, or handles coins of value
 
 Read `CLAUDE.md` for how the project is laid out, `docs/RESEARCH.md` for what a Ring
 hides and what it does not, `DECISIONS.md` for the calls made along the way, and
-`TEST-REPORT.md` for what has been proven and what has not.
+`TEST-REPORT.md` for what has been proven and what has not, and `PRIVACY-AUDIT.md` for
+exactly who can see what today and the plan to hide more.
 
 ## Run it
 
@@ -49,8 +50,8 @@ project. The local keys are made on first run inside `.data/` and are never comm
 
 ```bash
 npm run check           # typecheck, lint (zero warnings), format check, then every test
-npm run test:site       # 61 unit tests. No chain needed.
-npm run test:flows      # 55 flow tests. Starts the local validator if none is running.
+npm run test:site       # 65 unit tests. No chain needed.
+npm run test:flows      # 57 flow tests. Starts the local validator if none is running.
 ```
 
 The browser checks drive the built site. Start from a fresh validator and an empty
@@ -98,6 +99,7 @@ Every version is pinned exactly. Each one, and why it is here:
 | `@noble/curves` | Ed25519 keys and signatures in the browser, without web3.js in the page |
 | `@noble/hashes` | scrypt, for turning the wallet password into a key |
 | `@noble/ciphers` | AES-GCM, for the encrypted wallet backup |
+| `libsodium-wrappers` | Sealed boxes, for notes on a transfer that the server cannot read. Used as the library provides them |
 | `@wallet-standard/app`, `@wallet-standard/base` | Finding and talking to wallet extensions |
 | `qrcode` | The QR code of a pay link |
 
@@ -111,7 +113,7 @@ Development only:
 | `vitest` | Tests |
 | `tsx` | Running TypeScript scripts and the SDK example |
 | `sharp` | Building the sized images and sequence frames from `brand/` |
-| `@types/*` | Types for Node, React, bn.js and qrcode |
+| `@types/*` | Types for Node, React, bn.js, qrcode and libsodium |
 
 Playwright is not a dependency: the browser scripts use the one installed on the machine.
 

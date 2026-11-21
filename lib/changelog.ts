@@ -17,6 +17,7 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "Explore can be searched and ordered. The docs have a contents list. A designed page for addresses that do not exist.",
       "A technical page: the programs called, whose logic is whose, how a launch is laid out, who you are trusting, and how to check a transaction yourself. The SDK example now runs inside the tests.",
       "The site and its local chain moved to ports of their own.",
+      "Privacy, stage 1: a note on a transfer is sealed in the browser and the server cannot read it. What a pay link asks for no longer reaches the server. No address of this site is passed to other sites.",
       "A ceiling on requests per address. The server answers POST only. A damaged state file stops the server instead of being replaced.",
       "Each privacy claim now says what carries it out in this build. A price chart on coin pages. Tabs kept in the address across a reload. Explore shows 24 coins at a time.",
       "Phones: every control at least 44px tall; the scroll sequence fits short and very narrow screens; nothing moves when late data arrives.",

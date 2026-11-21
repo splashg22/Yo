@@ -5,7 +5,7 @@ import { ring } from "../ring";
 import { reconcile, settle } from "../settle";
 import { save, state } from "../store";
 import { buildDeposit } from "../transactions";
-import { addressOf, amountOf, plainText, signatureOf, type Input } from "../validate";
+import { addressOf, amountOf, noteKeyOf, sealedNoteOf, signatureOf, type Input } from "../validate";
 import type { Handlers } from "./types";
 
 /** Checks the wallet's signature and remembers the request so it cannot be replayed, even across a restart. */
@@ -16,7 +16,7 @@ export function signedBody(op: string, input: Input): Input & { wallet: string }
 }
 
 export const ringOperations: Handlers<
-  "ring/deposit/build" | "ring/credit" | "ring/reconcile" | "ring/public" | "ring/register" | "ring/transfer" | "ring/withdraw" | "ring/mine"
+  "ring/deposit/build" | "ring/credit" | "ring/reconcile" | "ring/public" | "ring/register" | "ring/note-key" | "ring/transfer" | "ring/withdraw" | "ring/mine"
 > = {
   "ring/deposit/build": (input) =>
     buildDeposit({ wallet: addressOf(input.wallet, "wallet address"), mint: addressOf(input.mint, "coin address"), amount: amountOf(input.amount, "amount") }),
@@ -27,13 +27,20 @@ export const ringOperations: Handlers<
 
   "ring/public": (input) => ({ events: ring.publicView(input.wallet === undefined ? undefined : addressOf(input.wallet, "wallet address")) }),
 
-  "ring/register": (input) => ({ newlyRegistered: ring.register(signedBody("ring/register", input).wallet) !== null }),
+  "ring/register": (input) => {
+    const body = signedBody("ring/register", input);
+    return { newlyRegistered: ring.register(body.wallet, body.noteKey === undefined ? undefined : noteKeyOf(body.noteKey)) !== null };
+  },
+
+  "ring/note-key": (input) => ({ key: ring.noteKey(addressOf(input.wallet, "wallet address")) }),
 
   "ring/transfer": (input) => {
     const body = signedBody("ring/transfer", input);
-    const memo = body.memo === undefined || body.memo === "" ? undefined : plainText(body.memo, "memo", 140);
+    // A readable note is refused outright, so no client can hand this server one by mistake.
+    if (body.memo !== undefined) throw new Error("a note must be sealed in the browser before it is sent");
+    const note = body.note === undefined ? undefined : sealedNoteOf(body.note);
     return {
-      event: ring.transfer(body.wallet, addressOf(body.to, "recipient's address"), addressOf(body.mint, "coin address"), amountOf(body.amount, "amount"), memo),
+      event: ring.transfer(body.wallet, addressOf(body.to, "recipient's address"), addressOf(body.mint, "coin address"), amountOf(body.amount, "amount"), note),
     };
   },
 

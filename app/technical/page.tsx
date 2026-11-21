@@ -71,6 +71,11 @@ const TRUST = [
     "Signed by your wallet over the exact request, a random number used once, and the time. The server rejects a signature older than 90 seconds, a reused number, or a request altered by one character.",
   ],
   [
+    "Notes on a transfer",
+    "Sealed in the sender's browser with libsodium's sealed box (X25519, XSalsa20-Poly1305) to the recipient's published note key, with a second copy to the sender's own. The server stores both and holds no key that opens either. Source: lib/notes.ts. This use of the library has not been reviewed by anyone outside the project.",
+  ],
+  ["Pay links", "What a link asks for is carried after the #, which a browser does not send. The server learns of the request only when someone pays it."],
+  [
     "Ring balances in this build",
     "Kept by a stand-in on this site's server. Its operator can read every transfer and controls the escrow wallet. This is acceptable on a test chain with coins of no value, and nowhere else: the stand-in refuses to start on any other network.",
   ],

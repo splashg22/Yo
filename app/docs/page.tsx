@@ -143,8 +143,8 @@ export default function Docs() {
             </li>
             <li>Ilya buys LNTRN with 0.1 SOL on the curve and deposits 1,000,000 of it. Public: both, with amounts.</li>
             <li>
-              Ilya transfers 250,000 LNTRN to Mara with the memo &quot;for the poster&quot;. Public: a transfer from Ilya&apos;s wallet to Mara&apos;s, and the
-              time. Encrypted: that it was LNTRN, that it was 250,000, and the memo.
+              Ilya transfers 250,000 LNTRN to Mara with the note &quot;for the poster&quot;. Public: a transfer from Ilya&apos;s wallet to Mara&apos;s, and the
+              time. Encrypted: that it was LNTRN, that it was 250,000, and the note.
             </li>
             <li>
               The coin&apos;s page now reads: the share of supply in Ring balances, and &quot;2 wallets have deposited it&quot;. It cannot say how many wallets

@@ -3,6 +3,8 @@
  * It holds a wallet key, asks the server to build transactions, signs them itself and
  * hands them back to be submitted. The server never sees the key.
  */
+import { toBase64 } from "./bytes";
+import { checkNoteText, noteKeysFor, openNote, sealNote, type NoteKeys, type SealedNote } from "./notes";
 import { signRequest } from "./auth";
 import type { Api, Offer, OpenOpName, RingEvent, Settlement, SignedOpName } from "./contract";
 import { newActor, signMessage, type Actor } from "./keys";
@@ -79,17 +81,38 @@ export class RingClient {
     return { signature: (await this.send(built.transaction)).signature, claimed: BigInt(built.claimable) };
   }
 
-  register(): Promise<{ newlyRegistered: boolean }> {
-    return this.signed("ring/register", {});
+  private keys?: Promise<NoteKeys>;
+  /** This wallet's key pair for sealing and opening notes, derived from its seed. */
+  noteKeys(): Promise<NoteKeys> {
+    return (this.keys ??= noteKeysFor(this.wallet.seed));
+  }
+  /** Publishes the wallet's Ring registration and its public note key. */
+  async register(): Promise<{ newlyRegistered: boolean }> {
+    return this.signed("ring/register", { noteKey: toBase64((await this.noteKeys()).publicKey) });
   }
   /** Public to Ring balance. The deposit is public, with its amount. */
   async deposit(mint: string, amount: bigint): Promise<{ signature: string } & Settlement> {
     const built = await this.open("ring/deposit/build", { wallet: this.address, mint, amount: amount.toString() });
     return this.send(built.transaction);
   }
-  /** Ring balance to Ring balance. Both wallets are public; the coin, amount and memo are sealed. */
-  async transfer(to: string, mint: string, amount: bigint, memo?: string): Promise<RingEvent> {
-    return (await this.signed("ring/transfer", { to, mint, amount: amount.toString(), memo })).event;
+  /**
+   * Ring balance to Ring balance. Both wallets are public; the coin and amount are not published.
+   * A note is sealed here, to the recipient's published key, before it is sent: the server cannot read it.
+   */
+  async transfer(to: string, mint: string, amount: bigint, note?: string): Promise<RingEvent> {
+    let sealed: SealedNote | undefined;
+    if (note !== undefined && note.trim() !== "") {
+      checkNoteText(note);
+      const { key } = await this.open("ring/note-key", { wallet: to });
+      if (!key) throw new Error("the recipient has not published a note key yet, so a note cannot be sealed to them. Send without a note.");
+      sealed = await sealNote(note, key, await this.noteKeys());
+    }
+    return (await this.signed("ring/transfer", { to, mint, amount: amount.toString(), note: sealed })).event;
+  }
+  /** The note on a transfer this wallet sent or received, or null if there is none or it cannot be opened. */
+  async readNote(event: RingEvent): Promise<string | null> {
+    const sealed = event.public.from === this.address ? event.sealed.noteForSender : event.sealed.noteForRecipient;
+    return sealed === undefined ? null : openNote(sealed, await this.noteKeys());
   }
   withdraw(mint: string, amount: bigint, destination?: string): Promise<Api["ring/withdraw"]["output"]> {
     return this.signed("ring/withdraw", { mint, amount: amount.toString(), destination });

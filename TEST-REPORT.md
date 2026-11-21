@@ -14,8 +14,8 @@ checked against, not something it does or is ready to do.
 | Check | Command | Result |
 | --- | --- | --- |
 | Fresh clone: install, typecheck, lint, format, build | `npm ci`, `npm run check`, `npm run build` | Clean. Zero lint warnings, no rule switched off, no `any` |
-| Unit tests, no chain | `npm run test:site` | 61 of 61 |
-| Flow tests on the local validator | `npm run test:flows` | 55 of 55 |
+| Unit tests, no chain | `npm run test:site` | 65 of 65 |
+| Flow tests on the local validator | `npm run test:flows` | 57 of 57 |
 | Every flow in a browser, as two people | `npm run e2e` | 17 of 17 steps, 0 browser errors |
 | Every page, every control | `npm run crawl` | 0 findings |
 | Breaking it on purpose | `npm run break` | 14 of 14 |
@@ -25,7 +25,7 @@ checked against, not something it does or is ready to do.
 | SDK example | `npm run example` | Runs: a launch and a Ring transfer from a script |
 
 **Test count.** Before this audit: 45 tests (15 site, 30 flow) and a 12-step browser run.
-Now: 116 tests (61 unit, 55 flow), a 17-step browser run, and four new browser checks
+Now: 122 tests (65 unit, 57 flow), a 17-step browser run, and four new browser checks
 (crawler, break-it, motion, secrets scan).
 
 ### The flows, end to end (part 3)
@@ -135,6 +135,7 @@ Each has a test or a scripted check that fails without the fix.
 | 23 | Failures on send lost their cause, so an operator could not see why | Logged on the server with the cause, without inputs | none: seen in the log while fixing 13 |
 | 24 | One unit test failed at random: a lower-cased address is sometimes still a valid address | The test now asserts what is actually true | 3 runs in a row |
 | 25 | A coin with a 32-letter name pushed the coin page wider than a phone screen, leaving a Copy button out of reach while the page itself did not scroll | Long names and addresses wrap inside their column | break: awkward names; crawl |
+| 26 | With the pay-link request moved after the #, opening a second pay link in the same tab left the first one on screen, marked as paid | The page follows a change of link and starts each request clean | e2e: pay link, three times |
 
 Bugs 13 and 14 were only found because the browser run started from a fresh validator.
 
@@ -147,6 +148,11 @@ the buy or sell side are kept in the address, so a reload or a shared link opens
 same place. Explore shows 24 coins at a time. The launchpad uses ports of its own.
 The server now caps requests per address per minute (30 faucet, 240 writes, 1,200 reads),
 answers only POST, and refuses to start from a damaged state file rather than begin empty.
+
+Privacy, stage 1 (`PRIVACY-AUDIT.md`): notes on a transfer are sealed in the browser with
+libsodium and the server cannot read them; pay-link requests are carried after the # and
+do not reach the server; no referrer is sent. The site still sees every transfer's
+wallets, coin and amount, and says so.
 
 ## 3. Code quality pass: what changed and why
 

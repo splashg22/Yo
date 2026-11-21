@@ -338,7 +338,10 @@ await step("transfer, three times: Ring balances move on both sides and nothing 
     await walletMatches(ben, "buyer", mint);
   });
   if ((await onChain(escrow, mint)) !== held) throw new Error("a transfer between Ring balances moved coins on the chain");
-  if (!/FOR THE POSTER/i.test(await ben.locator("body").innerText())) throw new Error("the note is not in the history");
+  // The note is stored sealed and opened in the browser, a moment after the history arrives.
+  await ben.waitForFunction(() => /READABLE ONLY BY YOU AND THE OTHER WALLET: "FOR THE POSTER"/i.test(document.body.innerText), null, { timeout: 15000 });
+  const stored = JSON.stringify(await app("ring/public", { wallet: addresses.buyer }));
+  if (/poster/i.test(stored)) throw new Error("the server's public record contains the note");
   await ana.goto(`${base}/wallet`);
   await walletMatches(ana, "seller", mint);
   await shot(ben, "09-wallet-after");

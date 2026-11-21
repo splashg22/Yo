@@ -12,7 +12,8 @@ const nextConfig = {
         headers: [
           { key: "X-Frame-Options", value: "DENY" },
           { key: "X-Content-Type-Options", value: "nosniff" },
-          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+          // No address of this site is passed on when a link leaves it: a coin page or a receipt says what someone was looking at.
+          { key: "Referrer-Policy", value: "no-referrer" },
         ],
       },
       { source: "/media/(.*)", headers: [{ key: "Cache-Control", value: "public, max-age=604800" }] },

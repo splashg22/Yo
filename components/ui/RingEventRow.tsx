@@ -2,6 +2,8 @@ import { NATIVE } from "@/lib/constants";
 import type { RingEvent } from "@/lib/contract";
 import { formatCoin, formatSol, formatTime } from "@/lib/format";
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { openNote, type NoteKeys } from "@/lib/notes";
 
 const TITLES: Record<RingEvent["kind"], string> = {
   register: "Registered with the Ring",
@@ -12,8 +14,31 @@ const TITLES: Record<RingEvent["kind"], string> = {
 };
 
 /** One entry of a wallet's own Ring history: the public part, then the part only its keys can read. */
-export function RingEventRow({ event, me, symbol }: { event: RingEvent; me: string; symbol: (mint: string) => string }) {
+export function RingEventRow({
+  event,
+  me,
+  symbol,
+  noteKeys,
+}: {
+  event: RingEvent;
+  me: string;
+  symbol: (mint: string) => string;
+  noteKeys?: () => Promise<NoteKeys>;
+}) {
   const { public: open, sealed } = event;
+  // A note is stored sealed. It is opened here, in the browser, with this wallet's own key.
+  const sealedNote = open.from === me ? sealed.noteForSender : sealed.noteForRecipient;
+  const [note, setNote] = useState<string | null | undefined>(undefined);
+  useEffect(() => {
+    if (sealedNote === undefined || !noteKeys) return;
+    let current = true;
+    void noteKeys()
+      .then((keys) => openNote(sealedNote, keys))
+      .then((text) => current && setNote(text));
+    return () => {
+      current = false;
+    };
+  }, [sealedNote, noteKeys]);
   const who = (address: string | undefined) => (address === me ? "you" : <span className="address">{address}</span>);
   return (
     <li>
@@ -47,13 +72,23 @@ export function RingEventRow({ event, me, symbol }: { event: RingEvent; me: stri
       </span>
       {event.kind === "transfer" && (
         <span className="enc">
-          Encrypted: {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}
-          {sealed.memo ? `, memo "${sealed.memo}"` : ""}.
+          Not published: {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}.
+        </span>
+      )}
+      {event.kind === "transfer" && sealedNote !== undefined && (
+        <span className="enc">
+          {note === undefined
+            ? noteKeys
+              ? "Opening the sealed note."
+              : "There is a sealed note. Only a wallet made in this browser can open it."
+            : note === null
+              ? "There is a sealed note, but this wallet's key does not open it."
+              : `Sealed note, readable only by you and the other wallet: "${note}"`}
         </span>
       )}
       {event.kind === "otc" && (
         <span className="enc">
-          Encrypted: {formatCoin(sealed.coin!, sealed.size!)} {symbol(sealed.coin!)} for {formatSol(sealed.price!, 9)}
+          Not published: {formatCoin(sealed.coin!, sealed.size!)} {symbol(sealed.coin!)} for {formatSol(sealed.price!, 9)}
           {sealed.paidIn === NATIVE ? "" : ` in ${symbol(sealed.paidIn!)}`}.
         </span>
       )}

@@ -1,7 +1,10 @@
 /**
  * Pay links: a link that asks for an amount of a coin and opens a Ring transfer with it
- * filled in. Anyone holding the link can read what it asks for. On-chain, the payment
- * shows the payer and the recipient and seals the coin and the amount.
+ * filled in. Anyone holding the link can read what it asks for.
+ *
+ * The request is carried after the # of the address. A browser never sends that part to a
+ * server, so this site's server, its logs and anything in between do not see who is asking
+ * whom for how much. Only the person the link is given to does.
  */
 import bs58 from "bs58";
 
@@ -23,10 +26,9 @@ const isAddress = (text: string) => {
 export function payLink(origin: string, request: PayRequest): string {
   const checked = checkPayRequest(request);
   const url = new URL("/pay", origin);
-  url.searchParams.set("to", checked.to);
-  url.searchParams.set("coin", checked.mint);
-  url.searchParams.set("amount", checked.amount);
-  if (checked.memo) url.searchParams.set("memo", checked.memo);
+  const request_ = new URLSearchParams({ to: checked.to, coin: checked.mint, amount: checked.amount });
+  if (checked.memo) request_.set("memo", checked.memo);
+  url.hash = request_.toString();
   return url.toString();
 }
 
@@ -45,7 +47,9 @@ export function parsePayLink(link: string): PayRequest {
   } catch {
     throw new Error("that is not a link");
   }
-  const p = url.searchParams;
+  // A request in the query string would reach the server. Such a link is not one of ours, and is not honoured.
+  if (url.search) throw new Error("the link is not a valid pay link");
+  const p = new URLSearchParams(url.hash.slice(1));
   return checkPayRequest({
     to: p.get("to") ?? undefined,
     mint: p.get("coin") ?? undefined,
