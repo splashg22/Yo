@@ -169,7 +169,9 @@ await check("the smallest and largest real amounts behave: one base unit deposit
   const before = await onChain(escrow, NATIVE);
   await fillWallet(page, "deposit", { amount: "0.000000001" });
   await page.click("text=Sign and deposit");
-  await page.waitForFunction(() => /deposited/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  await page.waitForFunction(() => /deposited/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 60000,
+  });
   if ((await onChain(escrow, NATIVE)) - before !== 1n) throw new Error("one lamport did not arrive as one lamport");
   if ((await ringCell(page, "SOL")) !== "0.000000001") throw new Error(`the Ring shows ${await ringCell(page, "SOL")}`);
   await fillWallet(page, "deposit", { amount: "18446744073.709551615" });
@@ -218,7 +220,9 @@ await check("a double click on Sign sends one transaction and moves the money on
     .locator(".confirm .btn")
     .click({ force: true, timeout: 1000 })
     .catch(() => undefined);
-  await page.waitForFunction(() => /deposited/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  await page.waitForFunction(() => /deposited/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 60000,
+  });
   const sends = page.sent.filter((name) => name === "tx/send").length;
   if (sends !== 1) throw new Error(`${sends} transactions were sent`);
   if ((await onChain(escrow, NATIVE)) - before !== 500_000_000n) throw new Error("escrow did not gain exactly 0.5 SOL");
@@ -228,7 +232,9 @@ await check("a double click on Sign sends one transaction and moves the money on
   await fillWallet(page, "transfer", { amount: "0.1", to: friend });
   page.sent.length = 0;
   await page.dblclick("text=Sign and transfer");
-  await page.waitForFunction(() => /sent/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 30000 });
+  await page.waitForFunction(() => /sent/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 30000,
+  });
   if (page.sent.filter((name) => name === "ring/transfer").length !== 1) throw new Error("the transfer was requested more than once");
   await other.reload();
   await other.waitForFunction(
@@ -260,7 +266,9 @@ await check("two tabs on one wallet: a deposit made in one shows in the other wh
   await page.bringToFront();
   await fillWallet(page, "deposit", { amount: "0.3" });
   await page.click("text=Sign and deposit");
-  await page.waitForFunction(() => /deposited/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  await page.waitForFunction(() => /deposited/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 60000,
+  });
   const after = await ringCell(page, "SOL");
   if (after === before) throw new Error("the first tab did not change");
   await second.bringToFront();
@@ -274,7 +282,9 @@ await check("two tabs on one wallet: a deposit made in one shows in the other wh
   // The second tab is not left with a stale view of what it can spend: it withdraws what the first deposited.
   await fillWallet(second, "withdraw", { amount: "0.3" });
   await second.click("text=Sign and withdraw");
-  await second.waitForFunction(() => /withdrew/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 60000 });
+  await second.waitForFunction(() => /withdrew/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 60000,
+  });
   await second.close();
   await page.bringToFront();
   await page.evaluate(() => window.dispatchEvent(new Event("focus")));
@@ -341,7 +351,11 @@ await check("a reload in the middle of a deposit loses nothing: the chain and th
   const moved = (await onChain(escrow, NATIVE)) - escrowBefore;
   if (moved !== 0n && moved !== 250_000_000n) throw new Error(`escrow moved by ${moved}`);
   await page.click("text=Check for anything missing");
-  await page.waitForFunction(() => /nothing was missing|recovered/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 30000 });
+  await page.waitForFunction(
+    () => /nothing was missing|recovered/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")),
+    null,
+    { timeout: 30000 },
+  );
   const status = await app("status");
   const sol = status.escrow.find((row) => row.mint === NATIVE);
   if (!sol.covered) throw new Error("escrow no longer covers what it owes");
@@ -357,12 +371,16 @@ await check("a chain that freezes for five seconds mid-deposit: the action finis
   await page.click("text=Sign and deposit");
   execSync(`kill -STOP ${validator}`);
   await new Promise((resolve) => setTimeout(resolve, 5000));
-  const during = await page.evaluate(() => document.querySelector(".status-line")?.innerText ?? "");
+  const during = await page.evaluate(() => [...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" "));
   execSync(`kill -CONT ${validator}`);
   if (!/waiting for the chain/i.test(during)) throw new Error(`while frozen the page said "${during}"`);
-  await page.waitForFunction(() => /deposited|expired|not answering|try again/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, {
-    timeout: 90000,
-  });
+  await page.waitForFunction(
+    () => /deposited|expired|not answering|try again/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")),
+    null,
+    {
+      timeout: 90000,
+    },
+  );
   const said = await page.evaluate(() => document.querySelector(".status-line").innerText);
   await app("ring/reconcile");
   if (!(await app("status")).escrow.every((row) => row.covered)) throw new Error("escrow no longer covers what it owes");
@@ -426,7 +444,9 @@ await check("a wallet that declines to sign: the page says so, says nothing was 
   await page.fill("#w-memo", "hello extension");
   await page.click("button:text-is('Review')");
   await page.click("text=Sign and transfer");
-  await page.waitForFunction(() => /sent/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 30000 });
+  await page.waitForFunction(() => /sent/i.test([...document.querySelectorAll(".status-line")].map((line) => line.innerText).join(" ")), null, {
+    timeout: 30000,
+  });
   await declining.bringToFront();
   await declining.click("text=Check for anything missing");
   await declining.waitForFunction(() => /READABLE ONLY BY YOU AND THE OTHER WALLET: "HELLO EXTENSION"/i.test(document.body.innerText), null, {

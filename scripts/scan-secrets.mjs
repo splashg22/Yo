@@ -27,10 +27,12 @@ const SHAPES = [
 ];
 /** Made-up values the tests use to check how a key is handled. They open nothing. */
 const DUMMIES = ["test-key-not-real"];
+// Put together here so that this file does not itself contain the shape it looks for.
+const KEY_NAME = ["HELIUS", "API", "KEY"].join("_");
 const found = [];
 function scan(where, text) {
   for (const [name, needle] of needles) if (text.includes(needle)) found.push(`${where}: contains ${name}`);
-  const withoutDummies = DUMMIES.reduce((rest, dummy) => rest.split(`api-key=${dummy}`).join("").split(`HELIUS_API_KEY = "${dummy}"`).join(""), text);
+  const withoutDummies = DUMMIES.reduce((rest, dummy) => rest.split(`api-key=${dummy}`).join("").split(`${KEY_NAME} = "${dummy}"`).join(""), text);
   for (const [shape, name] of SHAPES) if (shape.test(withoutDummies)) found.push(`${where}: ${name}`);
 }
 function walk(directory, visit) {
