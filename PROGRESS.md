@@ -14,7 +14,7 @@ needed reversing. The launchpad uses ports of its own. Evidence: `OTC-CHECK.md`.
 
 ### 2. Where the code lives
 
-`/home/user/ringpad`, its own git repository, 29 commits, **not pushed anywhere**. I could
+`/home/user/ringpad`, its own git repository, 30 commits, **not pushed anywhere**. I could
 not create a private GitHub repository (refused, 403). A full copy with history is in
 `ringpad.bundle`, sent to you. An early copy (research and homepage only) is still on the
 public `Yo` branch `claude/exciting-gates-vdquz4`; nothing new has gone there. Steps for
@@ -28,7 +28,7 @@ first buy, one signature), buy and sell, deposit, Ring transfer, withdraw, OTC, 
 privacy score, creator fees into the Ring, receipts, public history, the price record,
 status. A reload or shared link opens on the same tab; two tabs on one wallet stay in step.
 
-122 tests (65 unit, 57 flow). Browser checks: 17 flow steps, crawler over 14 pages at two
+127 tests (70 unit, 57 flow). Browser checks: 17 flow steps, crawler over 14 pages at two
 widths with 0 findings, 14 break-it checks, 11 motion checks, secrets scan clean. All pass
 from a fresh clone on a just-started validator. Full detail: `TEST-REPORT.md`.
 
@@ -50,7 +50,7 @@ generated or verified by this code.
 
 ### 5. Decisions made for you
 
-All 61 are in `DECISIONS.md` with the reason and how to reverse each. The ones you would
+All 62 are in `DECISIONS.md` with the reason and how to reverse each. The ones you would
 most want to know: Ring balances are a mock locked to the local validator; the server
 settles deposits itself and never refunds a withdrawal on a guess; copy says "not
 published" instead of "encrypted" for anything the mock does; the unlocked browser key is
@@ -60,7 +60,7 @@ server answers POST only; each privacy claim names what carries it out in this b
 
 ### 6. Blocked, and what to provide
 
-`BLOCKED.md` has the exact steps. In short: a private repository name; `HELIUS_API_KEY` in
+`NEEDS.md` has every item with steps, costs and where it goes; `BLOCKED.md` is the short record. In short: a private repository name; `HELIUS_API_KEY` in
 `.env.local`; the real media in `brand/`; a decision on the sealed launch window; a lawyer;
 other browsers and devices.
 

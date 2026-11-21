@@ -1,5 +1,8 @@
 # Blocked: what only you can do
 
+The full list of what to provide, with steps, costs and where each thing goes, is in
+`NEEDS.md`. This file is the short record of what is blocked and why.
+
 | # | What | Why I could not | Exactly what to do |
 | --- | --- | --- | --- |
 | 1 | A private repository for the launchpad | Creating one is refused for this session (`403 Resource not accessible by integration`, tried twice) | Create an empty **private** repository on GitHub (no README, licence or .gitignore). Give the Claude GitHub App access to it (github.com/apps/claude, Configure, Repository access). Tell me its name. Or push it yourself: `git remote add origin git@github.com:<you>/<name>.git && git push -u origin main` from a copy unpacked from `ringpad.bundle` |

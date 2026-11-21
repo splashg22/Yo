@@ -6,6 +6,7 @@ import { sealNoteFor } from "@/lib/client/notes";
 import { NATIVE, decimalsOf } from "@/lib/constants";
 import type { Api } from "@/lib/contract";
 import { formatCoin, parseAmount } from "@/lib/format";
+import { withdrawalWarnings } from "@/lib/linkability";
 import { ActivityList } from "../ui/ActivityList";
 import { Address } from "../ui/Address";
 import { Confirm } from "../ui/Confirm";
@@ -89,6 +90,15 @@ function OpenWallet() {
   };
 
   const loadActivity = useCallback(() => api("wallet/activity", { wallet: me.address }), [me.address]);
+
+  /** The amount on the confirm step, or zero if it no longer parses: the warnings only need it once it has been reviewed. */
+  const reviewedAmount = (): bigint => {
+    try {
+      return parseAmount(form.amount, decimalsOf(form.mint));
+    } catch {
+      return 0n;
+    }
+  };
 
   const submit = () =>
     run("Waiting for the chain to confirm", async (): Promise<Outcome> => {
@@ -248,6 +258,14 @@ function OpenWallet() {
             ) : null}
             .
           </p>
+          {tab === "withdraw" &&
+            withdrawalWarnings(mine?.history ?? [], { wallet: me.address, mint: form.mint, amount: reviewedAmount(), destination: form.to.trim() }).map(
+              (warning) => (
+                <p key={warning} className="notice">
+                  {warning}
+                </p>
+              ),
+            )}
         </Confirm>
       ) : (
         <form

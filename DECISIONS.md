@@ -65,6 +65,7 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 59 | `Referrer-Policy: no-referrer` | A coin page or receipt address says what someone was looking at | `next.config.mjs` |
 | 60 | The site may not say "zero-knowledge", "zk" or "shielded", as well as the earlier list | The code generates and verifies no proof today | `FORBIDDEN_CLAIMS` in `lib/visibility.ts` |
 | 61 | Privacy plan: adopt the real Default Ring with proofs made in the browser; wait for Helius's anonymous rings for hidden addresses; build no circuits of our own | It is the only audited, live option that takes arbitrary coins. Our own pool would need a trusted setup and an outside audit and would start with almost no users to hide among | `PRIVACY-AUDIT.md`, section 3 |
+| 62 | Before a withdrawal the confirm step warns if it matches a deposit in amount, follows one within the hour, or returns to the depositing wallet | These are the links anyone can draw without special skill. It needs nothing from outside | `lib/linkability.ts` |
 
 ## Only you
 

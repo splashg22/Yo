@@ -14,7 +14,7 @@ checked against, not something it does or is ready to do.
 | Check | Command | Result |
 | --- | --- | --- |
 | Fresh clone: install, typecheck, lint, format, build | `npm ci`, `npm run check`, `npm run build` | Clean. Zero lint warnings, no rule switched off, no `any` |
-| Unit tests, no chain | `npm run test:site` | 65 of 65 |
+| Unit tests, no chain | `npm run test:site` | 70 of 70 |
 | Flow tests on the local validator | `npm run test:flows` | 57 of 57 |
 | Every flow in a browser, as two people | `npm run e2e` | 17 of 17 steps, 0 browser errors |
 | Every page, every control | `npm run crawl` | 0 findings |
@@ -25,7 +25,7 @@ checked against, not something it does or is ready to do.
 | SDK example | `npm run example` | Runs: a launch and a Ring transfer from a script |
 
 **Test count.** Before this audit: 45 tests (15 site, 30 flow) and a 12-step browser run.
-Now: 122 tests (65 unit, 57 flow), a 17-step browser run, and four new browser checks
+Now: 127 tests (70 unit, 57 flow), a 17-step browser run, and four new browser checks
 (crawler, break-it, motion, secrets scan).
 
 ### The flows, end to end (part 3)
