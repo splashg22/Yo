@@ -4,6 +4,10 @@ export interface Settings {
   network: "local" | "devnet";
   rpcUrl: string;
   dataDir: string;
+  /** A Postgres connection string. Empty: the state is kept in a file under `dataDir`. */
+  databaseUrl: string;
+  /** The Postgres schema the state table lives in, so several deployments can share one database. */
+  databaseSchema: string;
   /** For the devnet pass. Unused on a local validator. */
   heliusApiKey: string;
   /** How long one RPC call may take before it counts as a dead connection. */
@@ -32,6 +36,8 @@ export function settings(): Settings {
     network,
     rpcUrl: process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799",
     dataDir: process.env.APP_DATA_DIR ?? ".data",
+    databaseUrl: process.env.DATABASE_URL ?? "",
+    databaseSchema: process.env.DATABASE_SCHEMA ?? "ringpad",
     heliusApiKey: process.env.HELIUS_API_KEY ?? "",
     rpcTimeoutMs,
     features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },

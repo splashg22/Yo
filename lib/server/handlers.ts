@@ -8,6 +8,7 @@ import { otc } from "./operations/otc";
 import { ringOperations } from "./operations/ring";
 import { system } from "./operations/system";
 import { explain } from "./solana";
+import { durable, ready } from "./store";
 import type { Input } from "./validate";
 
 type Registry = { [Name in OpName]: (input: Input) => Api[Name]["output"] | Promise<Api[Name]["output"]> };
@@ -18,8 +19,14 @@ export const isOperation = (name: string): name is OpName => Object.hasOwn(opera
 /** Runs one operation. Any failure comes back as an Error whose message is one plain sentence. */
 export async function run<Name extends OpName>(name: Name, input: Input = {}): Promise<Api[Name]["output"]> {
   try {
-    return await operations[name](input);
+    await ready();
+    const output = await operations[name](input);
+    // No answer is given until what the operation changed is safely stored.
+    await durable();
+    return output;
   } catch (error) {
+    // A refused operation may still have changed something before it was refused (and undone it); that is stored too.
+    await durable().catch((failure: unknown) => console.error(`[${name}] store`, failure));
     // The caller gets one plain sentence; the operator's log keeps the cause. Inputs are not logged: they can hold signed requests.
     console.error(`[${name}]`, error);
     throw new Error(explain(error));

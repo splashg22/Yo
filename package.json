@@ -20,6 +20,7 @@
     "e2e": "tsx scripts/e2e.mjs",
     "test:site": "vitest run --config vitest.site.config.ts",
     "test:flows": "vitest run --config vitest.flows.config.ts",
+    "test:flows:pg": "bash scripts/local-postgres.sh start && DATABASE_URL=postgresql://postgres@127.0.0.1:5544/postgres vitest run --config vitest.flows.config.ts; code=$?; bash scripts/local-postgres.sh stop; exit $code",
     "example": "tsx examples/launch-and-transfer.ts",
     "lint": "eslint . --max-warnings 0",
     "format": "prettier --write .",
@@ -30,6 +31,9 @@
     "break": "tsx scripts/break.mjs",
     "motion": "node scripts/motion.mjs",
     "scan": "node scripts/scan-secrets.mjs",
+    "doctor": "tsx scripts/doctor.ts",
+    "postgres:start": "bash scripts/local-postgres.sh start",
+    "postgres:stop": "bash scripts/local-postgres.sh stop",
     "local:plan": "tsx scripts/plan-local-accounts.ts"
   },
   "dependencies": {
@@ -47,6 +51,7 @@
     "bs58": "6.0.0",
     "libsodium-wrappers": "0.7.15",
     "next": "16.4.6",
+    "pg": "8.16.3",
     "qrcode": "1.5.4",
     "react": "19.3.1",
     "react-dom": "19.3.1"
@@ -56,6 +61,7 @@
     "@types/bn.js": "5.2.0",
     "@types/libsodium-wrappers": "0.7.14",
     "@types/node": "26.6.6",
+    "@types/pg": "8.15.5",
     "@types/qrcode": "1.5.6",
     "@types/react": "19.3.0",
     "@types/react-dom": "19.3.0",

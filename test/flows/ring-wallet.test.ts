@@ -1,6 +1,4 @@
 /** Deposit, transfer, withdraw, pay links and the browser-made wallet, checked against the chain after every step. */
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeAll, describe, expect, it } from "vitest";
 import { signRequest } from "../../lib/auth";
 import { decryptBackup, encryptBackup } from "../../lib/backup";
@@ -9,7 +7,7 @@ import { newActor, signMessage } from "../../lib/keys";
 import { openNote } from "../../lib/notes";
 import { parsePayLink, payLink } from "../../lib/paylink";
 import { RingClient } from "../../lib/sdk";
-import { state } from "../../lib/server/store";
+import { state, storedText } from "../../lib/server/store";
 import { SOL, call, escrowOnChain, expectCovered, freshServer, fundedClient, logsOf, onChain, restartServer } from "./helpers";
 
 freshServer();
@@ -84,7 +82,9 @@ describe("transfer", () => {
     expect(await stranger.readNote(inside)).toBeNull();
     expect(await openNote(inside.sealed.noteForSender!, await friend.noteKeys())).toBeNull();
     expect(JSON.stringify(state())).not.toContain("poster");
-    expect(readFileSync(join(process.env.APP_DATA_DIR!, "state.json"), "utf8")).not.toContain("poster");
+    const stored = await storedText();
+    expect(stored).toContain(friend.address); // it is the real store being read
+    expect(stored).not.toContain("poster");
     expect(await new RingClient(call, newActor()).ringHistory()).toEqual([]); // a third wallet sees nothing of it
   });
 

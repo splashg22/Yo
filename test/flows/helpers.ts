@@ -22,6 +22,8 @@ export const PUMP_PROGRAM = "6EF8rrecthR5Dkzon8Nwu78hRvfCKubJ14M5uBEwF6P";
 /** Points the server code at a new, empty state directory and the local validator. Call once at the top of a test file. */
 export function freshServer(): void {
   process.env.APP_DATA_DIR = mkdtempSync(join(tmpdir(), "ring-flows-"));
+  // With DATABASE_URL set the same tests run against Postgres. Each test file gets a schema of its own, as it gets a folder of its own.
+  if (process.env.DATABASE_URL) process.env.DATABASE_SCHEMA = `t_${randomBytes(6).reduce((text, byte) => text + byte.toString(16).padStart(2, "0"), "")}`;
   process.env.RING_NETWORK = "local";
   process.env.LOCAL_RPC_URL = RPC_URL;
   delete process.env.RPC_TIMEOUT_MS;

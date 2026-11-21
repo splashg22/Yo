@@ -3,7 +3,7 @@ import { verifyRequest, type Signed } from "../../auth";
 import { payFromEscrow } from "../escrow";
 import { ring } from "../ring";
 import { reconcile, settle } from "../settle";
-import { save, state } from "../store";
+import { durable, save, state } from "../store";
 import { buildDeposit } from "../transactions";
 import { addressOf, amountOf, noteKeyOf, sealedNoteOf, signatureOf, type Input } from "../validate";
 import type { Handlers } from "./types";
@@ -50,6 +50,8 @@ export const ringOperations: Handlers<
     const amount = amountOf(body.amount, "amount");
     const destination = body.destination === undefined || body.destination === "" ? body.wallet : addressOf(body.destination, "destination address");
     const event = ring.debitForWithdrawal(body.wallet, mint, amount, destination);
+    // The coins are out of the balance on record before any payout is sent: a crash from here on can never pay the same coins twice.
+    await durable();
     const outcome = await payFromEscrow(destination, mint, amount);
     if (outcome.status === "landed") {
       ring.completeWithdrawal(event.id, outcome.signature);
