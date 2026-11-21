@@ -2,15 +2,19 @@
 const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
-  // These load as CommonJS on the server; bundling them breaks the pump SDK.
-  serverExternalPackages: ["@pump-fun/pump-sdk", "@coral-xyz/anchor", "@heliuslabs/spr"],
+  // These load as CommonJS on the server; bundling them breaks the pump SDK. web3.js is listed so the
+  // server has one copy of it: a bundled second copy made the SDK's keys fail class checks in our code.
+  serverExternalPackages: ["@pump-fun/pump-sdk", "@coral-xyz/anchor", "@heliuslabs/spr", "@solana/web3.js", "@solana/spl-token", "bn.js"],
   async headers() {
     return [
-      { source: "/(.*)", headers: [
-        { key: "X-Frame-Options", value: "DENY" },
-        { key: "X-Content-Type-Options", value: "nosniff" },
-        { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
-      ] },
+      {
+        source: "/(.*)",
+        headers: [
+          { key: "X-Frame-Options", value: "DENY" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
       { source: "/media/(.*)", headers: [{ key: "Cache-Control", value: "public, max-age=604800" }] },
       { source: "/fonts/(.*)", headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }] },
     ];

@@ -9,3 +9,8 @@ local/accounts/
 local/ledger/
 local/*.log
 .data/
+shots/crawl/
+shots/crawl.json
+shots/look-*
+shots/motion-*
+.data-dead/
