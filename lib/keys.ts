@@ -33,5 +33,5 @@ export function verifyMessage(address: string, message: Uint8Array, signature: U
 
 /** A 32-byte key for one purpose, derived from a secret (a wallet seed, or a wallet signature). */
 export function deriveKey(secret: Uint8Array, purpose: string): Uint8Array {
-  return hkdf(sha256, secret, new Uint8Array(0), utf8(`shadowterminal/${purpose}`), 32);
+  return hkdf(sha256, secret, new Uint8Array(0), utf8(`ring-app/${purpose}`), 32);
 }

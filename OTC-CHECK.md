@@ -17,7 +17,7 @@ name. Tell me its folder or repository name and I will repeat sections 2 and 3 a
 | --- | --- | --- | --- |
 | `/home/user/ringpad`: `app/otc`, `components/pages/OtcPage.tsx`, `lib/server/operations/otc.ts`, `test/flows/otc.test.ts`, the `otc/*` operations in `lib/contract.ts` | The launchpad's own OTC feature: a seller offers a block to a named buyer, the buyer accepts, both Ring balances move together | Today | Yes, all of it |
 | `/home/user/Yo/ring-launchpad/` (branch `claude/exciting-gates-vdquz4`) | An early copy of the launchpad from before it moved: research, the homepage and an OTC page that only says "not open yet". No OTC logic | Today, 06:26 UTC, my last push there | Yes |
-| `/home/user/shadowterminal/docs/ARCHITECTURE.md` | One mention of OTC in the notes for the earlier ShadowTerminal project. No OTC code | Today | Yes |
+| `/home/user/shadowterminal/docs/ARCHITECTURE.md` | One mention of OTC in the notes for the earlier, separate terminal project. No OTC code | Today | Yes |
 | Scratchpad copies of rings.run pages (`otc.html`, two script files) | Reference material downloaded for research. Not part of any project | Today | Downloaded, not built |
 
 Searched and found nothing that is an OTC project:
