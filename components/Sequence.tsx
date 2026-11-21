@@ -27,7 +27,9 @@ export function Sequence() {
   const [step, setStep] = useState(0);
 
   useEffect(() => {
-    const el = section.current, cv = canvas.current, box = frameBox.current;
+    const el = section.current,
+      cv = canvas.current,
+      box = frameBox.current;
     const ctx = cv?.getContext("2d");
     if (!el || !cv || !box || !ctx) return;
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
@@ -37,20 +39,25 @@ export function Sequence() {
     const modest = (navigator.hardwareConcurrency ?? 8) <= 4 || ((navigator as { deviceMemory?: number }).deviceMemory ?? 8) <= 4;
     const wantedWidth = box.clientWidth * Math.min(devicePixelRatio || 1, innerWidth < 760 ? 1.4 : 2) * (modest ? 0.6 : 1);
     const width = media.sequenceWidths.find((w) => w >= Math.min(1920, wantedWidth * 0.9)) ?? 1920;
-    cv.width = width; cv.height = Math.round((width * 9) / 16);
-    const images: (HTMLImageElement | undefined)[] = new Array(media.frames);
-    let wanted = 0, shown = -1, ticking = false;
+    cv.width = width;
+    cv.height = Math.round((width * 9) / 16);
+    const images = new Array<HTMLImageElement | undefined>(media.frames);
+    let wanted = 0,
+      shown = -1,
+      ticking = false;
 
     const paint = () => {
       // The nearest frame that has arrived, so scrolling never waits on the network.
       let best = -1;
       for (let d = 0; d < media.frames && best < 0; d++) {
-        if (images[wanted - d]?.complete) best = wanted - d; else if (images[wanted + d]?.complete) best = wanted + d;
+        if (images[wanted - d]?.complete) best = wanted - d;
+        else if (images[wanted + d]?.complete) best = wanted + d;
       }
       if (best < 0 || best === shown) return;
       ctx.clearRect(0, 0, cv.width, cv.height); // frames are transparent around the object
       ctx.drawImage(images[best]!, 0, 0, cv.width, cv.height);
       shown = best;
+      cv.dataset.frame = String(best); // read by scripts/motion.mjs to check the frame follows the scroll
       cv.dataset.ready = "true";
       box.dataset.live = "true";
     };
@@ -66,26 +73,42 @@ export function Sequence() {
       setStep(STEPS.filter((s) => p >= s).length);
       paint();
     };
-    const onScroll = () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } };
+    const onScroll = () => {
+      if (!ticking) {
+        ticking = true;
+        requestAnimationFrame(update);
+      }
+    };
 
     // Frames load after the page is usable: a coarse pass first, then the gaps.
     const order: number[] = [];
     for (const stride of [8, 4, 2, 1]) for (let i = 0; i < media.frames; i += stride) if (!order.includes(i)) order.push(i);
-    let cancelled = false, next = 0;
+    let cancelled = false,
+      next = 0;
     const loadMore = () => {
       if (cancelled || next >= order.length) return;
       const index = order[next++]!;
       const image = new Image();
       image.decoding = "async";
       // Decode ahead of time, off the main thread, so the first draw of a frame costs nothing.
-      image.onload = () => { image.decode().catch(() => undefined).then(() => { paint(); loadMore(); }); };
+      const ready = () => {
+        paint();
+        loadMore();
+      };
+      // A browser that cannot decode ahead of time still draws the frame; it only decodes at first draw instead.
+      image.onload = () => {
+        image.decode().then(ready, ready);
+      };
       image.onerror = () => loadMore();
       image.src = `/media/seq/${width}/${String(index).padStart(3, "0")}.webp`;
       images[index] = image;
     };
-    const begin = () => { for (let i = 0; i < 4; i++) loadMore(); };
+    const begin = () => {
+      for (let i = 0; i < 4; i++) loadMore();
+    };
     const whenIdle = () => ("requestIdleCallback" in window ? requestIdleCallback(begin, { timeout: 1500 }) : setTimeout(begin, 400));
-    if (document.readyState === "complete") whenIdle(); else addEventListener("load", whenIdle, { once: true });
+    if (document.readyState === "complete") whenIdle();
+    else addEventListener("load", whenIdle, { once: true });
 
     addEventListener("scroll", onScroll, { passive: true });
     addEventListener("resize", onScroll);
@@ -103,7 +126,13 @@ export function Sequence() {
       <div className="stage">
         <div className="frame" ref={frameBox}>
           {/* The still is on screen from the first paint; the canvas takes over once frames arrive. */}
-          <img src="/media/hero-1920.webp" srcSet={srcSet("hero")} sizes="(max-width: 760px) 180vw, 110vw" alt="A metal ring with a coin held in its centre" fetchPriority="high" />
+          <img
+            src="/media/hero-1920.webp"
+            srcSet={srcSet("hero")}
+            sizes="(max-width: 760px) 180vw, 110vw"
+            alt="A metal ring with a coin held in its centre"
+            fetchPriority="high"
+          />
           <canvas ref={canvas} aria-hidden="true" />
           <CalloutBoxes centre={site.objectX} />
         </div>
@@ -111,20 +140,32 @@ export function Sequence() {
           <Glitch id={Math.min(step, 3)}>
             {step === 0 && (
               <>
-                <h1 className="h1">Launch in public.<br />Hold in the Ring.<br />Move it sealed.</h1>
-                <Link className="btn" href="/launch">Launch a coin</Link>
+                <h1 className="h1">
+                  Launch in public.
+                  <br />
+                  Hold in the Ring.
+                  <br />
+                  Move it sealed.
+                </h1>
+                <Link className="btn" href="/launch">
+                  Launch a coin
+                </Link>
               </>
             )}
             {step === 1 && (
               <>
-                <h2 className="h1">One transfer.<br />Five layers.</h2>
+                <h2 className="h1">
+                  One transfer.
+                  <br />
+                  Five layers.
+                </h2>
                 <p className="body">Every transfer between Ring balances is a single Solana transaction. Parts of it are public. Parts are encrypted.</p>
               </>
             )}
             {step === 2 && (
               <>
                 <h2 className="h1">Take it apart.</h2>
-                <p className="body">Two layers are encrypted on-chain. Three are public. Keep scrolling to see which.</p>
+                <p className="body">Your wallet and the chain are public. The coin, the amount and your balance are encrypted. Keep scrolling.</p>
               </>
             )}
             {step >= 3 && <h2 className="h2 how-title">How it works</h2>}
@@ -142,8 +183,16 @@ export function StillStory() {
     <div className="still" data-bg-wide>
       <section className="still-hero">
         <div className="words">
-          <h1 className="h1">Launch in public.<br />Hold in the Ring.<br />Move it sealed.</h1>
-          <Link className="btn" href="/launch">Launch a coin</Link>
+          <h1 className="h1">
+            Launch in public.
+            <br />
+            Hold in the Ring.
+            <br />
+            Move it sealed.
+          </h1>
+          <Link className="btn" href="/launch">
+            Launch a coin
+          </Link>
         </div>
         <img src="/media/hero-1920.webp" srcSet={srcSet("hero")} sizes="110vw" alt="A metal ring with a coin held in its centre" />
       </section>

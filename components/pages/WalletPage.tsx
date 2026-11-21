@@ -2,56 +2,101 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { api, signAndSend, signedApi } from "@/lib/client/api";
-import { formatAmount, parseAmount } from "@/lib/units";
-import { Address, Confirm, NATIVE, decimalsOf, useCoins, useRun } from "../ui";
-import { WalletGate, useWallet } from "../Wallet";
+import { NATIVE, decimalsOf } from "@/lib/constants";
+import type { Api } from "@/lib/contract";
+import { formatCoin, parseAmount } from "@/lib/format";
+import { Address } from "../ui/Address";
+import { Confirm } from "../ui/Confirm";
+import { RingEventRow } from "../ui/RingEventRow";
+import { useCoins } from "../ui/useCoins";
+import { useRun, type Outcome } from "../ui/useRun";
+import { WalletGate } from "../wallet/WalletGate";
+import { useWallet } from "../wallet/WalletProvider";
 import { AppPage } from "./shell";
 
 type Tab = "deposit" | "transfer" | "withdraw";
-interface Mine { balances: Record<string, string>; history: { id: string; at: number; kind: string; public: Record<string, string>; sealed: Record<string, string> }[] }
+type Mine = Api["ring/mine"]["output"];
 
 export function WalletPage() {
   return (
-    <AppPage label="Ring wallet" title="Deposit, transfer, withdraw" intro="Your Ring balance is encrypted on-chain. Moving coins in and out of it is public. Moving them between Ring balances encrypts the coin and the amount.">
-      <WalletGate><Inner /></WalletGate>
+    <AppPage
+      label="Ring wallet"
+      title="Deposit, transfer, withdraw"
+      intro="Moving coins into or out of a Ring balance is public. Moving them between Ring balances encrypts the coin and the amount; both wallet addresses stay public."
+    >
+      <WalletGate>
+        <OpenWallet />
+      </WalletGate>
     </AppPage>
   );
 }
 
-function Inner() {
+function OpenWallet() {
   const { signer, config, lock, backupFile } = useWallet();
   const { coins, symbol } = useCoins();
   const { run, busy, line } = useRun();
   const [mine, setMine] = useState<Mine | null>(null);
-  const [wallet, setWallet] = useState<Record<string, string>>({});
+  const [inWallet, setInWallet] = useState<Record<string, string> | null>(null);
+  const [loadProblem, setLoadProblem] = useState("");
   const [tab, setTab] = useState<Tab>("deposit");
   const [form, setForm] = useState({ mint: NATIVE, amount: "", to: "", memo: "" });
-  const [confirming, setConfirming] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
+  const [formProblem, setFormProblem] = useState("");
   const me = signer!;
 
   const refresh = useCallback(async () => {
-    const [a, b] = await Promise.all([signedApi<Mine>("ring/mine", me), api<{ balances: Record<string, string> }>("wallet/public", { wallet: me.address })]);
-    setMine(a); setWallet(b.balances);
-  }, [me]);
-  useEffect(() => { void refresh().catch(() => undefined); }, [refresh, coins?.length]);
-
-  const mints = [...new Set([NATIVE, ...(coins ?? []).map((c) => c.mint), ...Object.keys(mine?.balances ?? {})])];
-  const show = (mint: string, value: string | undefined) => formatAmount(value ?? "0", decimalsOf(mint));
-
-  const submit = () => run("Signing…", async () => {
-    const amount = parseAmount(form.amount, decimalsOf(form.mint)).toString();
-    if (tab === "deposit") {
-      const { transaction } = await api("ring/deposit/build", { wallet: me.address, mint: form.mint, amount });
-      await api("ring/credit", { signature: await signAndSend(me, transaction) });
-    } else if (tab === "transfer") {
-      await signedApi("ring/transfer", me, { to: form.to.trim(), mint: form.mint, amount, memo: form.memo.trim() || undefined });
-    } else {
-      await signedApi("ring/withdraw", me, { mint: form.mint, amount, destination: form.to.trim() || undefined });
+    try {
+      const [ringSide, walletSide] = await Promise.all([signedApi("ring/mine", me), api("wallet/public", { wallet: me.address })]);
+      setMine(ringSide);
+      setInWallet(walletSide.balances);
+      setLoadProblem("");
+    } catch (error) {
+      setLoadProblem(error instanceof Error ? error.message : String(error));
     }
-    setConfirming(false); setForm((f) => ({ ...f, amount: "", memo: "" }));
-    await refresh();
-    return { deposit: "Deposited.", transfer: "Sent.", withdraw: "Withdrawn." }[tab];
-  });
+  }, [me]);
+  useEffect(() => {
+    void refresh();
+  }, [refresh, coins?.length]);
+
+  const mints = [...new Set([NATIVE, ...(coins ?? []).map((coin) => coin.mint), ...Object.keys(mine?.balances ?? {})])];
+
+  const review = () => {
+    try {
+      parseAmount(form.amount, decimalsOf(form.mint));
+      if (tab === "transfer" && !form.to.trim()) throw new Error("enter the recipient's wallet address");
+      setFormProblem("");
+      setReviewing(true);
+    } catch (error) {
+      setFormProblem(error instanceof Error ? error.message : String(error));
+    }
+  };
+
+  const submit = () =>
+    run("Waiting for the chain to confirm", async (): Promise<Outcome> => {
+      const amount = parseAmount(form.amount, decimalsOf(form.mint)).toString();
+      let outcome: Outcome;
+      if (tab === "deposit") {
+        const { transaction } = await api("ring/deposit/build", { wallet: me.address, mint: form.mint, amount });
+        const sent = await signAndSend(me, transaction);
+        outcome = { message: `Deposited ${form.amount} ${symbol(form.mint)} into your Ring balance.`, signature: sent.signature };
+      } else if (tab === "transfer") {
+        await signedApi("ring/transfer", me, { to: form.to.trim(), mint: form.mint, amount, memo: form.memo.trim() || undefined });
+        outcome = { message: `Sent ${form.amount} ${symbol(form.mint)}.` };
+      } else {
+        const result = await signedApi("ring/withdraw", me, { mint: form.mint, amount, destination: form.to.trim() || undefined });
+        outcome = result.pending
+          ? {
+              message:
+                'The payout was sent but the chain has not confirmed it yet. Your balance stays reduced until it does. Use "Check for anything missing" in a minute.',
+              signature: result.signature,
+            }
+          : { message: `Withdrew ${form.amount} ${symbol(form.mint)}.`, signature: result.signature };
+      }
+      setReviewing(false);
+      setForm((current) => ({ ...current, amount: "", memo: "" }));
+      await refresh();
+      return outcome;
+    });
 
   const saveBackup = () => {
     const file = backupFile();
@@ -60,30 +105,95 @@ function Inner() {
     link.href = URL.createObjectURL(new Blob([file], { type: "application/json" }));
     link.download = `ring-wallet-${me.address.slice(0, 6)}.json`;
     link.click();
+    URL.revokeObjectURL(link.href);
   };
 
   return (
     <>
       <dl className="kv">
         <dt>{me.kind === "browser" ? "Deposit address" : me.label}</dt>
-        <dd><Address value={me.address} /></dd>
+        <dd>
+          <Address value={me.address} />
+        </dd>
       </dl>
       <div className="actions">
-        {me.kind === "browser" && <button className="link" onClick={saveBackup}>Save encrypted backup</button>}
-        {config?.network === "local" && <button className="link" disabled={busy} onClick={() => run("Asking the faucet…", async () => { await api("faucet", { wallet: me.address }); await refresh(); return "10 test SOL added to your wallet."; })}>Get test SOL</button>}
-        <button className="link" onClick={lock}>Lock</button>
+        {me.kind === "browser" && (
+          <button className="link" type="button" onClick={saveBackup}>
+            Save encrypted backup
+          </button>
+        )}
+        {config !== null && config !== "offline" && config.network === "local" && (
+          <button
+            className="link"
+            type="button"
+            disabled={busy}
+            onClick={() =>
+              void run("Asking the faucet", async () => {
+                await api("faucet", { wallet: me.address });
+                await refresh();
+                return { message: "10 test SOL added to your wallet." };
+              })
+            }
+          >
+            Get test SOL
+          </button>
+        )}
+        <button
+          className="link"
+          type="button"
+          disabled={busy}
+          onClick={() =>
+            void run("Checking the chain", async () => {
+              const found = await api("ring/reconcile");
+              await refresh();
+              return {
+                message:
+                  found.credited + found.payoutsResolved === 0
+                    ? "Nothing was missing."
+                    : `Recovered ${found.credited} deposit(s) and settled ${found.payoutsResolved} payout(s).`,
+              };
+            })
+          }
+        >
+          Check for anything missing
+        </button>
+        <button className="link" type="button" onClick={lock}>
+          Lock
+        </button>
       </div>
-      {me.kind === "browser" && <p className="body">Fund this address from any wallet or exchange. That transfer is public, like any other. The key exists only in this browser and in your backup file.</p>}
+      {me.kind === "browser" && (
+        <p className="body">
+          Fund this address from any wallet or exchange. That transfer is public, like any other. The key exists only in this browser and in your backup file.
+        </p>
+      )}
 
+      {loadProblem && (
+        <p className="notice" role="alert">
+          Your balances could not be read: {loadProblem}{" "}
+          <button className="link" type="button" onClick={() => void refresh()}>
+            Try again
+          </button>
+        </p>
+      )}
       <div className="scroll-x">
         <table className="plain">
-          <thead><tr><th>Coin</th><th>In your wallet, public</th><th>In your Ring balance, encrypted</th></tr></thead>
+          <thead>
+            <tr>
+              <th>Coin</th>
+              <th>In your wallet, public</th>
+              <th>In your Ring balance</th>
+            </tr>
+          </thead>
           <tbody>
             {mints.map((mint) => (
               <tr key={mint}>
                 <td data-label="Coin">{symbol(mint)}</td>
-                <td data-label="Wallet" className="num">{show(mint, wallet[mint])}</td>
-                <td data-label="Ring" className="num">{mine ? show(mint, mine.balances[mint]) : ""}</td>
+                <td data-label="Wallet" className="num">
+                  {inWallet ? formatCoin(mint, inWallet[mint] ?? "0") : "Reading"}
+                </td>
+                <td data-label="Ring" className="num">
+                  {mine ? formatCoin(mint, mine.balances[mint] ?? "0") : "Reading"}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -91,45 +201,112 @@ function Inner() {
       </div>
 
       <div className="tabs" role="group" aria-label="Action">
-        {(["deposit", "transfer", "withdraw"] as Tab[]).map((t) => <button key={t} aria-pressed={tab === t} onClick={() => { setTab(t); setConfirming(false); }}>{t}</button>)}
+        {(["deposit", "transfer", "withdraw"] as const).map((name) => (
+          <button
+            key={name}
+            type="button"
+            aria-pressed={tab === name}
+            onClick={() => {
+              setTab(name);
+              setReviewing(false);
+              setFormProblem("");
+            }}
+          >
+            {name}
+          </button>
+        ))}
       </div>
-      {confirming ? (
-        <Confirm actions={[tab]} label={`Sign and ${tab}`} busy={busy} onConfirm={submit} onCancel={() => setConfirming(false)}>
-          <p className="body">{tab === "deposit" ? "Deposit" : tab === "transfer" ? "Send" : "Withdraw"} {form.amount} {symbol(form.mint)}{tab !== "deposit" && form.to ? <> to <span className="address">{form.to}</span></> : null}.</p>
+      {reviewing ? (
+        <Confirm actions={[tab]} label={`Sign and ${tab}`} busy={busy} onConfirm={() => void submit()} onCancel={() => setReviewing(false)}>
+          <p className="body">
+            {tab === "deposit" ? "Deposit" : tab === "transfer" ? "Send" : "Withdraw"} {form.amount} {symbol(form.mint)}
+            {tab !== "deposit" && form.to.trim() ? (
+              <>
+                {" "}
+                to <span className="address">{form.to.trim()}</span>
+              </>
+            ) : null}
+            .
+          </p>
         </Confirm>
       ) : (
-        <div className="form">
+        <form
+          className="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            review();
+          }}
+        >
           <div className="pair">
-            <div className="field"><label className="label" htmlFor="w-coin">Coin</label>
-              <select id="w-coin" value={form.mint} onChange={(e) => setForm({ ...form, mint: e.target.value })}>{mints.map((m) => <option key={m} value={m}>{symbol(m)}</option>)}</select></div>
-            <div className="field"><label className="label" htmlFor="w-amount">Amount</label>
-              <input id="w-amount" inputMode="decimal" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} placeholder="0.0" /></div>
+            <div className="field">
+              <label className="label" htmlFor="w-coin">
+                Coin
+              </label>
+              <select id="w-coin" value={form.mint} onChange={(event) => setForm({ ...form, mint: event.target.value })}>
+                {mints.map((mint) => (
+                  <option key={mint} value={mint}>
+                    {symbol(mint)}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="w-amount">
+                Amount
+              </label>
+              <input
+                id="w-amount"
+                inputMode="decimal"
+                autoComplete="off"
+                value={form.amount}
+                onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                placeholder="0.0"
+              />
+            </div>
           </div>
           {tab !== "deposit" && (
-            <div className="field"><label className="label" htmlFor="w-to">{tab === "transfer" ? "Recipient's wallet address" : "Destination, if not your own wallet"}</label>
-              <input id="w-to" value={form.to} onChange={(e) => setForm({ ...form, to: e.target.value })} spellCheck={false} autoComplete="off" /></div>
+            <div className="field">
+              <label className="label" htmlFor="w-to">
+                {tab === "transfer" ? "Recipient's wallet address" : "Destination, if not your own wallet"}
+              </label>
+              <input
+                id="w-to"
+                value={form.to}
+                onChange={(event) => setForm({ ...form, to: event.target.value })}
+                spellCheck={false}
+                autoComplete="off"
+                autoCapitalize="off"
+              />
+            </div>
           )}
           {tab === "transfer" && (
-            <div className="field"><label className="label" htmlFor="w-memo">Memo, encrypted, optional</label>
-              <input id="w-memo" value={form.memo} maxLength={140} onChange={(e) => setForm({ ...form, memo: e.target.value })} /></div>
+            <div className="field">
+              <label className="label" htmlFor="w-memo">
+                Memo, encrypted, optional
+              </label>
+              <input id="w-memo" value={form.memo} maxLength={140} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+            </div>
           )}
-          <div className="actions"><button className="btn" disabled={!form.amount || (tab === "transfer" && !form.to)} onClick={() => setConfirming(true)}>Review</button></div>
-        </div>
+          <div className="actions">
+            <button className="btn" type="submit">
+              Review
+            </button>
+          </div>
+          {formProblem && (
+            <p className="status-line bad" role="alert">
+              {formProblem}
+            </p>
+          )}
+        </form>
       )}
       {line}
 
       <h2 className="h3">Your Ring history</h2>
       <ul className="events">
-        {mine?.history.length === 0 && <li className="pub">Nothing yet.</li>}
-        {mine?.history.map((e) => (
-          <li key={e.id}>
-            <b>{e.kind}</b>
-            <span className="pub">Public: {Object.entries(e.public).map(([k, v]) => `${k} ${k === "coin" ? symbol(v) : k === "amount" ? formatAmount(v, decimalsOf(e.public.coin ?? NATIVE)) : ""}`).filter((s) => !s.endsWith(" ")).join(", ") || ""}
-              {Object.entries(e.public).filter(([k]) => !["coin", "amount"].includes(k)).map(([k, v]) => <span key={k}> {k} <span className="address">{v}</span></span>)}</span>
-            {Object.keys(e.sealed).length > 0 && (
-              <span className="enc">Encrypted, readable by you: {symbol(e.sealed.coin!)} {formatAmount(e.sealed.amount ?? e.sealed.size ?? "0", decimalsOf(e.sealed.coin!))}{e.sealed.price ? ` for ${formatAmount(e.sealed.price, 9)} SOL` : ""}{e.sealed.memo ? `, memo: ${e.sealed.memo}` : ""}</span>
-            )}
-          </li>
+        {mine === null && !loadProblem && <li className="pub">Reading your history.</li>}
+        {mine?.history.length === 0 && <li className="pub">Nothing yet. A deposit, transfer or withdrawal will appear here.</li>}
+        {mine?.history.map((event) => (
+          <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} />
         ))}
       </ul>
     </>

@@ -5,7 +5,6 @@
 export const site = {
   name: "RINGPAD",
   description: "Launch a coin on a pump.fun curve, register it with a Privacy Ring, and move it with encrypted amounts.",
-  network: "devnet" as const,
   /** Where the object's centre sits in every frame of brand/hero.mp4, as a share of the frame width. */
   objectX: 0.64,
   /**
@@ -29,4 +28,12 @@ export const nav = [
   { href: "/otc", label: "OTC" },
   { href: "/pay", label: "Pay" },
   { href: "/docs", label: "Docs" },
+] as const;
+
+export const footerLinks = [
+  { href: "/docs", label: "Docs" },
+  { href: "/status", label: "Status" },
+  { href: "/changelog", label: "Changelog" },
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy Policy" },
 ] as const;

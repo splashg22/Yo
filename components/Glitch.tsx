@@ -7,7 +7,10 @@ export function Glitch({ id, children, className }: { id: string | number; child
   const [on, setOn] = useState(false);
   const first = useRef(true);
   useEffect(() => {
-    if (first.current) { first.current = false; return; }
+    if (first.current) {
+      first.current = false;
+      return;
+    }
     if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     setOn(true);
     const timer = setTimeout(() => setOn(false), 150);
@@ -16,8 +19,16 @@ export function Glitch({ id, children, className }: { id: string | number; child
   return (
     <div className={`glitch ${className ?? ""}`} data-on={on}>
       <div>{children}</div>
-      {on && <div className="copy a" aria-hidden="true">{children}</div>}
-      {on && <div className="copy b" aria-hidden="true">{children}</div>}
+      {on && (
+        <div className="copy a" aria-hidden="true">
+          {children}
+        </div>
+      )}
+      {on && (
+        <div className="copy b" aria-hidden="true">
+          {children}
+        </div>
+      )}
     </div>
   );
 }

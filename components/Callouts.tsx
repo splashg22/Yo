@@ -16,7 +16,9 @@ export function CalloutBoxes({ centre }: { centre: number }) {
           <div key={layer.n} className="callout" style={{ top: `${layer.y * 100}%` }}>
             <span className="line" style={{ left: `${Math.min(rim, boxEdge) * 100}%`, width: `${Math.abs(rim - boxEdge) * 100}%` }} />
             <div className="box" style={left ? { right: `${(1 - boxEdge) * 100}%` } : { left: `${boxEdge * 100}%` }}>
-              <b>{layer.n} {layer.label}</b>
+              <b>
+                {layer.n} {layer.label}
+              </b>
               <span>{layer.text}</span>
             </div>
           </div>
@@ -33,7 +35,10 @@ export function CalloutList({ className }: { className?: string }) {
       {site.layers.map((layer) => (
         <li key={layer.n}>
           <b>{layer.n}</b>
-          <span><b>{layer.label}</b>{layer.text}</span>
+          <span>
+            <b>{layer.label}</b>
+            {layer.text}
+          </span>
         </li>
       ))}
     </ol>

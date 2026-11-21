@@ -20,10 +20,19 @@ export default function Page() {
           <h2>What reaches our server</h2>
           <ul>
             <li>Requests your browser makes to load the site, with your IP address, as any website receives.</li>
-            <li>Requests relayed to the Solana network and to Helius. They contain wallet addresses and encrypted data. They do not contain coins or amounts of Ring transfers in readable form.</li>
+            <li>Transactions you sign, which this site submits to the chain for you. They are public anyway.</li>
+            <li>
+              In this pre-release, everything about your Ring balance. Ring balances are simulated by a stand-in that runs on this site&apos;s server, so the
+              server sees each transfer&apos;s coin, amount and memo, and each OTC offer, in readable form. Under the real Ring it would see only encrypted
+              data.
+            </li>
           </ul>
           <h2>What stays in your browser</h2>
-          <p>Wallet state and settings are kept in your browser storage, encrypted where they are sensitive. Clearing site data removes them.</p>
+          <p>
+            A wallet made here is kept in your browser, encrypted with your password. While a tab is unlocked, the key is also held, unencrypted, in that
+            tab&apos;s session storage, and is removed when you press Lock or close the tab. Clearing site data removes the wallet from this browser: keep your
+            backup file.
+          </p>
           <h2>What is public no matter what</h2>
           <p>Anything written to a public blockchain is permanent and visible to everyone. We cannot remove it.</p>
         </div>

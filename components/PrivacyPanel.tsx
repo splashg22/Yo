@@ -9,11 +9,23 @@ export function PrivacyPanel({ action }: { action: string }) {
       <dl>
         <div>
           <dt>Public</dt>
-          {row.public.map((item) => <dd key={item} className="pub">{item}</dd>)}
+          {row.public.map((item) => (
+            <dd key={item} className="pub">
+              {item}
+            </dd>
+          ))}
         </div>
         <div>
           <dt>Encrypted</dt>
-          {row.encrypted.length ? row.encrypted.map((item) => <dd key={item} className="enc">{item}</dd>) : <dd>Nothing</dd>}
+          {row.encrypted.length ? (
+            row.encrypted.map((item) => (
+              <dd key={item} className="enc">
+                {item}
+              </dd>
+            ))
+          ) : (
+            <dd>Nothing</dd>
+          )}
         </div>
       </dl>
       {row.note && <p className="body">{row.note}</p>}

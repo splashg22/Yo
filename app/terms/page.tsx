@@ -10,9 +10,13 @@ export default function Page() {
         <span className="label">Draft. Not yet reviewed by a lawyer.</span>
         <h1 className="h2">Terms</h1>
         <div className="prose">
-          <p>These terms cover your use of {site.name}. The project is in development and runs on devnet only, where coins have no value.</p>
+          <p>These terms cover your use of {site.name}. The project is a pre-release. It runs on a test chain, where coins have no value.</p>
           <h2>What {site.name} is</h2>
-          <p>Software that helps you build and sign Solana transactions. It never holds your keys or your funds. You sign every transaction yourself.</p>
+          <p>Software that helps you build and sign Solana transactions. It never holds your keys. You sign every transaction yourself.</p>
+          <p>
+            In this pre-release, Ring balances are simulated: coins you deposit on the test chain are held by a stand-in run by this site. That arrangement
+            exists only on a test chain and will not be used with coins of value.
+          </p>
           <h2>What it is not</h2>
           <ul>
             <li>It is not a broker, an exchange or a custodian, and it gives no financial advice.</li>

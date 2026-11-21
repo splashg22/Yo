@@ -1,7 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
-import { WalletProvider } from "@/components/Wallet";
+import { WalletProvider } from "@/components/wallet/WalletProvider";
 import { site } from "@/site.config";
 import "./globals.css";
 
@@ -26,7 +26,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <WalletProvider>
           <div className="shell">
             <Header />
-            <main>{children}</main>
+            <main id="main">{children}</main>
             <Footer />
           </div>
         </WalletProvider>

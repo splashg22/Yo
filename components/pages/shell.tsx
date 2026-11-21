@@ -1,9 +1,9 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { useWallet } from "../Wallet";
+import { useWallet } from "../wallet/WalletProvider";
 
-/** The frame every app page shares: a label, a title, a line of explanation, and where this build runs. */
+/** The frame every app page shares: a label, a title, a line of explanation, and a plain statement of where this build runs. */
 export function AppPage({ label, title, intro, children }: { label: string; title: string; intro: string; children: ReactNode }) {
   const { config } = useWallet();
   return (
@@ -12,13 +12,13 @@ export function AppPage({ label, title, intro, children }: { label: string; titl
         <span className="label">{label}</span>
         <h1 className="h2">{title}</h1>
         <p className="body">{intro}</p>
-        {config?.ring === "mock" && (
-          <p className="mock-note">
-            Local test chain. Launches and trades run on a copy of the real pump.fun program. Ring balances on this chain are kept
-            by a local stand-in that follows the same rules for what is public and what is encrypted. Coins here have no value.
+        {config === "offline" ? (
+          <p className="notice" role="alert">
+            This site&apos;s server is not answering, so nothing here can be loaded or sent. Check your connection and reload.
           </p>
+        ) : (
+          children
         )}
-        {children}
       </div>
     </div>
   );

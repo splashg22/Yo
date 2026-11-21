@@ -2,73 +2,236 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { signedApi } from "@/lib/client/api";
-import { formatAmount, parseAmount } from "@/lib/units";
-import { Address, Confirm, useCoins, useRun } from "../ui";
-import { WalletGate, useWallet } from "../Wallet";
+import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
+import type { Offer } from "@/lib/contract";
+import { formatAmount, formatSol, formatTime, parseAmount } from "@/lib/format";
+import { Address } from "../ui/Address";
+import { Confirm } from "../ui/Confirm";
+import { useCoins } from "../ui/useCoins";
+import { useRun } from "../ui/useRun";
+import { WalletGate } from "../wallet/WalletGate";
+import { useWallet } from "../wallet/WalletProvider";
 import { AppPage } from "./shell";
-
-interface Offer { id: string; seller: string; buyer: string; mint: string; amount: string; priceLamports: string; expiresAt: number; status: string }
 
 export function OtcPage() {
   return (
-    <AppPage label="OTC" title="Sell a block to a named buyer" intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together inside the Ring, or nothing moves. Both must hold what they are giving in their Ring balances.">
-      <WalletGate><Inner /></WalletGate>
+    <AppPage
+      label="OTC"
+      title="Sell a block to a named buyer"
+      intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together inside the Ring, or nothing moves. Each side must hold what it is giving in its Ring balance."
+    >
+      <WalletGate>
+        <Desk />
+      </WalletGate>
     </AppPage>
   );
 }
 
-function Inner() {
+type Reviewing = { kind: "offer" } | { kind: "accept"; offer: Offer } | null;
+const EMPTY = { mint: "", amount: "", price: "", buyer: "" };
+
+function Desk() {
   const { signer } = useWallet();
   const { coins, symbol } = useCoins();
   const { run, busy, line } = useRun();
   const [offers, setOffers] = useState<Offer[] | null>(null);
-  const [form, setForm] = useState({ mint: "", amount: "", price: "", buyer: "" });
-  const [confirming, setConfirming] = useState<{ kind: "offer" } | { kind: "accept"; offer: Offer } | null>(null);
+  const [loadProblem, setLoadProblem] = useState("");
+  const [form, setForm] = useState(EMPTY);
+  const [formProblem, setFormProblem] = useState("");
+  const [reviewing, setReviewing] = useState<Reviewing>(null);
   const me = signer!;
   const mint = form.mint || coins?.[0]?.mint || "";
 
-  const refresh = useCallback(() => signedApi<{ offers: Offer[] }>("otc/mine", me).then((r) => setOffers(r.offers)).catch(() => undefined), [me]);
-  useEffect(() => { void refresh(); const t = setInterval(refresh, 7000); return () => clearInterval(t); }, [refresh]);
+  const refresh = useCallback(async () => {
+    try {
+      setOffers((await signedApi("otc/mine", me)).offers);
+      setLoadProblem("");
+    } catch (error) {
+      setLoadProblem(error instanceof Error ? error.message : String(error));
+    }
+  }, [me]);
+  useEffect(() => {
+    void refresh();
+    const timer = setInterval(() => {
+      if (!document.hidden) void refresh();
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [refresh]);
 
-  const describe = (o: Offer) => `${formatAmount(o.amount, 6)} ${symbol(o.mint)} for ${formatAmount(o.priceLamports, 9)} SOL`;
-  const offer = () => run("Signing…", async () => {
-    await signedApi("otc/offer", me, { buyer: form.buyer.trim(), mint, amount: parseAmount(form.amount, 6).toString(), priceLamports: parseAmount(form.price, 9).toString() });
-    setConfirming(null); setForm({ mint: "", amount: "", price: "", buyer: "" }); await refresh();
-    return "Offer sent. Only you and the buyer can see it.";
-  });
-  const accept = (o: Offer) => run("Signing…", async () => { await signedApi("otc/accept", me, { id: o.id }); setConfirming(null); await refresh(); return "Settled. The block is in your Ring balance."; });
-  const cancel = (o: Offer) => run("Cancelling…", async () => { await signedApi("otc/cancel", me, { id: o.id }); await refresh(); return "Offer cancelled."; });
+  const terms = (offer: Offer) => `${formatAmount(offer.amount, COIN_DECIMALS)} ${symbol(offer.mint)} for ${formatSol(offer.priceLamports, 9)}`;
+  const review = () => {
+    try {
+      parseAmount(form.amount, COIN_DECIMALS);
+      parseAmount(form.price, SOL_DECIMALS);
+      if (!form.buyer.trim()) throw new Error("enter the buyer's wallet address");
+      setFormProblem("");
+      setReviewing({ kind: "offer" });
+    } catch (error) {
+      setFormProblem(error instanceof Error ? error.message : String(error));
+    }
+  };
+  const offer = () =>
+    run("Sending the offer", async () => {
+      await signedApi("otc/offer", me, {
+        buyer: form.buyer.trim(),
+        mint,
+        amount: parseAmount(form.amount, COIN_DECIMALS).toString(),
+        priceLamports: parseAmount(form.price, SOL_DECIMALS).toString(),
+      });
+      setReviewing(null);
+      setForm(EMPTY);
+      await refresh();
+      return { message: "Offer sent. Only you and the buyer can see it." };
+    });
+  const accept = (accepted: Offer) =>
+    run("Settling", async () => {
+      await signedApi("otc/accept", me, { id: accepted.id });
+      setReviewing(null);
+      await refresh();
+      return { message: "Settled. The block is in your Ring balance." };
+    });
+  const cancel = (cancelled: Offer) =>
+    run("Cancelling", async () => {
+      await signedApi("otc/cancel", me, { id: cancelled.id });
+      await refresh();
+      return { message: "Offer cancelled." };
+    });
 
-  if (confirming?.kind === "offer") return <Confirm actions={["otc"]} label="Sign and offer" busy={busy} onConfirm={offer} onCancel={() => setConfirming(null)}><p className="body">Offer {form.amount} {symbol(mint)} for {form.price} SOL to <span className="address">{form.buyer}</span>.</p>{line}</Confirm>;
-  if (confirming?.kind === "accept") return <Confirm actions={["otc"]} label="Sign and buy" busy={busy} onConfirm={() => accept(confirming.offer)} onCancel={() => setConfirming(null)}><p className="body">Buy {describe(confirming.offer)} from <span className="address">{confirming.offer.seller}</span>.</p>{line}</Confirm>;
-
+  if (reviewing?.kind === "offer") {
+    return (
+      <Confirm actions={["otc"]} label="Sign and offer" busy={busy} onConfirm={() => void offer()} onCancel={() => setReviewing(null)}>
+        <p className="body">
+          Offer {form.amount.trim()} {symbol(mint)} for {form.price.trim()} SOL to <span className="address">{form.buyer.trim()}</span>.
+        </p>
+        {line}
+      </Confirm>
+    );
+  }
+  if (reviewing?.kind === "accept") {
+    const accepted = reviewing.offer;
+    return (
+      <Confirm actions={["otc"]} label="Sign and buy" busy={busy} onConfirm={() => void accept(accepted)} onCancel={() => setReviewing(null)}>
+        <p className="body">
+          Buy {terms(accepted)} from <span className="address">{accepted.seller}</span>.
+        </p>
+        {line}
+      </Confirm>
+    );
+  }
+  const expired = (candidate: Offer) => candidate.status === "open" && Date.now() > candidate.expiresAt;
   return (
     <>
       <h2 className="h3">New offer</h2>
-      {coins?.length === 0 ? <p className="body">There is no coin to sell yet.</p> : (
-        <div className="form">
+      {coins === null ? (
+        <p className="body">Reading the chain.</p>
+      ) : coins.length === 0 ? (
+        <p className="body">There is no coin to sell yet.</p>
+      ) : (
+        <form
+          className="form"
+          onSubmit={(event) => {
+            event.preventDefault();
+            review();
+          }}
+        >
           <div className="pair">
-            <div className="field"><label className="label" htmlFor="o-coin">Coin</label>
-              <select id="o-coin" value={mint} onChange={(e) => setForm({ ...form, mint: e.target.value })}>{(coins ?? []).map((c) => <option key={c.mint} value={c.mint}>{c.symbol}</option>)}</select></div>
-            <div className="field"><label className="label" htmlFor="o-amount">Size</label><input id="o-amount" inputMode="decimal" placeholder="0.0" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
+            <div className="field">
+              <label className="label" htmlFor="o-coin">
+                Coin
+              </label>
+              <select id="o-coin" value={mint} onChange={(event) => setForm({ ...form, mint: event.target.value })}>
+                {coins.map((coin) => (
+                  <option key={coin.mint} value={coin.mint}>
+                    {coin.symbol}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="label" htmlFor="o-amount">
+                Size
+              </label>
+              <input
+                id="o-amount"
+                inputMode="decimal"
+                autoComplete="off"
+                placeholder="0.0"
+                value={form.amount}
+                onChange={(event) => setForm({ ...form, amount: event.target.value })}
+              />
+            </div>
           </div>
-          <div className="field"><label className="label" htmlFor="o-price">Price for the whole block, in SOL</label><input id="o-price" inputMode="decimal" placeholder="0.0" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} /></div>
-          <div className="field"><label className="label" htmlFor="o-buyer">Buyer&apos;s wallet address</label><input id="o-buyer" spellCheck={false} autoComplete="off" value={form.buyer} onChange={(e) => setForm({ ...form, buyer: e.target.value })} /></div>
-          <div className="actions"><button className="btn" disabled={!form.amount || !form.price || !form.buyer} onClick={() => setConfirming({ kind: "offer" })}>Review</button></div>
-        </div>
+          <div className="field">
+            <label className="label" htmlFor="o-price">
+              Price for the whole block, in SOL
+            </label>
+            <input
+              id="o-price"
+              inputMode="decimal"
+              autoComplete="off"
+              placeholder="0.0"
+              value={form.price}
+              onChange={(event) => setForm({ ...form, price: event.target.value })}
+            />
+          </div>
+          <div className="field">
+            <label className="label" htmlFor="o-buyer">
+              Buyer&apos;s wallet address
+            </label>
+            <input
+              id="o-buyer"
+              spellCheck={false}
+              autoComplete="off"
+              autoCapitalize="off"
+              value={form.buyer}
+              onChange={(event) => setForm({ ...form, buyer: event.target.value })}
+            />
+          </div>
+          <div className="actions">
+            <button className="btn" type="submit">
+              Review
+            </button>
+          </div>
+          {formProblem && (
+            <p className="status-line bad" role="alert">
+              {formProblem}
+            </p>
+          )}
+        </form>
       )}
       {line}
       <h2 className="h3">Your offers</h2>
+      {loadProblem && (
+        <p className="notice" role="alert">
+          Your offers could not be read: {loadProblem}
+        </p>
+      )}
       <ul className="events">
+        {offers === null && !loadProblem && <li className="pub">Reading your offers.</li>}
         {offers?.length === 0 && <li className="pub">None yet. Offers addressed to you appear here.</li>}
-        {offers?.map((o) => (
-          <li key={o.id}>
-            <b>{o.seller === me.address ? "You sell" : "You are offered"} {describe(o)}</b>
-            <span className="pub">{o.seller === me.address ? "Buyer" : "Seller"} <Address value={o.seller === me.address ? o.buyer : o.seller} short /> · {o.status}</span>
-            {o.status === "open" && (
+        {offers?.map((listed) => (
+          <li key={listed.id}>
+            <b>
+              {listed.seller === me.address ? "You sell" : "You are offered"} {terms(listed)}
+            </b>
+            <span className="pub">
+              {listed.seller === me.address ? "Buyer" : "Seller"} <Address value={listed.seller === me.address ? listed.buyer : listed.seller} short />
+            </span>
+            <span className="label">
+              {expired(listed) ? "Expired" : listed.status === "open" ? `Open until ${formatTime(listed.expiresAt)}` : listed.status}
+            </span>
+            {listed.status === "open" && !expired(listed) && (
               <span className="actions">
-                {o.buyer === me.address && <button className="link" disabled={busy} onClick={() => setConfirming({ kind: "accept", offer: o })}>Accept</button>}
-                {o.seller === me.address && <button className="link" disabled={busy} onClick={() => cancel(o)}>Cancel</button>}
+                {listed.buyer === me.address && (
+                  <button className="link" type="button" disabled={busy} onClick={() => setReviewing({ kind: "accept", offer: listed })}>
+                    Accept
+                  </button>
+                )}
+                {listed.seller === me.address && (
+                  <button className="link" type="button" disabled={busy} onClick={() => void cancel(listed)}>
+                    Cancel
+                  </button>
+                )}
               </span>
             )}
           </li>
