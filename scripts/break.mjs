@@ -223,7 +223,11 @@ await check("a double click on Sign sends one transaction and moves the money on
   await page.waitForFunction(() => /sent/i.test(document.querySelector(".status-line")?.innerText ?? ""), null, { timeout: 30000 });
   if (page.sent.filter((name) => name === "ring/transfer").length !== 1) throw new Error("the transfer was requested more than once");
   await other.reload();
-  await other.waitForFunction(() => [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)));
+  await other.waitForFunction(
+    () =>
+      document.querySelectorAll("table.plain tbody td:nth-child(3)").length > 0 &&
+      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)),
+  );
   if ((await ringCell(other, "SOL")) !== "0.1") throw new Error(`the recipient holds ${await ringCell(other, "SOL")}`);
   await other.context().close();
 });
@@ -239,7 +243,11 @@ await check("two tabs on one wallet: a deposit made in one shows in the other wh
   await second.fill("#wallet-password", PASSWORD);
   await second.click("button:text-is('Unlock')");
   await second.waitForSelector("#w-amount", { timeout: 30000 });
-  await second.waitForFunction(() => [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)));
+  await second.waitForFunction(
+    () =>
+      document.querySelectorAll("table.plain tbody td:nth-child(3)").length > 0 &&
+      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)),
+  );
   const before = await ringCell(second, "SOL");
   await page.bringToFront();
   await fillWallet(page, "deposit", { amount: "0.3" });
@@ -297,6 +305,14 @@ await check("a coin with the longest name and ticker allowed, and names that can
     await phone.waitForTimeout(1500);
     const overflow = await phone.evaluate(() => document.documentElement.scrollWidth - innerWidth);
     if (overflow > 0) throw new Error(`${path} is ${overflow}px too wide with a 32-letter name`);
+    // Nothing a finger needs may sit past the edge, even where the page itself does not scroll sideways.
+    const lost = await phone.evaluate(() =>
+      [...document.querySelectorAll("main a, main button, main input, main select")]
+        .filter((el) => el.getClientRects().length && (el.getBoundingClientRect().right > innerWidth + 1 || el.getBoundingClientRect().left < -1))
+        .map((el) => el.innerText || el.id)
+        .slice(0, 3),
+    );
+    if (lost.length) throw new Error(`${path}: controls off the screen with a 32-letter name: ${lost.join(", ")}`);
   }
   await phone.close();
   await page.goto(`${base}/wallet`);

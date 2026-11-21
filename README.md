@@ -49,7 +49,7 @@ project. The local keys are made on first run inside `.data/` and are never comm
 
 ```bash
 npm run check           # typecheck, lint (zero warnings), format check, then every test
-npm run test:site       # 55 unit tests. No chain needed.
+npm run test:site       # 61 unit tests. No chain needed.
 npm run test:flows      # 55 flow tests. Starts the local validator if none is running.
 ```
 

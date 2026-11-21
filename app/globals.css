@@ -1170,3 +1170,16 @@ pre.code {
   clip-path: inset(50%);
   white-space: nowrap;
 }
+
+/* A long unbroken name or address must wrap inside its column, never widen the page. */
+.page .wrap > *,
+.kv > *,
+.kv dd {
+  min-width: 0;
+}
+.h2,
+.h3,
+.kv dd,
+.coins li b {
+  overflow-wrap: anywhere;
+}
