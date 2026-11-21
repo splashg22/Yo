@@ -121,7 +121,7 @@ Each has a test or a scripted check that fails without the fix.
 | 11 | Selling a coin you do not hold gave an SDK error | "You hold none of this coin" | flow: launch; break |
 | 12 | Used request numbers were forgotten on restart, allowing a replay | Saved as they are used | flow: resilience |
 | 13 | **In the built site, every launch with a first buy failed on a fresh chain.** The server bundled a second copy of web3.js, so it recognised none of pump.fun's fee wallets and funded none. Tests passed because they load one copy; the long-running validator hid it because earlier runs had already funded those wallets | Wallets found by shape; one copy of web3.js on the server; set-up fails loudly if it finds none | unit: fee-wallets; e2e on a fresh chain |
-| 14 | "Get test SOL" pressed twice said "added" twice and paid once | Airdrops run one at a time and never reuse a signature | flow: resilience |
+| 14 | "Get test SOL" pressed twice said "added" twice and paid once | Airdrops run one at a time, never reuse a signature, and ask for the newest blockhash (on a chain only seconds old the faucet otherwise repeats itself for about 15 seconds, which the second fresh-clone run caught) | flow: resilience |
 | 15 | Unknown addresses showed the framework's 404, black text on black | A designed page with ways back | crawl |
 | 16 | Phone tap targets were 14 to 23px tall | 44px for every stand-alone control | crawl |
 | 17 | The page jumped as late data arrived: the top notice re-wrapped (18px), the hero moved 2px on start-up, the stats row grew 166px, the footer jumped on Explore and Pay | Space is held before the data arrives; the homepage header lies over the hero; pages are a window tall | motion; measure |

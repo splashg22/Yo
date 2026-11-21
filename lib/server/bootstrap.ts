@@ -5,7 +5,7 @@
  * with a first buy only fits in one transaction through one).
  */
 import { AddressLookupTableProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
-import { assertLocalOnly } from "./env";
+import { assertLocalOnly, settings } from "./env";
 import { depositInstructions, escrow, localKey } from "./escrow";
 import { feeWallets, launchInstructions } from "./pump";
 import { connection } from "./solana";
@@ -28,8 +28,9 @@ export function airdrop(to: PublicKey, sol: number): Promise<string> {
 
 async function airdropOnce(to: PublicKey, sol: number): Promise<string> {
   const chain = connection();
-  for (let attempt = 0; attempt < 20; attempt++) {
-    const signature = await chain.requestAirdrop(to, sol * LAMPORTS_PER_SOL);
+  // About fifteen seconds of tries: enough for the slowest case, a chain that has only just started.
+  for (let attempt = 0; attempt < 60; attempt++) {
+    const signature = await requestAirdrop(to, sol * LAMPORTS_PER_SOL);
     if (handedOut.has(signature)) {
       await new Promise((resolve) => setTimeout(resolve, 250));
       continue;
@@ -40,6 +41,24 @@ async function airdropOnce(to: PublicKey, sol: number): Promise<string> {
     return signature;
   }
   throw new Error("the faucet is busy. Try again in a moment.");
+}
+
+/**
+ * Asks the validator's faucet directly, so the request can name the newest blockhash. Left
+ * to its default the faucet uses the last finalised one, which does not change for the first
+ * seconds of a new chain, and every airdrop in that time would be the same transaction.
+ */
+async function requestAirdrop(to: PublicKey, lamports: number): Promise<string> {
+  const { rpcUrl, rpcTimeoutMs } = settings();
+  const response = await fetch(rpcUrl, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "requestAirdrop", params: [to.toBase58(), lamports, { commitment: "processed" }] }),
+    signal: AbortSignal.timeout(rpcTimeoutMs),
+  });
+  const answer = (await response.json()) as { result?: string; error?: { message: string } };
+  if (typeof answer.result !== "string") throw new Error(`the faucet refused: ${answer.error?.message ?? "no reason given"}`);
+  return answer.result;
 }
 
 let running: Promise<void> | undefined;
