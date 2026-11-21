@@ -19,6 +19,7 @@ import {
   logsOf,
   onChain,
   restartServer,
+  settleNow,
   unknownSignature,
 } from "./helpers";
 
@@ -83,9 +84,9 @@ describe("launch", () => {
     const built = await call("launch/build", { wallet: outsider.address, mint: newActor().address, name: "Real", symbol: "REAL" });
     expect(built.transaction).toBeTruthy();
     expect(state().coins.length).toBe(before); // building is not launching
-    await expect(call("coin", { mint: newActor().address })).rejects.toThrow(/not launched here/);
-    await expect(call("ring/credit", { signature: unknownSignature() })).rejects.toThrow(/not confirmed/);
-    await expect(call("ring/credit", { signature: "1".repeat(88) })).rejects.toThrow(/not a transaction signature/);
+    await expect(call("coin", { mint: newActor().address })).rejects.toThrow(/not a pump\.fun coin on this chain/);
+    await expect(settleNow(unknownSignature())).rejects.toThrow(/not confirmed/);
+    await expect(call("tx/wait", { signature: "1".repeat(20) })).rejects.toThrow(/not a transaction signature/);
   });
 });
 
@@ -184,9 +185,12 @@ describe("public history, read from the chain", () => {
     const bought = await buyer.trade(launched.mint, "buy", SOL / 20n);
     const [solAfter, coinAfter] = [await onChain(buyer.address, NATIVE), await onChain(buyer.address, launched.mint)];
 
-    const onCurve = (await call("coin/activity", { mint: launched.mint })).activity;
-    expect(onCurve.map((entry) => entry.signature)).toEqual([bought.signature, launched.signature]);
-    expect(onCurve.every((entry) => !entry.failed && typeof entry.blockTime === "number")).toBe(true);
+    const onCurve = (await call("coin/trades", { mint: launched.mint })).trades;
+    expect(onCurve.map((trade) => trade.s)).toEqual([bought.signature]); // the launch made no first buy, so it is not a trade
+    expect(onCurve[0]).toMatchObject({ w: buyer.address, b: 1, tok: Number(bought.expected), v: "c" });
+    // What reached the curve: the SOL paid less pump.fun's own fee.
+    expect(onCurve[0]!.sol).toBeGreaterThan(Number(SOL / 20n) * 0.97);
+    expect(onCurve[0]!.sol).toBeLessThan(Number(SOL / 20n));
     const mine = (await call("wallet/activity", { wallet: buyer.address })).activity;
     expect(mine[0]!.signature).toBe(bought.signature);
     expect(mine).toHaveLength(2); // the faucet's airdrop, then the buy
@@ -203,8 +207,8 @@ describe("public history, read from the chain", () => {
   });
 
   it("refuses a malformed address, a coin that was not launched here, and reports an unknown signature as not found", async () => {
-    await expect(call("coin/activity", { mint: "nonsense" })).rejects.toThrow(/valid Solana address/);
-    await expect(call("coin/activity", { mint: newActor().address })).rejects.toThrow(/not launched here/);
+    await expect(call("coin/trades", { mint: "nonsense" })).rejects.toThrow(/valid Solana address/);
+    await expect(call("coin/trades", { mint: newActor().address })).rejects.toThrow(/not a pump\.fun coin on this chain/);
     await expect(call("wallet/activity", { wallet: "" })).rejects.toThrow(/wallet address/);
     expect((await call("wallet/activity", { wallet: newActor().address })).activity).toEqual([]);
     const missing = await call("tx/status", { signature: unknownSignature() });
@@ -212,22 +216,32 @@ describe("public history, read from the chain", () => {
   });
 });
 
-describe("the price record", () => {
-  it("keeps a reading each time the price is seen to change, oldest first, and refuses coins it does not know", async () => {
+describe("candles", () => {
+  it("are built from the trades themselves, join up, and are refused for coins that are not followed", async () => {
     const creator = await fundedClient();
     const launched = await creator.launch({ name: "Record", symbol: "RCRD" });
-    const first = BigInt((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
+    const first = Number((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
     await creator.trade(launched.mint, "buy", SOL / 20n);
-    const second = BigInt((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
+    const second = Number((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
     expect(second).toBeGreaterThan(first);
-    const { points } = await call("coin/prices", { mint: launched.mint });
-    expect(points.map((point) => BigInt(point.microLamportsPerCoin))).toEqual([first, second]);
-    expect(points[0]!.at).toBeLessThanOrEqual(points[1]!.at);
-    // Reading again without a trade adds nothing: the record is of changes, not of visits.
-    await call("coin", { mint: launched.mint });
-    expect((await call("coin/prices", { mint: launched.mint })).points).toHaveLength(2);
-    await expect(call("coin/prices", { mint: newActor().address })).rejects.toThrow(/not launched here/);
-    await expect(call("coin/prices", { mint: "x" })).rejects.toThrow(/valid Solana address/);
+    for (const tf of [1, 60, 300, 900, 3600, 86400]) {
+      const { candles } = await call("coin/candles", { mint: launched.mint, tf });
+      expect(candles).toHaveLength(1);
+      const [time, open, high, low, close, volume, trades, buys] = candles[0]!;
+      // It opens at the price before the first trade, so a coin's first candle starts where the curve started.
+      expect([open, high, low, close]).toEqual([first, second, first, second]);
+      expect([trades, buys]).toEqual([1, 1]);
+      expect(volume).toBeGreaterThan(Number(SOL / 20n) * 0.97); // what reached the curve, less pump.fun's own fee
+      expect(time! % tf).toBe(0);
+    }
+    await creator.trade(launched.mint, "sell", 1_000_000_000n);
+    const third = Number((await call("coin", { mint: launched.mint })).microLamportsPerCoin);
+    const day = (await call("coin/candles", { mint: launched.mint, tf: 86400 })).candles.at(-1)!;
+    expect(day.slice(1, 5)).toEqual([first, second, first, third]);
+    expect(day.slice(6)).toEqual([2, 1]);
+    await expect(call("coin/candles", { mint: newActor().address, tf: 60 })).rejects.toThrow(/not a pump\.fun coin on this chain/);
+    await expect(call("coin/candles", { mint: launched.mint, tf: 7 })).rejects.toThrow(/"tf" must be one of/);
+    await expect(call("coin/candles", { mint: "x", tf: 60 })).rejects.toThrow(/valid Solana address/);
   });
 });
 

@@ -18,6 +18,41 @@ export interface Settings {
   rpcTimeoutMs: number;
   /** Parts of the product that are built but switched off unless asked for. */
   features: Features;
+  /** This site's own fee. All zero unless set: see `Fees`. */
+  fees: Fees;
+  /** Extra addresses a signed transaction is also sent to, beside the main RPC. */
+  sendUrls: string[];
+  /** Where a tip to Jito's block builders is paid. Empty: no tip is ever added. Only exists on mainnet. */
+  jitoTipAccount: string;
+}
+
+/**
+ * The site's own fee, off by default. Rates are in hundredths of a percent. A fee is paid by its own
+ * instruction in the same transaction, to `wallet`, and is shown before anyone signs.
+ */
+export interface Fees {
+  wallet: string;
+  /** Share of the SOL a curve or pool trade moves. FEE_TRADE_BPS. */
+  tradeBps: number;
+  /** A fixed charge for a launch, in lamports. FEE_LAUNCH_LAMPORTS. */
+  launchLamports: bigint;
+  /** Share of an OTC block's price, paid by the buyer on top. FEE_OTC_BPS. */
+  otcBps: number;
+}
+export const MAX_FEE_BPS = 300;
+function feesFromEnv(): Fees {
+  const bps = (name: string): number => {
+    const value = Number(process.env[name] ?? "0");
+    if (!Number.isInteger(value) || value < 0 || value > MAX_FEE_BPS)
+      throw new Error(`${name} must be a whole number from 0 to ${MAX_FEE_BPS} (hundredths of a percent)`);
+    return value;
+  };
+  const launch = process.env.FEE_LAUNCH_LAMPORTS ?? "0";
+  if (!/^\d{1,12}$/.test(launch)) throw new Error("FEE_LAUNCH_LAMPORTS must be a whole number of lamports");
+  const fees: Fees = { wallet: process.env.FEE_WALLET ?? "", tradeBps: bps("FEE_TRADE_BPS"), launchLamports: BigInt(launch), otcBps: bps("FEE_OTC_BPS") };
+  if ((fees.tradeBps > 0 || fees.launchLamports > 0n || fees.otcBps > 0) && !/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(fees.wallet))
+    throw new Error("a fee is set but FEE_WALLET is not a wallet address");
+  return fees;
 }
 
 export interface Features {
@@ -58,6 +93,12 @@ export function settings(): Settings {
     pinataJwt: process.env.PINATA_JWT ?? "",
     rpcTimeoutMs,
     features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },
+    fees: feesFromEnv(),
+    sendUrls: (process.env.SEND_RPC_URLS ?? "")
+      .split(",")
+      .map((url) => url.trim())
+      .filter(Boolean),
+    jitoTipAccount: process.env.JITO_TIP_ACCOUNT ?? "",
   };
 }
 

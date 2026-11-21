@@ -122,7 +122,16 @@ export function TerminalPage() {
 }
 
 function Chosen({ coin }: { coin: CoinView }) {
-  const loadActivity = useCallback(() => api("coin/activity", { mint: coin.mint }), [coin.mint]);
+  const loadActivity = useCallback(
+    async () => ({
+      activity: (await api("coin/trades", { mint: coin.mint, limit: 20 })).trades.map((trade) => ({
+        signature: trade.s,
+        blockTime: Math.floor(trade.t / 1000),
+        failed: false,
+      })),
+    }),
+    [coin.mint],
+  );
   return (
     <>
       <div className="coin-head">

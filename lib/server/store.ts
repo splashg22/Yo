@@ -340,9 +340,18 @@ export async function storedText(): Promise<string> {
   return JSON.stringify((await readAll(database())).state);
 }
 
+/** Whatever else holds the database (the indexer) registers here, to be stopped before the database is let go. */
+const beforeClose = new Set<() => Promise<void>>();
+export function onForget(stop: () => Promise<void>): void {
+  beforeClose.add(stop);
+}
+
 /** Tests only: drop what is in memory, and let go of the database, so the next use starts from what is stored. */
 export function forget(): void {
   memory = undefined;
+  const stops = [...beforeClose];
+  beforeClose.clear();
+  if (stops.length > 0) closing = closing.then(() => Promise.all(stops.map((stop) => stop().catch(() => undefined)))).then(() => undefined);
   if (opened) {
     const previous = opened.store;
     closing = closing.then(() => previous.then((store) => store.close())).catch(() => undefined);

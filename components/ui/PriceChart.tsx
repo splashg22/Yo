@@ -18,9 +18,14 @@ export function PriceChart({ mint, version }: { mint: string; version: string })
   const [points, setPoints] = useState<Point[] | null>(null);
   const [problem, setProblem] = useState("");
   useEffect(() => {
-    api("coin/prices", { mint }).then(
+    api("coin/candles", { mint, tf: 60 }).then(
       (answer) => {
-        setPoints(answer.points);
+        // One reading per candle, plus where the first one opened, so a coin with a single trade still shows a line.
+        const first = answer.candles[0];
+        setPoints([
+          ...(first ? [{ at: first[0]! * 1000, microLamportsPerCoin: String(first[1]) }] : []),
+          ...answer.candles.map((candle) => ({ at: candle[0]! * 1000 + 59_000, microLamportsPerCoin: String(candle[4]) })),
+        ]);
         setProblem("");
       },
       (error: unknown) => setProblem(error instanceof Error ? error.message : String(error)),

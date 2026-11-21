@@ -4,6 +4,7 @@
  * that exist on devnet. Writes local/clone.json. Only needed again if pump.fun or the
  * Rings program change the accounts they use. Needs network.
  */
+import type * as PumpSdk from "@pump-fun/pump-sdk";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { writeFileSync } from "node:fs";
 
@@ -31,6 +32,42 @@ for (const instruction of instructions) {
   touched.add(instruction.programId.toBase58());
   for (const key of instruction.keys) touched.add(key.pubkey.toBase58());
 }
+// Graduation and trading in the pool afterwards: the pool program's own settings, the wallets its fees are paid to
+// (and their wrapped-SOL accounts, which a pool trade pays into), and everything the instruction that moves a
+// sold-out curve into a pool touches.
+const { createRequire } = await import("node:module");
+const { getAssociatedTokenAddressSync, NATIVE_MINT, TOKEN_2022_PROGRAM_ID, TOKEN_PROGRAM_ID } = await import("@solana/spl-token");
+const load = createRequire(import.meta.url);
+const pumpSdk = load("@pump-fun/pump-sdk") as typeof PumpSdk;
+const swapSdk = load("@pump-fun/pump-sdk/swap") as {
+  OnlinePumpAmmSdk: new (c: unknown) => { fetchGlobalConfigAccount(): Promise<{ protocolFeeRecipients: PublicKey[] }> };
+  PUMP_AMM_FEE_CONFIG_PDA: PublicKey;
+};
+const online = new pumpSdk.OnlinePumpSdk(connection());
+const global = await online.fetchGlobal();
+const migrate = await pumpSdk.PUMP_SDK.migrateInstruction({
+  withdrawAuthority: global.withdrawAuthority,
+  mint,
+  user: wallet,
+  tokenProgram: TOKEN_2022_PROGRAM_ID,
+});
+touched.add(migrate.programId.toBase58());
+for (const key of migrate.keys) touched.add(key.pubkey.toBase58());
+for (const key of [
+  pumpSdk.AMM_GLOBAL_PDA,
+  pumpSdk.AMM_GLOBAL_VOLUME_ACCUMULATOR_PDA,
+  pumpSdk.GLOBAL_VOLUME_ACCUMULATOR_PDA,
+  pumpSdk.PUMP_AMM_EVENT_AUTHORITY_PDA,
+  swapSdk.PUMP_AMM_FEE_CONFIG_PDA,
+  pumpSdk.PUMP_FEE_CONFIG_PDA,
+])
+  touched.add(key.toBase58());
+const ammConfig = await new swapSdk.OnlinePumpAmmSdk(connection()).fetchGlobalConfigAccount();
+for (const recipient of ammConfig.protocolFeeRecipients) {
+  if (recipient.equals(PublicKey.default)) continue;
+  touched.add(recipient.toBase58());
+  touched.add(getAssociatedTokenAddressSync(NATIVE_MINT, recipient, true, TOKEN_PROGRAM_ID).toBase58());
+}
 touched.delete(wallet.toBase58());
 touched.delete(mint.toBase58());
 
@@ -44,5 +81,8 @@ candidates.forEach((key, index) => {
   if (info.executable && info.owner.toBase58() === UPGRADEABLE_LOADER) programs.push(key);
   else if (!info.executable) accounts.push(key);
 });
-writeFileSync("local/clone.json", `${JSON.stringify({ source: "devnet", programs: programs.sort(), accounts: accounts.sort() }, null, 2)}\n`);
+// Accounts added by hand stay: they are needed by steps this script does not build.
+const { existsSync, readFileSync } = await import("node:fs");
+const extra = existsSync("local/clone.json") ? ((JSON.parse(readFileSync("local/clone.json", "utf8")) as { extra?: string[] }).extra ?? []) : [];
+writeFileSync("local/clone.json", `${JSON.stringify({ source: "devnet", programs: programs.sort(), accounts: accounts.sort(), extra }, null, 2)}\n`);
 console.log(`${programs.length} programs and ${accounts.length} accounts listed in local/clone.json`);

@@ -6,7 +6,7 @@ import { durable, save, state, type SealedWindow } from "../store";
 import { buildWindowLaunch } from "../transactions";
 import { addressOf, amountOf, plainText, text } from "../validate";
 import { LONGEST_WINDOW_HOURS, WINDOW_CAP_LAMPORTS, WINDOW_MIN_LAMPORTS, assertWindowsOn, refresh, totalOf, windowFor, windows } from "../windows";
-import { signedBody } from "./ring";
+import { readerOf, signedBody } from "./ring";
 import type { Handlers } from "./types";
 
 /** What anyone may see of a window: who opened it, when it closes, how many committed and how much in total. Not who committed what. */
@@ -40,7 +40,7 @@ export const windowOperations: Handlers<
 
   "window/mine": (input) => {
     assertWindowsOn();
-    const { wallet } = signedBody("window/mine", input);
+    const wallet = readerOf("window/mine", input);
     const commitments: Record<string, string> = {};
     for (const window of state().windows) if (window.commitments[wallet]) commitments[window.id] = window.commitments[wallet];
     return { commitments };

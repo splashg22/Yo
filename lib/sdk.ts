@@ -52,9 +52,25 @@ export class RingClient {
   private async signed<Name extends SignedOpName>(name: Name, input: Api[Name]["input"]): Promise<Api[Name]["output"]> {
     return this.transport(name, await signRequest(name, this.wallet.address, input, (message) => signMessage(this.wallet, message)));
   }
-  /** Signs a built transaction and has the server submit and settle it. */
-  private send(transaction: string, extraSeeds: Uint8Array[] = []): Promise<{ signature: string } & Settlement> {
-    return this.open("tx/send", { transaction: signTransaction(transaction, [this.wallet.seed, ...extraSeeds]) });
+  private opened: { token: string; expiresAt: number } | undefined;
+  /** This wallet's session with the server: one signature, then reads and uploads need no more until it ends. */
+  async session(): Promise<string> {
+    if (!this.opened || this.opened.expiresAt - Date.now() < 60_000) this.opened = await this.signed("session/open", {});
+    return this.opened.token;
+  }
+  /** Ends this wallet's session with the server. */
+  async signOut(): Promise<void> {
+    if (!this.opened) return;
+    const { token } = this.opened;
+    this.opened = undefined;
+    await this.open("session/close", { session: token });
+  }
+  /** Signs a built transaction, hands it to the server, and waits for the chain to confirm it and the server to record it. */
+  private async send(transaction: string, extraSeeds: Uint8Array[] = []): Promise<{ signature: string } & Settlement> {
+    let outcome = await this.open("tx/send", { transaction: signTransaction(transaction, [this.wallet.seed, ...extraSeeds]) });
+    for (let asked = 0; outcome.state === "sent" && asked < 8; asked++) outcome = await this.open("tx/wait", { signature: outcome.signature, ms: 20_000 });
+    if (outcome.state !== "confirmed") throw new Error(outcome.problem ?? "the transaction was sent but has not been confirmed");
+    return { signature: outcome.signature, credited: outcome.settlement?.credited ?? [], listed: outcome.settlement?.listed ?? [] };
   }
 
   /** Creates a coin on the curve and registers it with the Ring, in one transaction. */
@@ -69,6 +85,8 @@ export class RingClient {
       toRing: coin.toRing,
       description: coin.description,
       picture: coin.picture,
+      // A picture is taken only from a wallet that has signed in.
+      ...(coin.picture ? { session: await this.session() } : {}),
     });
     const sent = await this.send(built.transaction, [mint.seed]);
     return { mint: mint.address, signature: sent.signature, firstBuyTokens: BigInt(built.firstBuyTokens) };
@@ -97,6 +115,11 @@ export class RingClient {
   async trade(mint: string, side: "buy" | "sell", amount: bigint): Promise<{ signature: string; expected: bigint }> {
     const built = await this.open("trade/build", { wallet: this.address, mint, side, amount: amount.toString() });
     return { signature: (await this.send(built.transaction)).signature, expected: BigInt(built.expected) };
+  }
+  /** Makes the pool for a coin whose curve has sold out. */
+  async graduate(mint: string): Promise<{ signature: string }> {
+    const built = await this.open("graduate/build", { wallet: this.address, mint });
+    return { signature: (await this.send(built.transaction)).signature };
   }
   async claimFees(toRing = true): Promise<{ signature: string; claimed: bigint }> {
     const built = await this.open("fees/build", { wallet: this.address, toRing });

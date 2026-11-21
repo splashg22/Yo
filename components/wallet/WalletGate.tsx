@@ -13,26 +13,29 @@ export function WalletGate({ children }: { children: ReactNode }) {
   const [visible, setVisible] = useState(false);
   const [problem, setProblem] = useState("");
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState<number | null>(null);
   if (wallet.signer) return <>{children}</>;
 
+  // Turning the password into a key takes about a second. It runs in a worker, which reports how far along it is.
   const attempt = (task: () => void | Promise<void>) => {
     setBusy(true);
     setProblem("");
-    // Deriving the key from the password takes a moment and blocks; let "Working" paint first.
-    setTimeout(() => {
-      Promise.resolve()
-        .then(task)
-        .catch((error: unknown) => setProblem(error instanceof Error ? error.message : String(error)))
-        .finally(() => setBusy(false));
-    }, 30);
+    setProgress(null);
+    Promise.resolve()
+      .then(task)
+      .catch((error: unknown) => setProblem(error instanceof Error ? error.message : String(error)))
+      .finally(() => {
+        setBusy(false);
+        setProgress(null);
+      });
   };
   const creating = !wallet.hasBackup && !restoring;
   const submit = () => {
-    if (restoring) return attempt(() => wallet.restore(file, password));
-    if (wallet.hasBackup) return attempt(() => wallet.unlock(password));
+    if (restoring) return attempt(() => wallet.restore(file, password, setProgress));
+    if (wallet.hasBackup) return attempt(() => wallet.unlock(password, setProgress));
     return attempt(() => {
       if (password !== again) throw new Error("the two passwords differ");
-      wallet.create(password);
+      return wallet.create(password, setProgress);
     });
   };
 
@@ -116,7 +119,11 @@ export function WalletGate({ children }: { children: ReactNode }) {
         </div>
       )}
       <p className={`status-line ${problem ? "bad" : ""}`} role="status">
-        {busy ? "Working" : problem}
+        {busy
+          ? progress === null
+            ? "Working"
+            : `Unlocking, ${Math.round(progress * 100)}%`
+          : problem || (wallet.lockedBecause === "idle" ? "The wallet locked itself after a while without use." : "")}
       </p>
     </form>
   );

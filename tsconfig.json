@@ -36,7 +36,7 @@
     "*.config.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "proxy.ts"
+    "server"
   ],
   "exclude": ["node_modules", "prototypes"]
 }

@@ -1,44 +1,55 @@
-import { NextRequest } from "next/server";
 import { afterEach, describe, expect, it } from "vitest";
 import { settings } from "../../lib/server/env";
-import { POST } from "../../app/api/[...op]/route";
-import { proxy } from "../../proxy";
+import { contentSecurityPolicy, fixedHeaders } from "../../lib/server/headers";
+import { previewAllows } from "../../lib/server/preview";
 import { site } from "../../site.config";
 
-const visit = (path: string, authorization?: string) =>
-  proxy(new NextRequest(`http://localhost:4710${path}`, authorization ? { headers: { authorization } } : undefined));
 const basic = (user: string, password: string) => `Basic ${Buffer.from(`${user}:${password}`).toString("base64")}`;
 
 describe("the private preview", () => {
   afterEach(() => delete process.env.PREVIEW_PASSWORD);
 
-  it("serves everything when no password is set", () => {
-    expect(visit("/").status).toBe(200);
-    expect(visit("/api/explore").status).toBe(200);
+  it("lets everything through when no password is set", () => {
+    expect(previewAllows(undefined)).toBe(true);
   });
 
-  it("asks for the password on every page and request once one is set, and lets only the right one in", () => {
+  it("lets only the right password in once one is set", () => {
     process.env.PREVIEW_PASSWORD = "correct horse: battery";
-    for (const path of ["/", "/wallet", "/api/explore", "/media/og.png"]) {
-      const refused = visit(path);
-      expect(refused.status).toBe(401);
-      expect(refused.headers.get("www-authenticate")).toMatch(/^Basic /);
-    }
-    expect(visit("/", basic("anyone", "wrong")).status).toBe(401);
-    expect(visit("/", basic("anyone", "correct horse: battery ")).status).toBe(401);
-    expect(visit("/", basic("anyone", "")).status).toBe(401);
-    expect(visit("/", "Basic %%%not-base64%%%").status).toBe(401);
-    expect(visit("/", "Bearer correct horse: battery").status).toBe(401);
+    for (const wrong of [
+      undefined,
+      basic("anyone", "wrong"),
+      basic("anyone", "correct horse: battery "),
+      basic("anyone", ""),
+      "Basic %%%not-base64%%%",
+      "Bearer correct horse: battery",
+    ])
+      expect(previewAllows(wrong)).toBe(false);
     // Any user name; a password with a colon in it survives the user:password split.
-    expect(visit("/", basic("anyone", "correct horse: battery")).status).toBe(200);
-    expect(visit("/api/explore", basic("", "correct horse: battery")).status).toBe(200);
+    expect(previewAllows(basic("anyone", "correct horse: battery"))).toBe(true);
+    expect(previewAllows(basic("", "correct horse: battery"))).toBe(true);
+  });
+});
+
+describe("the security headers", () => {
+  it("let scripts run only with the request's nonce, never from text, and forbid framing", () => {
+    const policy = contentSecurityPolicy("abc123", { dev: false, imageHosts: [] });
+    expect(policy).toContain("script-src 'self' 'nonce-abc123' 'strict-dynamic' 'wasm-unsafe-eval';");
+    expect(policy).not.toContain(" 'unsafe-eval'");
+    expect(policy).not.toMatch(/script-src[^;]*unsafe-inline/);
+    for (const rule of ["default-src 'self'", "object-src 'none'", "base-uri 'none'", "frame-ancestors 'none'", "connect-src 'self'", "form-action 'self'"])
+      expect(policy).toContain(rule);
+    expect(contentSecurityPolicy("n", { dev: true, imageHosts: [] })).toContain("'unsafe-eval'"); // the framework's hot reload, in development only
+    expect(contentSecurityPolicy("n", { dev: false, imageHosts: ["https://gateway.pinata.cloud"] })).toContain(
+      "img-src 'self' data: blob: https://gateway.pinata.cloud",
+    );
   });
 
-  it("leaves only the health check open", () => {
-    process.env.PREVIEW_PASSWORD = "secret";
-    expect(visit("/health").status).toBe(200);
-    expect(visit("/health/").status).toBe(401);
-    expect(visit("/healthy").status).toBe(401);
+  it("send HSTS only over HTTPS, and switch off every device permission", () => {
+    expect(fixedHeaders(false)["strict-transport-security"]).toBeUndefined();
+    expect(fixedHeaders(true)["strict-transport-security"]).toMatch(/max-age=63072000/);
+    const permissions = fixedHeaders(true)["permissions-policy"]!;
+    for (const feature of ["camera", "microphone", "geolocation", "payment", "usb"]) expect(permissions).toContain(`${feature}=()`);
+    expect(fixedHeaders(false)).toMatchObject({ "x-frame-options": "DENY", "x-content-type-options": "nosniff", "referrer-policy": "no-referrer" });
   });
 });
 
@@ -61,29 +72,5 @@ describe("feature flags", () => {
 describe("who runs the site", () => {
   it("is a marked placeholder until the owner fills it in, never an invented name", () => {
     for (const value of Object.values(site.operator)) expect(value).toMatch(/^\[.*TO BE FILLED IN\]$/);
-  });
-});
-
-describe("the size of a request", () => {
-  const send = (body: string, declared?: string) =>
-    POST(new NextRequest("http://localhost:4710/api/config", { method: "POST", body, headers: declared ? { "content-length": declared } : undefined }), {
-      params: Promise.resolve({ op: ["config"] }),
-    });
-
-  it("is refused before it is read when it says it is too large, and after if it lied", async () => {
-    expect((await send("{}", "999999999")).status).toBe(413);
-    expect((await send("{}", "not-a-number")).status).toBe(413);
-    const oversized = await send(JSON.stringify({ padding: "x".repeat(2_400_000) }));
-    expect(oversized.status).toBe(413);
-    expect(await oversized.json()).toEqual({ error: "the request is too large" });
-  });
-
-  it("answers an ordinary request, and says plainly when the body is not a JSON object", async () => {
-    expect((await send("{}")).status).toBe(200);
-    for (const body of ["", "not json", "[]", "null", "7"]) {
-      const refused = await send(body);
-      expect(refused.status).toBe(400);
-      expect(await refused.json()).toEqual({ error: "the request body must be a JSON object" });
-    }
   });
 });

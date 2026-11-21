@@ -28,8 +28,8 @@ const post = async (origin, op, input = {}) => {
 };
 
 rmSync(".data-window", { recursive: true, force: true });
-const server = spawn("npx", ["next", "start", "-p", String(port)], {
-  env: { ...process.env, FEATURE_SEALED_WINDOW: "on", APP_DATA_DIR: ".data-window" },
+const server = spawn("node", ["dist/server.mjs"], {
+  env: { ...process.env, NODE_ENV: "production", PORT: String(port), FEATURE_SEALED_WINDOW: "on", APP_DATA_DIR: ".data-window", LOG_SILENT: "1" },
   stdio: "ignore",
   detached: true,
 });

@@ -110,4 +110,44 @@ served from memory.
 
 ## 3. What was fixed, and what is open
 
-(Filled in at the end of the rebuild.)
+Status on 21 November 2026. "Proven by" names the test that fails if it stops being true.
+
+| # | Finding | Now | Proven by |
+| --- | --- | --- | --- |
+| A1 | No indexer; coins read from the RPC per request | The indexer follows the chain; the board, a coin, its trades, candles, holders and a portfolio are served with **no chain call at all** | `test/flows/server.test.ts`, "reads never ask the chain about a coin" (counts calls: 0) |
+| A2 | Prices recorded only when somebody looked | Every trade is stored with the price before and after it | `test/unit/indexer.test.ts` |
+| A3 | No trades stored | A row per trade, keyed by transaction and place in it | same |
+| A4 | Polling | One websocket; batched, numbered, changes only; replay after a reconnect | `test/unit/live.test.ts`; `server.test.ts`, "live data" |
+| A5, A6, A7 | One JSON document; no database constraints; arrays searched linearly | Real tables, one transaction per step, a balance cannot go below zero, a signature cannot be credited twice | `test/unit/store.test.ts`, `test/unit/database.test.ts` |
+| A8 | A trade took two round trips and several RPC reads | Trades are built ahead of the click with one chain call each; the click signs and sends over the open websocket | `server.test.ts`, "the fast trade path" (under 100 ms) and "at most two calls" |
+| A9 | Sent once, to one RPC, no fee, no resend | Parallel routes, resend until confirmed or expired, priority fee and optional tip | `server.test.ts`; `test/flows/resilience.test.ts` |
+| A10 | One balance read per coin | Three calls however many coins, kept for a moment, dropped when the indexer sees a change | `server.test.ts` |
+| A11 | No caching | Hot reads come from memory; balances and activity are kept briefly | same |
+| A12 | Every caller counted as one | Counted by connection address by default; websocket connections and messages are limited too | `server.test.ts`, "counts each caller" |
+| A13 | Free-text logs | One JSON object per line, with levels; keys in URLs are removed | `lib/server/log.ts` |
+| A14 | Health said only "RPC answers" | Database, indexer lag in slots, live clients, sender queue, request percentiles, RPC calls by method; 503 when the indexer is behind | `server.test.ts` |
+| A15 | API inside the page framework | One server process (`server/`) | the whole flow suite runs on it |
+| A16 | No list endpoints to bound | Every list has a largest page size and refuses anything else | `test/flows/launch-and-market.test.ts` |
+
+The indexer's guarantees, each with its test in `test/unit/indexer.test.ts`:
+
+- order, and the curve, holders and candles equal to the chain's ("applies blocks in order");
+- candles for all six timeframes joining up across bucket boundaries;
+- a restart carries on from the cursor, picks up what it missed, and ends in the same state as an indexer
+  that never stopped;
+- the same block cannot be applied twice: the database refuses the second;
+- a reorganisation is undone and the new branch applied, ending in **exactly** the state a clean run over
+  the final chain reaches (trades, candles, holders, markets compared row by row);
+- a trade heard early is announced once and stored once;
+- while the chain cannot be read the indexer keeps trying, loses nothing, and says so on `/health`.
+
+### Open
+
+| Thing | Why it is open |
+| --- | --- |
+| The block follower reads every confirmed block through the RPC | Right for a local chain and workable on devnet. On mainnet a block is megabytes and the follower would need a streaming source (Helius LaserStream or a Geyser feed). The source is an interface (`ChainSource`) so one can be added. **Not built, not measured** |
+| Reorganisations on a real network | Proven on a made-up chain that forks on demand. A confirmed block being dropped on a real network is too rare to wait for. **Unverified against a real one** |
+| A Jito tip, and several send routes | The tip instruction and the parallel routes are built and unit-tested. Tip accounts exist only on mainnet, and a second route needs a second provider. **Unverified** |
+| Pool (graduated coin) trades | The indexer decodes pool events; the made-up chain has no pool, and the local validator does not hold the pool program yet. **Unverified until item 7 of the priority list** |
+| One server process | By design: the single-writer lock, the hub and the sender live in one process. Scaling out needs a shared message bus for the hub; nothing here needs it yet |
+| The stand-in ledger is held in memory in full | It is the stand-in. The real Ring replaces it (RING-PLAN.md) |

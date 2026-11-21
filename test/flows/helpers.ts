@@ -10,7 +10,8 @@ import { randomBytes } from "../../lib/bytes";
 import { newActor } from "../../lib/keys";
 import { RingClient, type Transport } from "../../lib/sdk";
 import { escrow } from "../../lib/server/escrow";
-import { run } from "../../lib/server/handlers";
+import { run, within } from "../../lib/server/handlers";
+import { reconcile, settle } from "../../lib/server/settle";
 import { ring } from "../../lib/server/ring";
 import { forget } from "../../lib/server/store";
 
@@ -32,6 +33,18 @@ export function freshServer(): void {
 
 /** Calls an operation directly, the way the HTTP route does. */
 export const call: Transport = (name, input = {}) => run(name, input as Record<string, unknown>);
+
+/** What the server does by itself when a transaction it sent is confirmed, and on its timer. Called directly: neither is open to the public. */
+export const settleNow = (signature: string) => within("settle", () => settle(signature));
+export const reconcileNow = () => within("reconcile", () => reconcile());
+
+/** Hands a signed transaction to the server and waits for the chain's verdict and the server's own record of it. */
+export async function sendAndWait(transaction: string) {
+  const sent = await call("tx/send", { transaction });
+  const outcome = sent.state === "sent" ? await call("tx/wait", { signature: sent.signature }) : sent;
+  if (outcome.state !== "confirmed") throw new Error(outcome.problem ?? `the transaction is ${outcome.state}`);
+  return outcome;
+}
 
 /** As if the server process had restarted: what is in memory is dropped and read again from disk. */
 export const restartServer = (): void => forget();

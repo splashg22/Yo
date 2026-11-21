@@ -16,7 +16,20 @@ import { preparing } from "../../lib/server/settle";
 import { ring } from "../../lib/server/ring";
 import { state } from "../../lib/server/store";
 import { signTransaction } from "../../lib/sign";
-import { RPC_URL, SOL, call, chain, expectCovered, freshServer, fundedClient, onChain, restartServer, unknownSignature } from "./helpers";
+import {
+  RPC_URL,
+  SOL,
+  call,
+  chain,
+  expectCovered,
+  freshServer,
+  fundedClient,
+  onChain,
+  reconcileNow,
+  restartServer,
+  settleNow,
+  unknownSignature,
+} from "./helpers";
 
 freshServer();
 let holder: RingClient, mint: string;
@@ -44,7 +57,7 @@ describe("crediting a deposit", () => {
     const signed = VersionedTransaction.deserialize(fromBase64(signTransaction(built.transaction, [holder.wallet.seed])));
     const signature = await chain.sendRawTransaction(signed.serialize());
     await chain.confirmTransaction(signature, "confirmed");
-    const results = await Promise.all(Array.from({ length: 5 }, () => call("ring/credit", { signature })));
+    const results = await Promise.all(Array.from({ length: 5 }, () => settleNow(signature)));
     expect(results.filter((result) => result.credited.length > 0)).toHaveLength(1);
     expect(await holder.ringBalance(NATIVE)).toBe(SOL);
     await expectCovered(NATIVE);
@@ -54,8 +67,10 @@ describe("crediting a deposit", () => {
     const before = await holder.ringBalance(NATIVE);
     const built = await call("ring/deposit/build", { wallet: holder.address, mint: NATIVE, amount: (SOL / 4n).toString() });
     // The browser's only call. It never comes back to ask for the credit.
-    await call("tx/send", { transaction: signTransaction(built.transaction, [holder.wallet.seed]) });
-    expect(await holder.ringBalance(NATIVE)).toBe(before + SOL / 4n);
+    const sent = await call("tx/send", { transaction: signTransaction(built.transaction, [holder.wallet.seed]) });
+    expect(sent.state).toBe("sent"); // the answer does not wait for the chain
+    // Nobody asks again. The server follows the transaction to the end and credits it by itself.
+    await expect.poll(() => holder.ringBalance(NATIVE), { timeout: 20_000, interval: 200 }).toBe(before + SOL / 4n);
   });
 
   it("recovers a deposit the server never heard about", async () => {
@@ -65,17 +80,17 @@ describe("crediting a deposit", () => {
     await chain.confirmTransaction(await chain.sendRawTransaction(signed.serialize()), "confirmed");
     expect(await holder.ringBalance(mint)).toBe(before); // on-chain, but not yet in the ledger
     restartServer();
-    const found = await call("ring/reconcile");
+    const found = await reconcileNow();
     expect(found.credited).toBe(1);
     expect(await holder.ringBalance(mint)).toBe(before + 7_000_000n);
-    expect((await call("ring/reconcile")).credited).toBe(0); // and only once
+    expect((await reconcileNow()).credited).toBe(0); // and only once
     await expectCovered(mint);
   });
 
   it("only ever credits the wallet that paid, whoever asks", async () => {
     const sent = await holder.deposit(NATIVE, SOL / 10n);
     const thief = new RingClient(call, newActor());
-    expect((await call("ring/credit", { signature: sent.signature })).credited).toEqual([]);
+    expect((await settleNow(sent.signature)).credited).toEqual([]);
     expect(await thief.ringBalance(NATIVE)).toBe(0n);
   });
 });
@@ -97,7 +112,7 @@ describe("a withdrawal whose outcome is uncertain", () => {
     const event = state().events.find((candidate) => candidate.id === result.event.id)!;
     event.pending = true;
     state().pendingPayouts.push({ eventId: event.id, signature: result.signature, lastValidBlockHeight: (await chain.getBlockHeight()) + 100 });
-    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect((await reconcileNow()).payoutsResolved).toBe(1);
     expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 10n - PAYOUT_FEE_LAMPORTS); // paid out once, debited once, with its fee
     expect(state().events.find((candidate) => candidate.id === event.id)!.pending).toBeUndefined();
     expect(state().pendingPayouts).toEqual([]);
@@ -108,7 +123,7 @@ describe("a withdrawal whose outcome is uncertain", () => {
     const event = ring.debitForWithdrawal(holder.address, NATIVE, SOL / 10n, holder.address);
     state().pendingPayouts.push({ eventId: event.id, signature: unknownSignature(), lastValidBlockHeight: 1 }); // its window closed long ago
     expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 10n);
-    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect((await reconcileNow()).payoutsResolved).toBe(1);
     expect(await holder.ringBalance(NATIVE)).toBe(before);
     ring.undoWithdrawal(event.id); // a second undo must do nothing
     expect(await holder.ringBalance(NATIVE)).toBe(before);
@@ -138,7 +153,7 @@ describe("a withdrawal whose outcome is uncertain", () => {
     expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 100n - cost.lamports);
     // Here it never reached the chain. Once its window has closed, that is certain, and the coins and the fee come back.
     state().pendingPayouts[state().pendingPayouts.length - 1]!.lastValidBlockHeight = 1;
-    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect((await reconcileNow()).payoutsResolved).toBe(1);
     expect(await holder.ringBalance(NATIVE)).toBe(before);
     expect(await onChain(destination, NATIVE)).toBe(0n);
     // A refusal before broadcast is the one case that is certain at once: a payout that fails its simulation is not sent.
@@ -152,13 +167,13 @@ describe("a withdrawal whose outcome is uncertain", () => {
     const event = ring.debitForWithdrawal(holder.address, NATIVE, SOL / 100n, holder.address, PAYOUT_FEE_LAMPORTS);
     restartServer();
     expect(await holder.ringBalance(NATIVE)).toBe(before - SOL / 100n - PAYOUT_FEE_LAMPORTS);
-    expect((await call("ring/reconcile")).payoutsResolved).toBe(1);
+    expect((await reconcileNow()).payoutsResolved).toBe(1);
     expect(await holder.ringBalance(NATIVE)).toBe(before);
     expect((await holder.ringHistory()).some((seen) => seen.id === event.id)).toBe(false);
     // One that is being prepared at this very moment is left alone.
     const live = ring.debitForWithdrawal(holder.address, NATIVE, 1_000n, holder.address, PAYOUT_FEE_LAMPORTS);
     preparing.add(live.id);
-    expect((await call("ring/reconcile")).payoutsResolved).toBe(0);
+    expect((await reconcileNow()).payoutsResolved).toBe(0);
     preparing.delete(live.id);
     ring.undoWithdrawal(live.id);
     expect(await holder.ringBalance(NATIVE)).toBe(before);
@@ -169,10 +184,10 @@ describe("a withdrawal whose outcome is uncertain", () => {
     state().pendingPayouts.push({ eventId: event.id, signature: unknownSignature(), lastValidBlockHeight: 1 });
     // The first thing reconcile does is ask the chain; with no chain it must fail without touching the ledger.
     await withDeadChain(async () => {
-      await expect(call("ring/reconcile")).rejects.toThrow(/chain is not answering/);
+      await expect(reconcileNow()).rejects.toThrow(/chain is not answering/);
     });
     expect(state().pendingPayouts).toHaveLength(1);
-    await call("ring/reconcile");
+    await reconcileNow();
     expect(state().pendingPayouts).toEqual([]);
   });
 });
@@ -183,8 +198,7 @@ describe("a dead or slow chain", () => {
     const started = Date.now();
     await withDeadChain(async () => {
       for (const attempt of [
-        () => call("explore"),
-        () => call("wallet/public", { wallet: holder.address }),
+        () => call("wallet/public", { wallet: newActor().address }),
         () => call("launch/build", { wallet: holder.address, mint: newActor().address, name: "X", symbol: "X" }),
         () => call("trade/build", { wallet: holder.address, mint, side: "buy", amount: "1000000" }),
         () => call("ring/deposit/build", { wallet: holder.address, mint, amount: "1" }),
@@ -193,6 +207,9 @@ describe("a dead or slow chain", () => {
       ]) {
         await expect(attempt()).rejects.toThrow(/^the chain is not answering\. Nothing was sent\. Try again in a moment\.$/);
       }
+      // What the indexer already holds is still served: the board and a coin's page do not need the chain to answer.
+      expect((await call("explore")).coins.some((coin) => coin.mint === mint)).toBe(true);
+      expect((await call("coin", { mint })).mint).toBe(mint);
       const status = await call("status");
       expect(status.chain.reachable).toBe(false);
       expect(status.chain.problem).toMatch(/not answering/);
@@ -240,9 +257,13 @@ describe("transactions", () => {
     const before = await holder.ringBalance(NATIVE);
     const built = await call("ring/deposit/build", { wallet: holder.address, mint: NATIVE, amount: (SOL / 20n).toString() });
     const signed = signTransaction(built.transaction, [holder.wallet.seed]);
-    await call("tx/send", { transaction: signed });
-    await expect(call("tx/send", { transaction: signed })).rejects.toThrow(/already/);
+    const first = await call("tx/send", { transaction: signed });
+    // Sending it again is answered with the same transaction, not a second one.
+    expect((await call("tx/send", { transaction: signed })).signature).toBe(first.signature);
+    expect((await call("tx/wait", { signature: first.signature })).state).toBe("confirmed");
+    expect((await call("tx/send", { transaction: signed })).state).toBe("confirmed");
     expect(await holder.ringBalance(NATIVE)).toBe(before + SOL / 20n);
+    expect((await reconcileNow()).credited).toBe(0);
   });
 });
 

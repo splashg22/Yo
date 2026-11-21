@@ -384,7 +384,7 @@ await check("a chain that freezes for five seconds mid-deposit: the action finis
     },
   );
   const said = await page.evaluate(() => document.querySelector(".status-line").innerText);
-  await app("ring/reconcile");
+  await reconcileNow();
   if (!(await app("status")).escrow.every((row) => row.covered)) throw new Error("escrow no longer covers what it owes");
   return said;
 });
@@ -546,11 +546,20 @@ await check("the site's own server stops answering: pages say so and offer a ret
   return said;
 });
 
-await check("the chain stops answering: a second server pointed at a dead address explains it on every page within its time limit", async () => {
+await check("the chain stops answering: a second server pointed at a dead address says so, still serves what it has stored, and refuses to send", async () => {
   const port = 4712;
   cpSync(".data", ".data-dead", { recursive: true }); // the same coins and balances, so there is something the chain is needed for
-  const server = spawn("npx", ["next", "start", "-p", String(port)], {
-    env: { ...process.env, LOCAL_RPC_URL: "http://127.0.0.1:1", RPC_TIMEOUT_MS: "1500", APP_DATA_DIR: ".data-dead" },
+  rmSync(".data-dead/writer.lock", { force: true }); // the copy is this second server's own; the lock named the first
+  const server = spawn("node", ["dist/server.mjs"], {
+    env: {
+      ...process.env,
+      NODE_ENV: "production",
+      PORT: String(port),
+      LOCAL_RPC_URL: "http://127.0.0.1:1",
+      RPC_TIMEOUT_MS: "1500",
+      APP_DATA_DIR: ".data-dead",
+      LOG_SILENT: "1",
+    },
     stdio: "ignore",
     detached: true,
   });
@@ -568,16 +577,25 @@ await check("the chain stops answering: a second server pointed at a dead addres
     }
     const visitor = await open();
     const heard = [];
-    for (const path of ["/status", "/explore", `/coin/${coin.mint}`]) {
-      const started = Date.now();
+    // The status page states it in its own row.
+    let started = Date.now();
+    await visitor.goto(`${dead}/status`);
+    await visitor
+      .waitForFunction(() => /not answering|could not be reached/i.test(document.querySelector("main").innerText), null, { timeout: 20000 })
+      .catch(() => undefined);
+    const status = await visitor.locator("main").innerText();
+    if (!/not answering|could not be reached|cannot reach|unreachable/i.test(status)) throw new Error(`/status: ${status.replace(/\s+/g, " ").slice(0, 200)}`);
+    heard.push(`/status in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+    // What the indexer already holds needs no chain: the board and a coin's page are still served, from what was stored.
+    for (const path of ["/explore", `/coin/${coin.mint}`]) {
+      started = Date.now();
       await visitor.goto(dead + path);
-      // The status page states it in its own row; the others raise a notice.
       await visitor
-        .waitForFunction(() => /not answering|could not be reached/i.test(document.querySelector("main").innerText), null, { timeout: 20000 })
+        .waitForFunction((symbol) => document.querySelector("main").innerText.includes(symbol), coin.symbol, { timeout: 20000 })
         .catch(() => undefined);
       const text = await visitor.locator("main").innerText();
-      if (!/not answering|could not be reached|cannot reach|unreachable/i.test(text)) throw new Error(`${path}: ${text.replace(/\s+/g, " ").slice(0, 200)}`);
-      heard.push(`${path} in ${((Date.now() - started) / 1000).toFixed(1)}s`);
+      if (!text.includes(coin.symbol)) throw new Error(`${path} did not show the coin from what is stored: ${text.replace(/\s+/g, " ").slice(0, 200)}`);
+      heard.push(`${path} still served in ${((Date.now() - started) / 1000).toFixed(1)}s`);
     }
     await visitor.goto(`${dead}/wallet`);
     await visitor.fill("#wallet-password", PASSWORD);
@@ -596,9 +614,19 @@ await check("the chain stops answering: a second server pointed at a dead addres
   }
 });
 
+/** The server's own housekeeping, run now. Open only to whoever holds the server's ADMIN_TOKEN. */
+async function reconcileNow() {
+  const response = await fetch(`${base}/admin/reconcile`, {
+    method: "POST",
+    headers: { authorization: `Bearer ${process.env.CHECK_ADMIN_TOKEN ?? "local-check"}` },
+  });
+  if (!response.ok) throw new Error(`reconcile answered ${response.status}. Start the server with ADMIN_TOKEN=local-check, or set CHECK_ADMIN_TOKEN to match.`);
+  return response.json();
+}
+
 // ---- after all of that -----------------------------------------------------------------------
 await check("after everything above, escrow on the chain still covers every Ring balance, and no payout is stuck", async () => {
-  await app("ring/reconcile");
+  await reconcileNow();
   const status = await app("status");
   for (const row of status.escrow) {
     const held = await onChain(escrow, row.mint);

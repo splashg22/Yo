@@ -4,11 +4,22 @@ import { settings } from "./env";
 
 let cached: { url: string; timeout: number; connection: Connection } | undefined;
 
+/** How many calls have gone to the chain since the start, by method. Read by the health page and by tests that hold reads to a budget. */
+export const rpcCalls = new Map<string, number>();
+export const rpcCallTotal = (): number => [...rpcCalls.values()].reduce((sum, count) => sum + count, 0);
+function count(body: unknown): void {
+  if (typeof body !== "string") return;
+  for (const match of body.matchAll(/"method":"(\w+)"/g)) rpcCalls.set(match[1]!, (rpcCalls.get(match[1]!) ?? 0) + 1);
+}
+
 /** One connection per RPC address. Every call gives up after the configured timeout instead of hanging. */
 export function connection(): Connection {
   const { rpcUrl, rpcTimeoutMs } = settings();
   if (cached?.url !== rpcUrl || cached.timeout !== rpcTimeoutMs) {
-    const timed: typeof fetch = (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(rpcTimeoutMs) });
+    const timed: typeof fetch = (input, init) => {
+      count(init?.body);
+      return fetch(input, { ...init, signal: AbortSignal.timeout(rpcTimeoutMs) });
+    };
     cached = {
       url: rpcUrl,
       timeout: rpcTimeoutMs,

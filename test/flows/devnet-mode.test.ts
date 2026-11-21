@@ -12,7 +12,7 @@ import { RingClient } from "../../lib/sdk";
 import { settings } from "../../lib/server/env";
 import { devnetOpsKey } from "../../lib/server/opskey";
 import { devnetSetup } from "../../scripts/devnet-setup";
-import { PUMP_PROGRAM, RING_PROGRAM, RPC_URL, SOL, call, chain, freshServer, logsOf, onChain } from "./helpers";
+import { PUMP_PROGRAM, RING_PROGRAM, RPC_URL, SOL, call, chain, freshServer, logsOf, onChain, reconcileNow } from "./helpers";
 
 freshServer();
 async function funded(): Promise<RingClient> {
@@ -66,7 +66,7 @@ describe("what works without the stand-in Ring", () => {
     const bought = await buyer.trade(launched.mint, "buy", SOL / 20n);
     expect(await onChain(buyer.address, launched.mint)).toBe(bought.expected);
     await buyer.trade(launched.mint, "sell", bought.expected / 2n);
-    expect((await call("coin/activity", { mint: launched.mint })).activity).toHaveLength(3);
+    expect((await call("coin/trades", { mint: launched.mint })).trades.map((trade) => trade.b)).toEqual([0, 1]); // newest first: the sell, then the buy
     const receipt = await call("tx/status", { signature: bought.signature });
     expect(receipt).toMatchObject({ status: "confirmed", payer: buyer.address, deposits: [] });
     expect((await call("stats", {})).launched).toBe(1);
@@ -83,7 +83,7 @@ describe("what works without the stand-in Ring", () => {
       /not connected on this network/,
     );
     await expect(call("fees/build", { wallet: creator.address, toRing: true })).rejects.toThrow(/no creator fees|not connected on this network/);
-    expect(await call("ring/reconcile", {})).toEqual({ credited: 0, payoutsResolved: 0 });
+    expect(await reconcileNow()).toEqual({ credited: 0, payoutsResolved: 0 });
   });
 });
 

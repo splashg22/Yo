@@ -8,6 +8,7 @@ export default defineConfig({
     include: ["test/flows/**/*.test.ts"],
     globalSetup: ["test/flows/global-setup.ts"],
     fileParallelism: false, // the flow tests share one local chain
+    env: { LOG_LEVEL: "error" },
     testTimeout: 90_000,
     hookTimeout: 240_000,
   },

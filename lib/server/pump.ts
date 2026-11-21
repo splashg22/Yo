@@ -11,6 +11,9 @@ import BN from "bn.js";
 import { createRequire } from "node:module";
 import { COIN_DECIMALS, NATIVE } from "../constants";
 import { connection } from "./solana";
+import { pumpSettings, tokenProgramOf } from "./warm";
+
+export { tokenProgramOf };
 
 // The pump SDK only loads as CommonJS: one of its dependencies breaks under ES modules.
 const sdk = createRequire(import.meta.url)("@pump-fun/pump-sdk") as typeof PumpSdk;
@@ -19,11 +22,9 @@ const MICRO = 1_000_000n;
 const toBig = (value: BN): bigint => BigInt(value.toString());
 const toBN = (value: bigint): BN => new BN(value.toString());
 
+/** pump.fun's settings, from the warm cache: read from the chain once a minute at most. */
 export async function pumpState() {
-  const online = new sdk.OnlinePumpSdk(connection());
-  // The fee configuration account is optional on-chain; without it the SDK falls back to the global rates.
-  const [global, feeConfig] = await Promise.all([online.fetchGlobal(), online.fetchFeeConfig().catch(() => null)]);
-  return { online, global, feeConfig };
+  return { online: new sdk.OnlinePumpSdk(connection()), ...(await pumpSettings()) };
 }
 
 const toWeb3 = (instruction: Instruction): TransactionInstruction =>
@@ -93,31 +94,41 @@ export async function launchInstructions(input: {
   return { instructions, firstBuyTokens };
 }
 
-export async function tokenProgramOf(mint: string): Promise<PublicKey> {
-  const info = await connection().getAccountInfo(new PublicKey(mint));
-  if (!info) throw new Error("that coin does not exist on this chain");
-  return info.owner;
-}
-
 export interface TradePlan {
   instructions: TransactionInstruction[];
   /** What the trade should deliver at the current price: coins for a buy, lamports for a sell. */
   expected: bigint;
+  /** Lamports the trade moves at the current price: paid on a buy, received on a sell. What a fee is a share of. */
+  lamports: bigint;
 }
 
-/** A public buy (amount in lamports) or sell (amount in coin base units) on the curve. */
+/** The balance in a token account's data, or zero if there is no account. */
+const heldIn = (info: { data: Buffer } | null): bigint => (info && info.data.length >= 72 ? info.data.readBigUInt64LE(64) : 0n);
+
+/**
+ * A public buy (amount in lamports) or sell (amount in coin base units) on the curve.
+ * One call to the chain: the curve and the wallet's coin account, read together. Everything else is warm.
+ */
 export async function tradeInstructions(input: {
   wallet: PublicKey;
   mint: PublicKey;
   side: "buy" | "sell";
   amount: bigint;
   slippagePercent: number;
+  /** Known to have graduated: go straight to the pool, without reading the curve first. */
+  graduated?: boolean;
 }): Promise<TradePlan> {
-  const { online, global, feeConfig } = await pumpState();
-  const tokenProgram = await tokenProgramOf(input.mint.toBase58());
+  if (input.graduated) return poolTradeInstructions(input);
+  const [{ global, feeConfig }, tokenProgram] = await Promise.all([pumpSettings(), tokenProgramOf(input.mint.toBase58())]);
+  const [bondingCurveAccountInfo, associatedUserAccountInfo] = await connection().getMultipleAccountsInfo([
+    sdk.bondingCurvePda(input.mint),
+    getAssociatedTokenAddressSync(input.mint, input.wallet, true, tokenProgram),
+  ]);
+  if (!bondingCurveAccountInfo) throw new Error("that coin has no bonding curve on this chain");
+  const bondingCurve = sdk.PUMP_SDK.decodeBondingCurve(bondingCurveAccountInfo);
+  // A curve that has sold out no longer trades. The coin trades in its pool from then on, if the pool has been made.
+  if (bondingCurve.complete) return poolTradeInstructions(input);
   if (input.side === "buy") {
-    const { bondingCurveAccountInfo, bondingCurve, associatedUserAccountInfo } = await online.fetchBuyState(input.mint, input.wallet, tokenProgram);
-    if (bondingCurve.complete) throw new Error("this curve has completed; the coin no longer trades here");
     const solAmount = toBN(input.amount);
     const amount = sdk.getBuyTokenAmountFromSolAmount({
       global,
@@ -132,7 +143,7 @@ export async function tradeInstructions(input: {
       global,
       bondingCurveAccountInfo,
       bondingCurve,
-      associatedUserAccountInfo,
+      associatedUserAccountInfo: associatedUserAccountInfo ?? null,
       mint: input.mint,
       user: input.wallet,
       amount,
@@ -140,20 +151,10 @@ export async function tradeInstructions(input: {
       slippage: input.slippagePercent,
       tokenProgram,
     });
-    return { instructions, expected: toBig(amount) };
+    return { instructions, expected: toBig(amount), lamports: input.amount };
   }
-  const held = await connection()
-    .getTokenAccountBalance(getAssociatedTokenAddressSync(input.mint, input.wallet, true, tokenProgram))
-    .then(
-      (balance) => BigInt(balance.value.amount),
-      (error: unknown) => {
-        if (/could not find account|Invalid param/i.test(String(error))) return 0n; // the wallet has never held this coin
-        throw error;
-      },
-    );
+  const held = heldIn(associatedUserAccountInfo ?? null);
   if (held < input.amount) throw new Error(held === 0n ? "you hold none of this coin in your wallet" : "you hold less than that in your wallet");
-  const { bondingCurveAccountInfo, bondingCurve } = await online.fetchSellState(input.mint, input.wallet, tokenProgram);
-  if (bondingCurve.complete) throw new Error("this curve has completed; the coin no longer trades here");
   const amount = toBN(input.amount);
   const solAmount = sdk.getSellSolAmountFromTokenAmount({ global, feeConfig, mintSupply: bondingCurve.tokenTotalSupply, bondingCurve, amount });
   if (toBig(solAmount) <= 0n) throw new Error("that is too few coins to sell for anything");
@@ -169,7 +170,141 @@ export async function tradeInstructions(input: {
     tokenProgram,
     mayhemMode: false,
   });
-  return { instructions, expected: toBig(solAmount) };
+  return { instructions, expected: toBig(solAmount), lamports: toBig(solAmount) };
+}
+
+// ---- after graduation: the coin's pool ------------------------------------------------------------
+
+interface SwapState {
+  pool: {
+    coinCreator: PublicKey;
+    creator: PublicKey;
+    virtualQuoteReserves: BN;
+    protocolFees: BN;
+    creatorFees: BN;
+    quoteMint: PublicKey;
+    isMayhemMode: boolean;
+    creatorFeeBps: BN;
+  };
+  poolBaseAmount: BN;
+  poolQuoteAmount: BN;
+  userBaseAccountInfo: { data: Buffer } | null;
+  [key: string]: unknown;
+}
+interface SwapSdk {
+  OnlinePumpAmmSdk: new (chain: unknown) => { swapSolanaState(pool: PublicKey, user: PublicKey): Promise<SwapState> };
+  PumpAmmSdk: new () => {
+    buyInstructions(state: SwapState, baseOut: BN, maxQuoteIn: BN): Promise<TransactionInstruction[]>;
+    sellInstructions(state: SwapState, baseIn: BN, minQuoteOut: BN): Promise<TransactionInstruction[]>;
+  };
+  buyQuoteInput(input: Record<string, unknown>): { base: BN; maxQuote: BN };
+  sellBaseInput(input: Record<string, unknown>): { uiQuote: BN; minQuote: BN };
+  GLOBAL_CONFIG_PDA: PublicKey;
+  PUMP_AMM_FEE_CONFIG_PDA: PublicKey;
+}
+const swap = createRequire(import.meta.url)("@pump-fun/pump-sdk/swap") as SwapSdk;
+const WSOL = "So11111111111111111111111111111111111111112";
+
+/** Accounts that do not change from one trade to the next (the pool program's settings, a pool's own record, a coin's mint), kept for a minute. */
+const settled = new Map<string, { at: number; info: unknown }>();
+const SETTLED_MS = 60_000;
+/**
+ * The chain as the pool SDK sees it: the same connection, except that accounts known not to change are
+ * answered from memory. The SDK asks for a pool's state in three batches; with this, two of them reach the chain.
+ */
+function throughCache(steady: Set<string>) {
+  const chain = connection();
+  return new Proxy(chain, {
+    get(target, property, receiver) {
+      if (property !== "getMultipleAccountsInfo") return Reflect.get(target, property, receiver) as unknown;
+      return async (keys: PublicKey[], ...rest: unknown[]) => {
+        const now = Date.now();
+        const answers = new Array<unknown>(keys.length);
+        const missing: number[] = [];
+        keys.forEach((key, index) => {
+          const kept = settled.get(`${chain.rpcEndpoint}|${key.toBase58()}`);
+          if (kept && now - kept.at < SETTLED_MS) answers[index] = kept.info;
+          else missing.push(index);
+        });
+        if (missing.length > 0) {
+          const fetched = await (target.getMultipleAccountsInfo as (keys: PublicKey[], ...rest: unknown[]) => Promise<unknown[]>)(
+            missing.map((index) => keys[index]!),
+            ...rest,
+          );
+          missing.forEach((index, place) => {
+            answers[index] = fetched[place];
+            const key = keys[index]!.toBase58();
+            if (steady.has(key) && fetched[place] !== null) settled.set(`${chain.rpcEndpoint}|${key}`, { at: now, info: fetched[place] });
+          });
+        }
+        return answers;
+      };
+    },
+  });
+}
+
+/** A public buy or sell of a graduated coin, in its pump.fun pool. */
+async function poolTradeInstructions(input: {
+  wallet: PublicKey;
+  mint: PublicKey;
+  side: "buy" | "sell";
+  amount: bigint;
+  slippagePercent: number;
+}): Promise<TradePlan> {
+  const pool = sdk.canonicalPumpPoolPda(input.mint);
+  const steady = new Set([swap.GLOBAL_CONFIG_PDA.toBase58(), swap.PUMP_AMM_FEE_CONFIG_PDA.toBase58(), pool.toBase58(), input.mint.toBase58(), WSOL]);
+  let state: SwapState;
+  try {
+    state = await new swap.OnlinePumpAmmSdk(throughCache(steady)).swapSolanaState(pool, input.wallet);
+  } catch (error) {
+    if (/Pool account not found/.test(String(error)))
+      throw new Error("this coin has sold out its curve and its pool has not been made yet. It cannot be traded until it has.");
+    throw error;
+  }
+  const common = {
+    slippage: input.slippagePercent,
+    quoteTransferFee: state.quoteTransferFee,
+    baseReserve: state.poolBaseAmount,
+    quoteReserve: state.poolQuoteAmount,
+    virtualQuoteReserves: state.pool.virtualQuoteReserves,
+    baseMintAccount: state.baseMintAccount,
+    baseMint: state.baseMint,
+    coinCreator: state.pool.coinCreator,
+    creator: state.pool.creator,
+    feeConfig: state.feeConfig,
+    globalConfig: state.globalConfig,
+    quoteMint: state.pool.quoteMint,
+    isMayhemMode: state.pool.isMayhemMode,
+    creatorFeeBps: state.pool.creatorFeeBps,
+  };
+  const amm = new swap.PumpAmmSdk();
+  if (input.side === "buy") {
+    const quote = swap.buyQuoteInput({ ...common, quote: toBN(input.amount), tradeV2: false });
+    if (toBig(quote.base) <= 0n) throw new Error("that is too little SOL to buy anything");
+    return { instructions: await amm.buyInstructions(state, quote.base, quote.maxQuote), expected: toBig(quote.base), lamports: input.amount };
+  }
+  const held = heldIn(state.userBaseAccountInfo);
+  if (held < input.amount) throw new Error(held === 0n ? "you hold none of this coin in your wallet" : "you hold less than that in your wallet");
+  const quote = swap.sellBaseInput({ ...common, base: toBN(input.amount), feeBucketsTotal: state.pool.protocolFees.add(state.pool.creatorFees) });
+  if (toBig(quote.uiQuote) <= 0n) throw new Error("that is too few coins to sell for anything");
+  return {
+    instructions: await amm.sellInstructions(state, toBN(input.amount), quote.minQuote),
+    expected: toBig(quote.uiQuote),
+    lamports: toBig(quote.uiQuote),
+  };
+}
+
+/**
+ * Moves a sold-out curve's coins and SOL into its pool. pump.fun's program lets anyone do this once the curve
+ * is complete; on its main network its own service does it within moments. Here whoever is first may.
+ */
+export async function graduateInstructions(wallet: PublicKey, mint: PublicKey): Promise<TransactionInstruction[]> {
+  const [{ global }, tokenProgram] = await Promise.all([pumpSettings(), tokenProgramOf(mint.toBase58())]);
+  const [curveInfo, poolInfo] = await connection().getMultipleAccountsInfo([sdk.bondingCurvePda(mint), sdk.canonicalPumpPoolPda(mint)]);
+  if (!curveInfo) throw new Error("that coin has no bonding curve on this chain");
+  if (!sdk.PUMP_SDK.decodeBondingCurve(curveInfo).complete) throw new Error("this coin's curve has not sold out yet, so there is nothing to move to a pool");
+  if (poolInfo) throw new Error("this coin's pool has already been made");
+  return [await sdk.PUMP_SDK.migrateInstruction({ withdrawAuthority: global.withdrawAuthority, mint, user: wallet, tokenProgram })];
 }
 
 export async function claimableFees(wallet: string): Promise<bigint> {

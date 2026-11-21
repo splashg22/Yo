@@ -502,7 +502,8 @@ await step("privacy score, three times: the coin page's two figures are the chai
   });
   // The price record: a drawn line, and a low and a high that are the lowest and highest readings the server holds.
   await ana.waitForSelector(".chart svg path");
-  const readings = (await app("coin/prices", { mint })).points.map((point) => BigInt(point.microLamportsPerCoin));
+  const minutes = (await app("coin/candles", { mint, tf: 60 })).candles;
+  const readings = [minutes[0][1], ...minutes.map((candle) => candle[4])].map((price) => BigInt(price));
   const caption = (await ana.locator(".chart figcaption").innerText()).replace(/\s+/g, " ");
   const [lowest, highest] = [readings.reduce((a, b) => (b < a ? b : a)), readings.reduce((a, b) => (b > a ? b : a))];
   if (!caption.includes(`LOW ${formatPrice(lowest)}`) || !caption.includes(`HIGH ${formatPrice(highest)}`) || !caption.includes(`READINGS ${readings.length}`))

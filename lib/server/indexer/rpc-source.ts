@@ -1,5 +1,5 @@
 /** The chain, read through the RPC: confirmed blocks in order, and a subscription that hears of trades before their block is read. */
-import type { CompiledInstruction, Connection, MessageCompiledInstruction, PublicKey, VersionedBlockResponse } from "@solana/web3.js";
+import { PublicKey, type CompiledInstruction, type Connection, type MessageCompiledInstruction, type VersionedBlockResponse } from "@solana/web3.js";
 import bs58 from "bs58";
 import { AMM_PROGRAM, PUMP_PROGRAM, eventsInCalls, eventsInLogs } from "./decode";
 import type { ChainBlock, ChainSource, ChainTx, EarlyTx } from "./types";
@@ -88,8 +88,7 @@ export class RpcSource implements ChainSource {
     const slotId = chain.onSlotChange(() => onSlot());
     for (const program of [PUMP_PROGRAM, AMM_PROGRAM]) {
       const id = chain.onLogs(
-        // web3.js wants a key object; it is only used for its address.
-        { toBase58: () => program } as unknown as PublicKey,
+        new PublicKey(program),
         (logs, context) => {
           if (logs.err) return;
           const events = eventsInLogs(logs.logs);

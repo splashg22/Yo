@@ -188,23 +188,23 @@ export class Indexer {
     private readonly log: Log = () => undefined,
   ) {}
 
-  /** Reads what is stored, then follows the chain until `stop`. Resolves once it has caught up for the first time. */
+  /**
+   * Reads what is stored, then follows the chain until `stop`. Resolves once it has caught up for the first time,
+   * or at once if the chain cannot be reached: the server still starts, says so, and keeps trying.
+   */
   async start(): Promise<void> {
     await this.load();
-    this.head = await this.source.head();
-    if (this.cursor < 0) {
-      // A new database starts at the present. Coins made before now are added one at a time, when someone asks for them.
-      this.cursor = this.head;
-      await this.db.tx((sql) =>
-        sql.query("insert into meta (key, value) values ('cursor', $1) on conflict (key) do update set value = excluded.value", [String(this.cursor)]),
-      );
-    }
     this.running = true;
     this.stopWatching = this.source.watch(
       () => this.wake?.(),
       (tx) => this.heard(tx),
     );
-    await this.catchUp();
+    try {
+      await this.catchUp();
+    } catch (error) {
+      this.failure = error instanceof Error ? error.message : String(error);
+      this.log("error", "the indexer could not read the chain at the start; it will keep trying", { error: this.failure });
+    }
     this.loop = this.follow();
   }
   async stop(): Promise<void> {
@@ -256,6 +256,14 @@ export class Indexer {
   private async catchUp(): Promise<void> {
     for (;;) {
       this.head = Math.max(this.head, await this.source.head());
+      this.failure = undefined;
+      if (this.cursor < 0) {
+        // A new database starts at the present. Coins made before now are added one at a time, when someone asks for them.
+        this.cursor = this.head;
+        await this.db.tx((sql) =>
+          sql.query("insert into meta (key, value) values ('cursor', $1) on conflict (key) do update set value = excluded.value", [String(this.cursor)]),
+        );
+      }
       if (this.cursor >= this.head) break;
       const to = Math.min(this.head, this.cursor + 200);
       const slots = (await this.source.slots(this.cursor + 1, to)).filter((slot) => slot > this.cursor);
@@ -441,9 +449,9 @@ export class Indexer {
       }
       if (trades.length > 0)
         await sql.query(
-          `insert into trades (signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol, tokens, price, virtual_sol, virtual_tokens, real_sol, real_tokens)
-           select signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol::numeric, tokens::numeric, price::numeric, 0, 0, 0, 0
-           from jsonb_to_recordset($1::jsonb) as x(signature text, idx int, mint text, slot bigint, tx_index int, at bigint, wallet text, is_buy boolean, venue text, sol text, tokens text, price text)`,
+          `insert into trades (signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol, tokens, price, price_before, virtual_sol, virtual_tokens, real_sol, real_tokens)
+           select signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol::numeric, tokens::numeric, price::numeric, price_before::numeric, 0, 0, 0, 0
+           from jsonb_to_recordset($1::jsonb) as x(signature text, idx int, mint text, slot bigint, tx_index int, at bigint, wallet text, is_buy boolean, venue text, sol text, tokens text, price text, price_before text)`,
           [
             JSON.stringify(
               trades.map((trade) => ({
@@ -459,6 +467,7 @@ export class Indexer {
                 sol: trade.sol.toString(),
                 tokens: trade.tokens.toString(),
                 price: trade.price.toString(),
+                price_before: (trade.priceBefore ?? 0n).toString(),
               })),
             ),
           ],
@@ -511,7 +520,8 @@ export class Indexer {
     where: { signature: string; idx: number; slot: number; txIndex: number; at: number },
     candles: Map<string, { mint: string; tf: Timeframe; candle: Candle }>,
   ): Promise<Trade> {
-    const before = Number(priceOf(market.virtualSol, market.virtualTokens));
+    const priceBefore = priceOf(market.virtualSol, market.virtualTokens);
+    const before = Number(priceBefore);
     market.virtualSol = event.virtualSol;
     market.virtualTokens = event.virtualTokens;
     market.realSol = event.realSol;
@@ -526,7 +536,17 @@ export class Indexer {
       const current = candles.get(key)?.candle ?? list[list.length - 1];
       candles.set(key, { mint: market.mint, tf, candle: extend(current, bucketOf(seconds, tf), before, Number(price), Number(event.sol), event.isBuy) });
     }
-    return { ...where, mint: market.mint, wallet: event.wallet, isBuy: event.isBuy, venue: event.venue, sol: event.sol, tokens: event.tokens, price };
+    return {
+      ...where,
+      mint: market.mint,
+      wallet: event.wallet,
+      isBuy: event.isBuy,
+      venue: event.venue,
+      sol: event.sol,
+      tokens: event.tokens,
+      price,
+      priceBefore,
+    };
   }
 
   // ---- reorganisation ----------------------------------------------------------------------
@@ -598,6 +618,97 @@ export class Indexer {
     await this.load();
     this.cursor = slot;
     this.events.reorg?.(slot, mints);
+  }
+
+  // ---- a coin made before the indexer was following -------------------------------------------
+
+  /**
+   * Starts following a coin that already exists. `now` is its curve as the chain has it at this moment; from
+   * here on the follower keeps it up to date. Returns false if it was already followed.
+   */
+  async adopt(now: Market): Promise<boolean> {
+    if (this.markets.has(now.mint)) return false;
+    await this.db.tx((sql) => writeMarkets(sql, [now]));
+    this.markets.set(now.mint, { ...now });
+    if (now.pool) this.pools.set(now.pool, now.mint);
+    return true;
+  }
+  /**
+   * Adds a followed coin's past: trades from before it was followed, and who holds it now. Trades the follower
+   * has already stored are left alone; candles are rebuilt from everything stored, so past and present join up.
+   */
+  async backfill(mint: string, history: Trade[], holders: { owner: string; amount: bigint }[]): Promise<void> {
+    const count = await this.db.tx(async (sql) => {
+      for (let start = 0; start < history.length; start += 500)
+        await sql.query(
+          `insert into trades (signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol, tokens, price, price_before, virtual_sol, virtual_tokens, real_sol, real_tokens)
+           select signature, idx, mint, slot, tx_index, at, wallet, is_buy, venue, sol::numeric, tokens::numeric, price::numeric, price_before::numeric, 0, 0, 0, 0
+           from jsonb_to_recordset($1::jsonb) as x(signature text, idx int, mint text, slot bigint, tx_index int, at bigint, wallet text, is_buy boolean, venue text, sol text, tokens text, price text, price_before text)
+           on conflict (signature, idx) do nothing`,
+          [
+            JSON.stringify(
+              history.slice(start, start + 500).map((trade) => ({
+                signature: trade.signature,
+                idx: trade.idx,
+                mint: trade.mint,
+                slot: trade.slot,
+                tx_index: trade.txIndex,
+                at: trade.at,
+                wallet: trade.wallet,
+                is_buy: trade.isBuy,
+                venue: trade.venue,
+                sol: trade.sol.toString(),
+                tokens: trade.tokens.toString(),
+                price: trade.price.toString(),
+                price_before: (trade.priceBefore ?? 0n).toString(),
+              })),
+            ),
+          ],
+        );
+      // A holder the follower has already seen change keeps the newer figure.
+      if (holders.length > 0)
+        await sql.query(
+          `insert into holders (mint, owner, amount, slot) select $2, owner, amount::numeric, 0 from jsonb_to_recordset($1::jsonb) as x(owner text, amount text)
+           on conflict (mint, owner) do nothing`,
+          [JSON.stringify(holders.map((holder) => ({ owner: holder.owner, amount: holder.amount.toString() }))), mint],
+        );
+      await rebuildCandles(sql, mint, 0);
+      const counted = (
+        await sql.query<{ trades: number; holders: number; last: number | null }>(
+          "select (select count(*)::int from trades where mint = $1) as trades, (select count(*)::int from holders where mint = $1 and amount > 0) as holders, (select max(at) from trades where mint = $1) as last",
+          [mint],
+        )
+      )[0]!;
+      await sql.query("update markets set trades = $2, holders = $3, last_trade_at = $4 where mint = $1", [
+        mint,
+        counted.trades,
+        counted.holders,
+        counted.last,
+      ]);
+      return counted;
+    });
+    const market = this.markets.get(mint);
+    if (market) {
+      market.trades = count.trades;
+      market.holders = count.holders;
+      if (count.last !== null) market.lastTradeAt = Number(count.last);
+    }
+    for (const tf of TIMEFRAMES) this.candleCache.delete(`${mint}|${tf}`);
+    this.recentCache.delete(mint);
+  }
+
+  /** Records what a followed coin's own creation event said of it, once its past has been read. */
+  async rename(mint: string, created: { name: string; symbol: string; uri: string; at: number; slot: number }): Promise<void> {
+    await this.db.tx((sql) =>
+      sql.query("update markets set name = $2, symbol = $3, uri = $4, created_at = $5, created_slot = $6 where mint = $1", [
+        mint,
+        created.name,
+        created.symbol,
+        created.uri,
+        created.at,
+        created.slot,
+      ]),
+    );
   }
 
   // ---- reads ------------------------------------------------------------------------------
@@ -717,24 +828,16 @@ export async function rebuildCandles(sql: Sql, mint: string, fromSeconds: number
   for (const tf of TIMEFRAMES) {
     const start = bucketOf(fromSeconds, tf);
     await sql.query("delete from candles where mint = $1 and tf = $2 and t >= $3", [mint, tf, start]);
-    const previous = (
-      await sql.query<{ price: string }>(
-        "select price::text as price from trades where mint = $1 and at < $2 order by slot desc, tx_index desc, idx desc limit 1",
-        [mint, start * 1000],
-      )
-    )[0];
-    let before = previous ? Number(previous.price) : 0;
     const rebuilt: Candle[] = [];
-    for (const row of await sql.query<{ at: number; price: string; sol: string; is_buy: boolean }>(
-      "select at, price::text as price, sol::text as sol, is_buy from trades where mint = $1 and at >= $2 order by slot, tx_index, idx",
+    for (const row of await sql.query<{ at: number; price: string; price_before: string; sol: string; is_buy: boolean }>(
+      "select at, price::text as price, price_before::text as price_before, sol::text as sol, is_buy from trades where mint = $1 and at >= $2 order by slot, tx_index, idx",
       [mint, start * 1000],
     )) {
       const bucket = bucketOf(Math.floor(Number(row.at) / 1000), tf);
       const last = rebuilt[rebuilt.length - 1];
-      const candle = extend(last, bucket, before, Number(row.price), Number(row.sol), row.is_buy);
+      const candle = extend(last, bucket, Number(row.price_before), Number(row.price), Number(row.sol), row.is_buy);
       if (last?.t === bucket) rebuilt[rebuilt.length - 1] = candle;
       else rebuilt.push(candle);
-      before = Number(row.price);
     }
     if (rebuilt.length > 0)
       await writeCandles(

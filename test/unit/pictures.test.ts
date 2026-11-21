@@ -3,14 +3,17 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { beforeAll, describe, expect, it } from "vitest";
-import { GET } from "../../app/u/[name]/route";
 import { PICTURE_MAX_BYTES, cleanPicture, storeCoinDetails, storedFile } from "../../lib/server/pictures";
 
 async function picture(format: "png" | "jpeg" | "webp" | "gif", width = 300, height = 200): Promise<string> {
   const blank = sharp({ create: { width, height, channels: 3, background: { r: 245, g: 165, b: 36 } } });
   return (await blank[format]().toBuffer()).toString("base64");
 }
-const serve = async (name: string) => GET(new Request(`http://localhost/u/${name}`), { params: Promise.resolve({ name }) });
+/** What the server answers for /u/<name>. Its headers are checked against the real server in test/flows/server.test.ts. */
+const serve = (name: string): Response => {
+  const file = storedFile(name);
+  return file ? new Response(new Uint8Array(file.bytes), { headers: { "content-type": file.type } }) : new Response("Not found", { status: 404 });
+};
 
 beforeAll(() => {
   process.env.APP_DATA_DIR = mkdtempSync(join(tmpdir(), "ring-pictures-"));
@@ -56,14 +59,12 @@ describe("where a coin's details are kept, without a picture store configured", 
     // For this site's own pages the picture is a path, so it loads whatever address the site is reached at.
     expect(kept.image).toMatch(/^\/u\/[a-f0-9]{24}\.webp$/);
     expect(kept.uri).toMatch(/^http:\/\/localhost:4710\/u\/[a-f0-9]{24}\.json$/);
-    const details = await serve(kept.uri.split("/u/")[1]!);
+    const details = serve(kept.uri.split("/u/")[1]!);
     expect(details.status).toBe(200);
     expect(details.headers.get("content-type")).toBe("application/json");
     expect(await details.json()).toEqual({ name: "Lantern", symbol: "LNTRN", description: "A test coin.", image: `http://localhost:4710${kept.image}` });
-    const image = await serve(kept.image.split("/u/")[1]!);
+    const image = serve(kept.image.split("/u/")[1]!);
     expect(image.headers.get("content-type")).toBe("image/webp");
-    expect(image.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(image.headers.get("content-security-policy")).toContain("sandbox");
     expect((await sharp(Buffer.from(await image.arrayBuffer())).metadata()).format).toBe("webp");
   });
 
@@ -72,10 +73,10 @@ describe("where a coin's details are kept, without a picture store configured", 
     const again = await storeCoinDetails({ name: "Plain", symbol: "PLN", description: "" });
     expect(first.image).toBe("");
     expect(first.uri).toBe(again.uri);
-    expect(await (await serve(first.uri.split("/u/")[1]!)).json()).toEqual({ name: "Plain", symbol: "PLN", description: "" });
+    expect(await serve(first.uri.split("/u/")[1]!).json()).toEqual({ name: "Plain", symbol: "PLN", description: "" });
   });
 
-  it("serves only names it made itself: no paths, no other files", async () => {
+  it("serves only names it made itself: no paths, no other files", () => {
     for (const name of [
       "../state.json",
       "..%2Fstate.json",
@@ -87,8 +88,8 @@ describe("where a coin's details are kept, without a picture store configured", 
       "x/y.webp",
     ]) {
       expect(storedFile(name)).toBeNull();
-      expect((await serve(name)).status).toBe(404);
+      expect(serve(name).status).toBe(404);
     }
-    expect((await serve(`${"0".repeat(24)}.webp`)).status).toBe(404); // a well-formed name that does not exist
+    expect(serve(`${"0".repeat(24)}.webp`).status).toBe(404); // a well-formed name that does not exist
   });
 });

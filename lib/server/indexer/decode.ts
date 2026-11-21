@@ -14,8 +14,9 @@ interface IdlEvent {
   name: string;
   discriminator: number[];
 }
+// The two programs' descriptions spell event names differently ("TradeEvent", "buyEvent"); they are compared in lower case.
 const discriminators = (events: IdlEvent[]): Map<string, string> =>
-  new Map(events.map((event) => [Buffer.from(event.discriminator).toString("hex"), event.name]));
+  new Map(events.map((event) => [Buffer.from(event.discriminator).toString("hex"), event.name.toLowerCase()]));
 const CURVE_EVENTS = discriminators((sdk.pumpIdl as unknown as { events: IdlEvent[] }).events);
 const ammIdl = (sdk.getPumpAmmProgram as unknown as (connection: unknown) => { idl: { events: IdlEvent[] } })({ rpcEndpoint: "http://localhost" }).idl;
 const AMM_EVENTS = discriminators(ammIdl.events);
@@ -30,7 +31,7 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
   try {
     if (program === PUMP_PROGRAM) {
       const name = CURVE_EVENTS.get(tag);
-      if (name === "TradeEvent") {
+      if (name === "tradeevent") {
         const event = sdk.PUMP_SDK.decodeTradeEventBc(body);
         return {
           kind: "trade",
@@ -46,7 +47,7 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
           realTokens: big(event.realTokenReserves),
         };
       }
-      if (name === "CreateEvent") {
+      if (name === "createevent") {
         const event = sdk.PUMP_SDK.decodeCreateEventBc(body);
         return {
           kind: "create",
@@ -61,24 +62,26 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
           realTokens: big(event.realTokenReserves),
         };
       }
-      if (name === "CompleteEvent") return { kind: "complete", mint: sdk.PUMP_SDK.decodeCompleteEventBc(body).mint.toBase58() };
+      if (name === "completeevent") return { kind: "complete", mint: sdk.PUMP_SDK.decodeCompleteEventBc(body).mint.toBase58() };
       return null;
     }
     if (program === AMM_PROGRAM) {
       const name = AMM_EVENTS.get(tag);
-      if (name === "CreatePoolEvent") {
+      if (name === "createpoolevent") {
         const event = sdk.PUMP_SDK.decodeCreatePoolEventAmm(body);
         if (event.quoteMint.toBase58() !== WSOL) return null;
         return { kind: "pool", mint: event.baseMint.toBase58(), pool: event.pool.toBase58() };
       }
-      if (name === "BuyEvent" || name === "SellEvent") {
+      if (name === "buyevent" || name === "sellevent") {
         // The pool's event does not name the coin; the indexer fills it in from the pool's address.
-        const isBuy = name === "BuyEvent";
+        const isBuy = name === "buyevent";
         const event = isBuy ? sdk.PUMP_SDK.decodeBuyEventAmm(body) : sdk.PUMP_SDK.decodeSellEventAmm(body);
         const tokens = big(isBuy ? (event as PumpSdk.BuyEventAmm).baseAmountOut : (event as PumpSdk.SellEventAmm).baseAmountIn);
         const sol = big(isBuy ? (event as PumpSdk.BuyEventAmm).quoteAmountIn : (event as PumpSdk.SellEventAmm).quoteAmountOut);
         const poolTokens = big(event.poolBaseTokenReserves) + (isBuy ? -tokens : tokens);
-        const poolSol = big(event.poolQuoteTokenReserves) + (isBuy ? sol : -sol);
+        // What the pool holds afterwards. On a buy the pool keeps its own share of the fee on top of the price paid.
+        const paidIn = isBuy ? big((event as PumpSdk.BuyEventAmm).quoteAmountInWithLpFee ?? (event as PumpSdk.BuyEventAmm).quoteAmountIn) : 0n;
+        const poolSol = big(event.poolQuoteTokenReserves) + (isBuy ? paidIn : -sol);
         return {
           kind: "trade",
           venue: "amm",

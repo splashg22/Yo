@@ -18,6 +18,16 @@ for (const file of existsSync(".data") ? readdirSync(".data").filter((name) => n
   }
 }
 for (const name of ["HELIUS_API_KEY"]) if (process.env[name]) needles.set(`the value of ${name}`, process.env[name]);
+// Every value in the local .env files, whatever it is called: none of them may appear in anything served or committed.
+for (const file of [".env", ".env.local"]) {
+  if (!existsSync(file)) continue;
+  for (const line of readFileSync(file, "utf8").split("\n")) {
+    const match = /^\s*([A-Z0-9_]+)\s*=\s*["']?([^"'#\s]+)/.exec(line);
+    // Short values (a port, "on", a network name) are not secrets and would match everywhere.
+    if (match && match[2].length >= 16 && !/^https?:\/\/(127\.0\.0\.1|localhost)/.test(match[2]))
+      needles.set(`the value of ${match[1]} from ${file}`, match[2]);
+  }
+}
 const SHAPES = [
   [/api-key=[A-Za-z0-9-]{8,}/, "an RPC address with a key in it"],
   [/-----BEGIN [A-Z ]*PRIVATE KEY-----/, "a private key block"],
@@ -44,7 +54,7 @@ function walk(directory, visit) {
 }
 
 let files = 0;
-for (const directory of [".next/static", "public"])
+for (const directory of [".next/static", "public", ...(existsSync("dist") ? ["dist"] : [])])
   walk(directory, (path) => /\.(js|css|html|json|txt|map|svg)$/.test(path) && (files++, scan(path, readFileSync(path, "utf8"))));
 let pages = 0;
 for (const path of [

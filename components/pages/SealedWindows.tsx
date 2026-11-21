@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { api, signAndSend, signedApi } from "@/lib/client/api";
+import { api, sessionApi, signAndSend, signedApi } from "@/lib/client/api";
 import { SOL_DECIMALS } from "@/lib/constants";
 import type { WindowView } from "@/lib/contract";
 import { formatSol, formatTime, parseAmount } from "@/lib/format";
@@ -42,7 +42,7 @@ export function SealedWindows() {
   // What this wallet has committed is a signed read, so it is asked for when the page opens and after each action, not on a timer.
   const refreshMine = useCallback(async () => {
     try {
-      setMine((await signedApi("window/mine", me)).commitments);
+      setMine((await sessionApi("window/mine", me)).commitments);
     } catch (error) {
       setProblem(error instanceof Error ? error.message : String(error));
     }

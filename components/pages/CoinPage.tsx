@@ -41,7 +41,16 @@ export function CoinPage({ mint }: { mint: string }) {
     }, 6000);
     return () => clearInterval(timer);
   }, [refresh]);
-  const loadActivity = useCallback(() => api("coin/activity", { mint }), [mint]);
+  const loadActivity = useCallback(
+    async () => ({
+      activity: (await api("coin/trades", { mint, limit: 20 })).trades.map((trade) => ({
+        signature: trade.s,
+        blockTime: Math.floor(trade.t / 1000),
+        failed: false,
+      })),
+    }),
+    [mint],
+  );
   // The tab is named after the coin once it is known, so several coin tabs can be told apart.
   useEffect(() => {
     if (coin) document.title = `${coin.name} (${coin.symbol}) · ${site.name}`;

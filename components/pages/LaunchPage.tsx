@@ -94,6 +94,8 @@ function LaunchForm() {
         firstBuyLamports: buying ? parseAmount(form.firstBuy, SOL_DECIMALS).toString() : undefined,
         description: form.description.trim() || undefined,
         picture: form.picture || undefined,
+        // A picture is taken only from a wallet that has signed in; this may ask a connected wallet to sign once.
+        ...(form.picture ? { session: await me.session({ ask: true }) } : {}),
         toRing,
       });
       const sent = await signAndSend(me, built.transaction, [mint.seed]);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { api, signAndSend, signedApi } from "@/lib/client/api";
+import { api, sessionApi, signAndSend, signedApi } from "@/lib/client/api";
 import { sealNoteFor } from "@/lib/client/notes";
 import { NATIVE, decimalsOf } from "@/lib/constants";
 import type { Api } from "@/lib/contract";
@@ -97,7 +97,7 @@ function OpenWallet() {
 
   const refresh = useCallback(async () => {
     try {
-      const [ringSide, walletSide] = await Promise.all([signedApi("ring/mine", me), api("wallet/public", { wallet: me.address })]);
+      const [ringSide, walletSide] = await Promise.all([sessionApi("ring/mine", me), api("wallet/public", { wallet: me.address })]);
       setMine(ringSide);
       setInWallet(walletSide.balances);
       setLoadProblem("");
@@ -221,7 +221,7 @@ function OpenWallet() {
           disabled={busy}
           onClick={() =>
             void run("Checking the chain", async () => {
-              const found = await api("ring/reconcile");
+              const found = await signedApi("ring/recheck", me);
               await refresh();
               return {
                 message:

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { signedApi } from "@/lib/client/api";
+import { sessionApi, signedApi } from "@/lib/client/api";
 import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
 import type { Offer } from "@/lib/contract";
 import { formatAmount, formatSol, formatTime, parseAmount } from "@/lib/format";
@@ -47,7 +47,7 @@ function Desk() {
 
   const refresh = useCallback(async () => {
     try {
-      setOffers((await signedApi("otc/mine", me)).offers);
+      setOffers((await sessionApi("otc/mine", me)).offers);
       setLoadProblem("");
     } catch (error) {
       setLoadProblem(error instanceof Error ? error.message : String(error));

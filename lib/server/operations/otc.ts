@@ -4,7 +4,7 @@ import { randomBytes, toHex } from "../../bytes";
 import { ring } from "../ring";
 import { save, state, type Offer } from "../store";
 import { addressOf, amountOf, text } from "../validate";
-import { signedBody } from "./ring";
+import { readerOf, signedBody } from "./ring";
 import type { Handlers } from "./types";
 
 const HOUR_MS = 3_600_000;
@@ -51,7 +51,7 @@ export const otc: Handlers<"otc/offer" | "otc/mine" | "otc/cancel" | "otc/accept
 
   /** Only the two parties can list an offer. */
   "otc/mine": (input) => {
-    const { wallet } = signedBody("otc/mine", input);
+    const wallet = readerOf("otc/mine", input);
     return {
       offers: state()
         .offers.filter((offer) => offer.seller === wallet || offer.buyer === wallet)

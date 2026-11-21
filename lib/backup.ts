@@ -18,11 +18,12 @@ export interface Backup {
 /** scrypt with 128 MB of memory: about a second in a browser, and that much per guess for anyone who gets hold of the file. */
 const COST = { N: 2 ** 17, r: 8, p: 1 };
 
-export function encryptBackup(actor: Actor, password: string, cost = COST): Backup {
+/** `onProgress` is called with a share from 0 to 1 while the key is derived from the password. */
+export function encryptBackup(actor: Actor, password: string, cost = COST, onProgress?: (share: number) => void): Backup {
   if (password.length < 8) throw new Error("the password must be at least 8 characters");
   const salt = randomBytes(16),
     nonce = randomBytes(12);
-  const key = scrypt(utf8(password), salt, { ...cost, dkLen: 32 });
+  const key = scrypt(utf8(password), salt, { ...cost, dkLen: 32, ...(onProgress ? { onProgress } : {}) });
   return {
     kind: "ring-wallet-backup",
     version: 1,
@@ -33,13 +34,13 @@ export function encryptBackup(actor: Actor, password: string, cost = COST): Back
   };
 }
 
-export function decryptBackup(input: unknown, password: string): Actor {
+export function decryptBackup(input: unknown, password: string, onProgress?: (share: number) => void): Actor {
   const backup = input as Backup;
   if (!backup || backup.kind !== "ring-wallet-backup" || backup.version !== 1 || backup.kdf?.name !== "scrypt")
     throw new Error("this is not a wallet backup file");
   const { N, r, p } = backup.kdf;
   if (!Number.isInteger(N) || N < 2 ** 15 || N > 2 ** 20 || r !== 8 || p !== 1) throw new Error("the backup file has unexpected settings");
-  const key = scrypt(utf8(password), fromBase64(backup.kdf.salt), { N, r, p, dkLen: 32 });
+  const key = scrypt(utf8(password), fromBase64(backup.kdf.salt), { N, r, p, dkLen: 32, ...(onProgress ? { onProgress } : {}) });
   let seed: Uint8Array;
   try {
     seed = gcm(key, fromBase64(backup.nonce), utf8(backup.address)).decrypt(fromBase64(backup.ciphertext));

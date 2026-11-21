@@ -87,7 +87,8 @@ async function person(seed: number[]) {
 const client = await createSprClient({ solanaRpcUrl: rpcUrl, ...endpoints, proverTee: SignedTeePolicy.forNetwork("devnet") });
 const [a, b, c] = await Promise.all([person(seeds.a), person(seeds.b), person(seeds.c)]);
 const keysOf = (who: typeof a) => LocalKeys.fromKeypair(who.keypair, client.proofService);
-const lamportsOf = async (address: KeyPairSigner["address"]): Promise<bigint> => (await client.solanaRpc.getBalance(address, { commitment: "confirmed" }).send()).value;
+const lamportsOf = async (address: KeyPairSigner["address"]): Promise<bigint> =>
+  (await client.solanaRpc.getBalance(address, { commitment: "confirmed" }).send()).value;
 
 /** Signs, sends and waits. Returns the signature, the slot and the size and version of what was sent. */
 async function submit(transaction: Transaction, signers: KeyPairSigner[]): Promise<{ signature: Signature; slot: bigint; bytes: number; version: string }> {
@@ -110,7 +111,7 @@ await step("0. Reach devnet: RPC, the Ring's indexer, and the prover's attested 
   const records = await client.getUserRecords([a.signer.address]);
   say(`Indexer answers a registry lookup (${JSON.stringify(records, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v)).slice(0, 160)})`);
   const attested = await client.attestProver();
-  say(`Prover attestation verified by the SDK (${Object.keys(attested as object).join(", ")})`);
+  say(`Prover attestation verified by the SDK (${Object.keys(attested).join(", ")})`);
   const report = await client.checkProverProvingKeys();
   say(`Prover's proving keys match the SDK's (${JSON.stringify(report, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v)).slice(0, 200)})`);
 });
@@ -125,8 +126,14 @@ if (!funded) {
     if ((await lamportsOf(b.signer.address)) < 20_000_000n) {
       // B needs a little SOL for its own fees: a plain transfer from A, public, as any funding is.
       const { getTransferSolInstruction } = await import("@solana-program/system");
-      const { appendTransactionMessageInstruction, compileTransaction, createTransactionMessage, pipe, setTransactionMessageFeePayer, setTransactionMessageLifetimeUsingBlockhash } =
-        await import("@solana/kit");
+      const {
+        appendTransactionMessageInstruction,
+        compileTransaction,
+        createTransactionMessage,
+        pipe,
+        setTransactionMessageFeePayer,
+        setTransactionMessageLifetimeUsingBlockhash,
+      } = await import("@solana/kit");
       const { value: latest } = await client.solanaRpc.getLatestBlockhash().send();
       const message = pipe(
         createTransactionMessage({ version: 0 }),
@@ -134,7 +141,7 @@ if (!funded) {
         (m) => setTransactionMessageLifetimeUsingBlockhash(latest, m),
         (m) => appendTransactionMessageInstruction(getTransferSolInstruction({ source: a.signer, destination: b.signer.address, amount: 50_000_000n }), m),
       );
-      const sent = await submit(compileTransaction(message) as Transaction, [a.signer]);
+      const sent = await submit(compileTransaction(message), [a.signer]);
       say(`Funded B with 0.05 SOL from A: ${link(sent.signature)}`);
     }
     for (const [name, who] of [
@@ -171,7 +178,14 @@ if (!funded) {
     await syncWallet({ client, wallet: b.wallet, keys: keysOf(b) });
     const [beforeA, beforeB] = [a.wallet.balance(SOL_MINT).amount, b.wallet.balance(SOL_MINT).amount];
     const started = Date.now();
-    const transfer = await buildTransferTransaction({ client, wallet: a.wallet, keys: keysOf(a), feePayer: a.signer.address, recipient: b.signer.address, amount: SEND });
+    const transfer = await buildTransferTransaction({
+      client,
+      wallet: a.wallet,
+      keys: keysOf(a),
+      feePayer: a.signer.address,
+      recipient: b.signer.address,
+      amount: SEND,
+    });
     say(`Proof made by the attested prover and the transaction built in ${((Date.now() - started) / 1000).toFixed(1)} s`);
     const sent = await submit(transfer, [a.signer]);
     say(`Transfer: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
@@ -180,7 +194,9 @@ if (!funded) {
     say(`A: ${beforeA} -> ${a.wallet.balance(SOL_MINT).amount}; B: ${beforeB} -> ${b.wallet.balance(SOL_MINT).amount}`);
     if (b.wallet.balance(SOL_MINT).amount - beforeB !== SEND) throw new Error("B did not receive exactly the amount sent");
     // What the chain shows of it: the amount must not appear anywhere in the transaction.
-    const onChain = await client.solanaRpc.getTransaction(sent.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 1, encoding: "json" }).send();
+    const onChain = await client.solanaRpc
+      .getTransaction(sent.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 1, encoding: "json" })
+      .send();
     const moved = (onChain?.meta?.postBalances ?? []).map((post, index) => BigInt(post) - BigInt(onChain!.meta!.preBalances[index]!));
     say(`Public SOL movements in the transaction: ${JSON.stringify(moved.map(String))} (the fee only; ${SEND} appears nowhere)`);
     if (moved.some((change) => change === SEND || change === -SEND)) throw new Error("the transferred amount is visible in the public balances");
@@ -189,7 +205,14 @@ if (!funded) {
 
   ok &&= await step("4. Withdraw 0.01 SOL from B's Ring balance to a fresh address", async (say) => {
     const before = await lamportsOf(c.signer.address);
-    const withdrawal = await buildWithdrawalTransaction({ client, wallet: b.wallet, keys: keysOf(b), feePayer: b.signer.address, recipient: c.signer.address, amount: OUT });
+    const withdrawal = await buildWithdrawalTransaction({
+      client,
+      wallet: b.wallet,
+      keys: keysOf(b),
+      feePayer: b.signer.address,
+      recipient: c.signer.address,
+      amount: OUT,
+    });
     const sent = await submit(withdrawal, [b.signer]);
     say(`Withdrawal: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
     const after = await lamportsOf(c.signer.address);
@@ -201,6 +224,9 @@ if (!funded) {
   void ok;
 }
 
-writeFileSync(".data-devnet/ring-prove.json", JSON.stringify({ at: new Date().toISOString(), wallets: [a, b, c].map((who) => who.signer.address), steps }, null, 2));
+writeFileSync(
+  ".data-devnet/ring-prove.json",
+  JSON.stringify({ at: new Date().toISOString(), wallets: [a, b, c].map((who) => who.signer.address), steps }, null, 2),
+);
 console.log(`\n${steps.filter((entry) => entry.outcome === "proven").length} of ${steps.length} steps proven. Evidence saved to .data-devnet/ring-prove.json`);
 process.exit(steps.some((entry) => entry.outcome === "failed") ? 1 : 0);

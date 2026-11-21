@@ -45,6 +45,8 @@ export interface Trade {
   tokens: bigint;
   /** The price after this trade, in millionths of a lamport for one whole coin. */
   price: bigint;
+  /** The price just before it. Absent on a trade read back from history, where nothing needs it. */
+  priceBefore?: bigint;
 }
 /** One candle. Prices are millionths of a lamport for one whole coin; volume is lamports. Both fit a JavaScript number exactly. */
 export interface Candle {

@@ -1,25 +1,41 @@
 /** The Ring wallet: deposit, transfer, withdraw. Reading or moving a Ring balance takes a wallet-signed request. */
 import { verifyRequest, type Signed } from "../../auth";
+import { forgetBalances } from "../balances";
 import { assertRing } from "../env";
 import { payoutCost, preparePayout, sendPayout } from "../escrow";
 import { ring } from "../ring";
-import { preparing, reconcile, settle } from "../settle";
+import { walletOfSession } from "../sessions";
+import { preparing, reconcile } from "../settle";
 import { durable, save, state } from "../store";
 import { buildDeposit } from "../transactions";
-import { addressOf, amountOf, noteKeyOf, sealedNoteOf, signatureOf, type Input } from "../validate";
+import { addressOf, amountOf, noteKeyOf, sealedNoteOf, type Input } from "../validate";
 import type { Handlers } from "./types";
 
 /** Checks the wallet's signature and remembers the request so it cannot be replayed, even across a restart. */
-export function signedBody(op: string, input: Input): Input & { wallet: string } {
-  // Everything signed here reads or moves a Ring balance (or an OTC offer or sealed window built on one).
-  assertRing();
+export function verifiedBody(op: string, input: Input): Input & { wallet: string } {
   const body = verifyRequest<Input>(op, input as unknown as Signed<Input>, state().nonces);
   save();
   return body;
 }
+export function signedBody(op: string, input: Input): Input & { wallet: string } {
+  // Everything signed here reads or moves a Ring balance (or an OTC offer or sealed window built on one).
+  assertRing();
+  return verifiedBody(op, input);
+}
+/**
+ * Who is asking to read their own records: the wallet of an open session, or of a request signed on the spot.
+ * A session never moves anything; it only saves the wallet from signing every time a page refreshes.
+ */
+export function readerOf(op: string, input: Input): string {
+  assertRing();
+  return input.session === undefined ? verifiedBody(op, input).wallet : walletOfSession(input.session);
+}
+
+const RECHECK_EVERY_MS = 5_000;
+let recheck: { at: number; found: ReturnType<typeof reconcile> } | undefined;
 
 export const ringOperations: Handlers<
-  "ring/deposit/build" | "ring/credit" | "ring/reconcile" | "ring/public" | "ring/register" | "ring/note-key" | "ring/transfer" | "ring/withdraw" | "ring/mine"
+  "ring/deposit/build" | "ring/recheck" | "ring/public" | "ring/register" | "ring/note-key" | "ring/transfer" | "ring/withdraw" | "ring/mine"
 > = {
   "ring/deposit/build": (input) => {
     assertRing();
@@ -30,9 +46,13 @@ export const ringOperations: Handlers<
     });
   },
 
-  "ring/credit": (input) => settle(signatureOf(input.signature)),
-
-  "ring/reconcile": () => reconcile(),
+  /** Open to any wallet that signs for it, and run at most once every few seconds however often it is asked. */
+  "ring/recheck": (input) => {
+    signedBody("ring/recheck", input);
+    const now = Date.now();
+    if (!recheck || now - recheck.at > RECHECK_EVERY_MS) recheck = { at: now, found: reconcile() };
+    return recheck.found;
+  },
 
   "ring/public": (input) => ({ events: ring.publicView(input.wallet === undefined ? undefined : addressOf(input.wallet, "wallet address")) }),
 
@@ -81,6 +101,7 @@ export const ringOperations: Handlers<
     state().pendingPayouts = state().pendingPayouts.filter((payout) => payout.eventId !== event.id);
     if (outcome.status === "landed") {
       ring.completeWithdrawal(event.id, outcome.signature);
+      forgetBalances(destination);
       return { event, signature: outcome.signature, pending: false };
     }
     ring.undoWithdrawal(event.id);
@@ -89,7 +110,7 @@ export const ringOperations: Handlers<
   },
 
   "ring/mine": (input) => {
-    const { wallet } = signedBody("ring/mine", input);
+    const wallet = readerOf("ring/mine", input);
     return { registered: ring.isRegistered(wallet), balances: ring.balances(wallet), history: ring.history(wallet) };
   },
 };

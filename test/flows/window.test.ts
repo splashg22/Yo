@@ -14,7 +14,20 @@ import { WINDOW_CAP_LAMPORTS, refresh, windows } from "../../lib/server/windows"
 import { signTransaction } from "../../lib/sign";
 import { signRequest } from "../../lib/auth";
 import { signMessage } from "../../lib/keys";
-import { SOL, call, chain, escrowOnChain, expectCovered, freshServer, fundedClient, onChain, restartServer } from "./helpers";
+import {
+  SOL,
+  call,
+  chain,
+  escrowOnChain,
+  expectCovered,
+  freshServer,
+  fundedClient,
+  onChain,
+  reconcileNow,
+  restartServer,
+  sendAndWait,
+  settleNow,
+} from "./helpers";
 
 freshServer();
 let creator: RingClient, mara: RingClient, ilya: RingClient, noor: RingClient;
@@ -85,8 +98,8 @@ describe("a window from opening to launch", () => {
     expect(spent).toBeLessThanOrEqual((SOL * 3n) / 10n); // escrow never spends more than was committed
 
     // The coin's very first transaction is the one that bought for the window: nobody could have bought before it.
-    const firstOnCurve = (await call("coin/activity", { mint: launched.mint })).activity.at(-1)!;
-    expect(firstOnCurve.signature).toBe(launched.signature);
+    const firstOnCurve = (await call("coin/trades", { mint: launched.mint })).trades.at(-1)!;
+    expect(firstOnCurve.s).toBe(launched.signature);
 
     // Coins: two thirds and one third, rounded down, the odd base units to the larger committer. Every unit is someone's.
     const maraCoins = await mara.ringBalance(launched.mint);
@@ -182,14 +195,14 @@ describe("while a launch may still land", () => {
     await chain.confirmTransaction(signature, "confirmed");
     restartServer();
     expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!.status).toBe("launching");
-    await call("ring/reconcile", {});
+    await reconcileNow();
     expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!).toMatchObject({ status: "launched", mint: coin.address });
     const received = await escrowOnChain(coin.address);
     expect((await mara.ringBalance(coin.address)) + (await ilya.ringBalance(coin.address))).toBe(received);
     await expectCovered(coin.address);
     await expectCovered(NATIVE);
     // Settling the same transaction again changes nothing.
-    await call("ring/credit", { signature });
+    await settleNow(signature);
     expect((await mara.ringBalance(coin.address)) + (await ilya.ringBalance(coin.address))).toBe(received);
   });
 
@@ -256,13 +269,13 @@ describe("attacks on a window by its own creator", () => {
       }),
     );
     const decoySignature = await sendAndConfirmTransaction(chain, decoy, [Keypair.fromSeed(creator.wallet.seed)]);
-    await call("ring/credit", { signature: decoySignature });
+    await settleNow(decoySignature);
     expect((await call("window/list", {})).windows.find((seen) => seen.id === window.id)!.status).toBe("launching");
     expect(committed(window.id)).toBe(SOL / 5n);
     await expect(mara.uncommitFromWindow(window.id)).rejects.toThrow(/launching/);
 
     // The real launch then lands and is settled as what it is: the coins go to the committers, none to the creator.
-    const sent = await call("tx/send", { transaction: signTransaction(built.transaction, [creator.wallet.seed, coin.seed]) });
+    const sent = await sendAndWait(signTransaction(built.transaction, [creator.wallet.seed, coin.seed]));
     const received = await escrowOnChain(coin.address);
     expect((await mara.ringBalance(coin.address)) + (await ilya.ringBalance(coin.address))).toBe(received);
     expect(await creator.ringBalance(coin.address)).toBe(0n);
@@ -282,14 +295,14 @@ describe("attacks on a window by its own creator", () => {
     const lock = stored.launching;
     stored.status = "open";
     delete stored.launching;
-    await call("tx/send", { transaction: signTransaction(built.transaction, [creator.wallet.seed, coin.seed]) });
+    await sendAndWait(signTransaction(built.transaction, [creator.wallet.seed, coin.seed]));
     expect(await escrowOnChain(coin.address)).toBeGreaterThan(0n);
     expect(await creator.ringBalance(coin.address)).toBe(0n); // the coins are nobody's rather than the creator's
     // Put right by hand for the checks that follow: the window is filled as it should have been.
     stored.status = "launching";
     stored.launching = lock;
     state().credited = state().credited.filter((signature) => !state().coins.some((listed) => listed.mint === coin.address && listed.signature === signature));
-    await call("ring/reconcile", {});
+    await reconcileNow();
     expect(await mara.ringBalance(coin.address)).toBe(await escrowOnChain(coin.address));
     await expectCovered(NATIVE);
   });

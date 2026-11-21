@@ -60,6 +60,8 @@ create table if not exists trades (
   wallet text not null, is_buy boolean not null, venue text not null default 'curve',
   sol numeric not null, tokens numeric not null,
   price numeric not null,
+  -- The price just before this trade. A candle rebuilt from trades opens here, exactly as it did when first built.
+  price_before numeric not null default 0,
   virtual_sol numeric not null, virtual_tokens numeric not null, real_sol numeric not null, real_tokens numeric not null,
   primary key (signature, idx)
 );

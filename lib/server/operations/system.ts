@@ -1,16 +1,18 @@
 /** Configuration, health, the local faucet, and submitting and looking up transactions. */
 import { PublicKey, type ConfirmedTransactionMeta } from "@solana/web3.js";
 import { NATIVE } from "../../constants";
-import type { Status, TransactionView } from "../../contract";
+import type { Status, TransactionView, TxOutcomeView } from "../../contract";
+import { forgetBalances } from "../balances";
 import { airdrop } from "../bootstrap";
 import { ringAvailable, settings } from "../env";
 import { escrow, escrowBalance } from "../escrow";
 import { ring } from "../ring";
-import { settle } from "../settle";
+import { settled, submit, type TxOutcome } from "../sender";
+import { closeSession, openSession } from "../sessions";
 import { connection, explain } from "../solana";
 import { state } from "../store";
-import { sendSigned } from "../transactions";
 import { addressOf, signatureOf, text } from "../validate";
+import { verifiedBody } from "./ring";
 import type { Handlers } from "./types";
 
 const PROGRAMS = [
@@ -98,25 +100,49 @@ async function transactionView(signature: string): Promise<TransactionView> {
   };
 }
 
-export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/status"> = {
+const outcomeView = (outcome: TxOutcome): TxOutcomeView => ({
+  signature: outcome.signature,
+  state: outcome.state,
+  ...(outcome.slot === undefined ? {} : { slot: outcome.slot }),
+  ...(outcome.problem === undefined ? {} : { problem: outcome.problem }),
+  ...(outcome.settlement === undefined ? {} : { settlement: outcome.settlement }),
+  ...(outcome.landedInMs === undefined ? {} : { landedInMs: outcome.landedInMs }),
+});
+
+export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/wait" | "tx/status" | "session/open" | "session/close"> = {
   config: () => ({ network: settings().network, ring: ringAvailable() ? "mock" : "unavailable", features: settings().features }),
 
   status,
 
   faucet: async (input) => {
-    await airdrop(new PublicKey(addressOf(input.wallet, "wallet address")), 10);
+    const wallet = addressOf(input.wallet, "wallet address");
+    await airdrop(new PublicKey(wallet), 10);
+    forgetBalances(wallet);
     return { ok: true as const };
   },
 
   /**
-   * Submits a transaction the wallet has signed, waits for it, and settles it: anything it
-   * paid into the Ring is credited and a coin it launched is listed, here, before the
-   * answer goes back. A browser that closes mid-request loses nothing.
+   * Hands a signed transaction to the network and answers at once. The sender keeps sending it until it is
+   * confirmed or expired, then settles it (anything it paid into the Ring is credited, a coin it launched is
+   * listed) whether or not the browser is still there.
    */
-  "tx/send": async (input) => {
-    const signature = await sendSigned(text(input.transaction, "transaction", 4_000));
-    return { signature, ...(await settle(signature)) };
+  "tx/send": async (input) => outcomeView(await submit(text(input.transaction, "transaction", 4_000), { fast: input.fast === true })),
+
+  "tx/wait": async (input) => {
+    const signature = signatureOf(input.signature);
+    const ms = input.ms === undefined ? 20_000 : input.ms;
+    if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 0 || ms > 25_000) throw new Error('"ms" must be between 0 and 25000');
+    const outcome = await settled(signature, ms);
+    if (!outcome) throw new Error("this server has no record of sending that transaction");
+    return outcomeView(outcome);
   },
 
   "tx/status": async (input) => transactionView(signatureOf(input.signature)),
+
+  /** One signature from the wallet opens a session. It can read that wallet's own records and upload a picture; it cannot move anything. */
+  "session/open": (input) => openSession(verifiedBody("session/open", input).wallet),
+  "session/close": (input) => {
+    closeSession(input.session);
+    return { ok: true as const };
+  },
 };
