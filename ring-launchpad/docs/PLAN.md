@@ -8,8 +8,10 @@ have real Ring usage, and trade blocks over the counter at a sealed size and pri
 
 ## Shape
 
-- **Web:** Next.js App Router, React, TypeScript. Homepage plus app routes: Explore,
-  Launch, Ring wallet, OTC, Docs, Terms, Privacy Policy.
+- **Web:** Next.js App Router, React, TypeScript. Homepage (hero, live stats, how it works
+  as the exploded view, what is hidden and what is not, the added features, product cards,
+  launch call to action, footer) plus app routes: Explore, Launch, Ring wallet, OTC, Docs,
+  Terms, Privacy Policy.
 - **Chain code** in one package, used by the app and the tests: a Rings module wrapping
   `@heliuslabs/spr`, a curve module wrapping `@pump-fun/pump-sdk`, a wallet module (Wallet
   Standard and the in-browser key), and the visibility table.
@@ -22,14 +24,42 @@ have real Ring usage, and trade blocks over the counter at a sealed size and pri
 
 | Step | Delivers | Proven by |
 | --- | --- | --- |
-| 1 | These notes and this plan | You reading them |
-| 2 | Launch (create + register, optional public dev buy into the Ring), Ring wallet (deposit, transfer, withdraw), Explore (feed, market cap, 24h change, Ring badge), privacy panel on each action | Unit tests, plus devnet tests for every flow with their transaction signatures listed |
-| 3 | Pre-launch sealed window (if you approve it, see decision 1), privacy score, pay links and QR, no-wallet mode with encrypted backup | Same |
-| 4 | OTC block trades, creator fees into the Ring. Proof of holdings is dropped | Same |
-| 5 | Site polish against the branding screenshots, Terms, Privacy Policy, docs | Screenshots at phone, tablet and desktop widths; a test that every privacy claim on the site is in the visibility table |
+| 1 | These notes and this plan | You reading them. Done. |
+| 2 | The homepage with the `brand/` media and the scroll sequence | Screenshots at desktop and phone width, compared with the style screenshots in `brand/`, with every weaker point listed and fixed |
+| 3 | Launch (create + register, optional public dev buy into the Ring), Ring wallet (deposit, transfer, withdraw), Explore (feed, market cap, 24h change, Ring badge), privacy panel on each action | Unit tests, plus devnet tests for every flow with their transaction signatures listed |
+| 4 | Pre-launch sealed window (if you approve it, see decision 1), privacy score, pay links and QR, no-wallet mode with encrypted backup | Same |
+| 5 | OTC block trades, creator fees into the Ring. Proof of holdings is dropped | Same |
+| 6 | Terms, Privacy Policy, docs, final polish on phone and desktop | Screenshots at phone, tablet and desktop widths; a test that every privacy claim on the site is in the visibility table |
 
-Step 2 starts with two half-day proofs on devnet, because the rest depends on them:
+Step 3 starts with two half-day proofs on devnet, because the rest depends on them:
 a pump.fun coin registered with the Ring, and a Ring transfer of that coin.
+
+## Blocked: step 2 needs files that are not here yet
+
+The homepage is built from five media files and a set of style screenshots, all expected
+in `brand/`. None of them exists in this folder or anywhere in the repository. The six
+generation prompts in the brief still contain the placeholders `[NAME]` and
+`[ACCENT COLOUR]`, and I cannot run an image or video generator from this session.
+`brand/README.md` lists each file, its size and what must line up between them.
+
+## How the homepage will be built (step 2)
+
+- **Typeface.** Doto (SIL Open Font Licence), a dot-matrix face with real weights, self-hosted
+  as one variable file. It is the only font. Long pages (Terms, Privacy Policy, Docs) will
+  be harder to read in an all-caps dot-matrix face than in a text face; I will set them
+  larger and looser and show you, so you can judge it before step 6.
+- **Scroll sequence.** `hero.mp4` is cut into still frames at build time (about 120 for six
+  seconds), encoded as AVIF with a WebP fallback, and drawn to a canvas from scroll
+  position. Frames load in order after first paint; the first frame is `hero.png` itself,
+  so the page is complete before any of the sequence arrives. A video element scrubbed by
+  scroll stutters on most phones, which is why it is frames and not the video.
+- **Callouts.** Positions are stored as fractions of the image, so the boxes and their
+  lines stay on their layers at every width. On phones they become a numbered list.
+- **Layer labels match the research.** 01 your wallet: public. 02 the coin: encrypted in a
+  transfer. 03 the amount: encrypted in a transfer. 04 the Ring: where the encrypted
+  balance lives. 05 the public chain: deposits, withdrawals and every curve trade.
+- **Live stats** come from devnet through our own route and show nothing until there is a
+  real number. With no launches yet the section says so.
 
 ## Decisions I need from you
 
@@ -43,13 +73,13 @@ a pump.fun coin registered with the Ring, and a Ring transfer of that coin.
    - **Leave it out** until Rings has a production escrow path.
    My recommendation is to leave it out of the first release and decide with legal advice.
    A pooled purchase of a coin that does not exist yet can look like a presale.
-2. **Name.** The brief still says [NAME]. I used the folder `ring-launchpad`.
-3. **Branding screenshots.** None reached me with your message. I captured the live
-   reference site myself. Three items on your avoid list are things that site does: a
-   wine-on-black palette (close to "purple and black"), pill-shaped navigation and buttons
-   ("soft corner radius"), and a cell texture behind the hero (close to "dot grids"). I
-   plan to keep its depth, type scale and spacing, shift the hue to oxblood and bone, use
-   square corners, and drop the texture. Say if you would rather match it exactly.
+2. **Name.** Both briefs say [NAME]. I used the folder `ring-launchpad`. The name is needed
+   for the logo lockup, the headline and the page titles.
+3. **Brand media and accent colour.** The revised brief settles the style (pure black,
+   white text, one dot-matrix face, colour only from the media), so my earlier palette
+   question is closed. What is open is the media itself: generate the six items, put them
+   in `brand/` with the style screenshots, and tell me the accent colour you chose. Avoid
+   violet or purple for it, since "purple and black" is on your own avoid list.
 4. **Helius API key for devnet.** I need one to run anything. I will ask for it through
    the secure credential form, not in chat.
 5. **Where the code lives.** This folder is inside the `Yo` repository, which is public,
