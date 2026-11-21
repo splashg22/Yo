@@ -1,0 +1,114 @@
+[
+  {
+    "page": "/",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/explore",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/launch",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/wallet",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/otc",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/docs",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/terms",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/privacy",
+    "device": "desktop",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 0,
+    "errors": []
+  },
+  {
+    "page": "/",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 38,
+    "errors": []
+  },
+  {
+    "page": "/explore",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/launch",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/wallet",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/otc",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/docs",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/terms",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  },
+  {
+    "page": "/privacy",
+    "device": "phone",
+    "horizontalOverflow": 0,
+    "brightestBehindText": 23,
+    "errors": []
+  }
+]
