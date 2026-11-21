@@ -28,6 +28,7 @@ const PAGES = [
   "/status",
   "/changelog",
   "/docs",
+  "/technical",
   "/terms",
   "/privacy",
 ];

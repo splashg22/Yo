@@ -148,3 +148,18 @@ describe("no wallet needed", () => {
     await expectCovered(NATIVE);
   });
 });
+
+describe("the SDK example", () => {
+  it("runs as written and does what its comments say", async () => {
+    const { launchAndTransfer } = await import("../../examples/launch-and-transfer");
+    const lines: string[] = [];
+    const { mara, ilya, coin, amount, sent } = await launchAndTransfer(call, (line) => lines.push(line));
+    expect(await ilya.ringBalance(coin.mint)).toBe(amount);
+    expect(await mara.ringBalance(coin.mint)).toBe(coin.firstBuyTokens - amount);
+    // The public record of the transfer names the two wallets and nothing about the coin or the amount.
+    expect(sent.public).toEqual({ from: mara.address, to: ilya.address });
+    expect(JSON.stringify(sent.public)).not.toContain(coin.mint);
+    expect(lines).toHaveLength(5);
+    await expectCovered(coin.mint);
+  });
+});

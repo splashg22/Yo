@@ -33,6 +33,7 @@ export const nav = [
 
 export const footerLinks = [
   { href: "/docs", label: "Docs" },
+  { href: "/technical", label: "Technical" },
   { href: "/status", label: "Status" },
   { href: "/changelog", label: "Changelog" },
   { href: "/terms", label: "Terms" },

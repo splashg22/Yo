@@ -51,6 +51,7 @@ for (const path of [
   "/status",
   "/changelog",
   "/docs",
+  "/technical",
   "/terms",
   "/privacy",
   "/.env",

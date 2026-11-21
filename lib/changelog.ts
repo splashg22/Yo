@@ -15,6 +15,8 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "Second audit pass, from a fresh chain: first buys failed in the built site because pump.fun's fee wallets were not funded; the test faucet reported a payment it had not made when pressed twice. Both fixed.",
       "Recent public transactions on each coin and wallet page, read from the chain. Receipts show what the paying wallet spent and received.",
       "Explore can be searched and ordered. The docs have a contents list. A designed page for addresses that do not exist.",
+      "A technical page: the programs called, whose logic is whose, how a launch is laid out, who you are trusting, and how to check a transaction yourself. The SDK example now runs inside the tests.",
+      "The site and its local chain moved to ports of their own.",
       "Phones: every control at least 44px tall; the scroll sequence fits short and very narrow screens; nothing moves when late data arrives.",
     ],
   },

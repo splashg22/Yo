@@ -49,6 +49,7 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 43 | Coin and wallet pages list recent public transactions straight from the chain; receipts show what the paying wallet spent and received | History and receipts should not depend on this site's own records | `coin/activity`, `wallet/activity`, `payerChanges` |
 | 44 | Search engines are asked not to index the site | A pre-release on a test chain should not be found by search | `robots` in `app/layout.tsx` |
 | 45 | The prototypes folder and one-off probe scripts were removed; browser check scripts were added | Dead code out; every check repeatable by one command | git history; `scripts/` |
+| 46 | The launchpad uses ports of its own: site 4710, checks 4711 and 4712, validator 8799 (and 8800, 9799, 8701, 8710 to 8740) | So it cannot collide with any other project on the same machine, whatever that project uses | `README.md`, "Ports and folders" |
 
 ## Only you
 
