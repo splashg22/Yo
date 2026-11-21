@@ -68,9 +68,16 @@ const shot = (page, name) => page.screenshot({ path: `shots/app/${name}.png` });
 const arm = (page) =>
   page.evaluate(() => {
     window.__said = [];
+    window.__clickedAt = null;
+    window.__answeredAt = null;
+    addEventListener("click", () => (window.__clickedAt ??= performance.now()), { capture: true, once: true });
     window.__watch?.disconnect();
     window.__watch = new MutationObserver(() => {
-      for (const line of document.querySelectorAll(".status-line")) if (line.innerText.trim()) window.__said.push(line.innerText);
+      for (const line of document.querySelectorAll(".status-line")) {
+        if (!line.innerText.trim()) continue;
+        if (window.__clickedAt !== null) window.__answeredAt ??= performance.now();
+        window.__said.push(line.innerText);
+      }
     });
     window.__watch.observe(document.body, { childList: true, characterData: true, subtree: true });
   });
@@ -78,6 +85,10 @@ const arm = (page) =>
 async function press(page, selector, pattern, timeout = 60000) {
   await arm(page);
   await page.click(selector);
+  // How long the page took to say anything at all after the click.
+  await page.waitForFunction(() => window.__answeredAt !== null, null, { timeout }).catch(() => undefined);
+  const waited = await page.evaluate(() => (window.__answeredAt === null ? null : window.__answeredAt - window.__clickedAt)).catch(() => null);
+  if (waited !== null) responses.push([Math.round(waited), selector]);
   try {
     await page.waitForFunction((source) => window.__said.some((text) => new RegExp(source, "i").test(text)), pattern.source, { timeout });
   } catch {
@@ -96,6 +107,8 @@ async function settles(read, want, what) {
   throw new Error(`${what}: the page shows "${got}", expected "${want}"`);
 }
 
+/** Milliseconds from each click to the first word of status, with the control that was clicked. */
+const responses = [];
 const symbols = { [NATIVE]: "SOL" };
 /** What each person should hold in the Ring, kept by this script from the actions it took. */
 const expected = { seller: {}, buyer: {} };
@@ -237,6 +250,13 @@ await step("explore lists all three coins, newest first, each with a market cap 
   if (rows.length !== 3) throw new Error(`${rows.length} coins listed`);
   for (const text of rows)
     if (!/SOL/.test(text) || !/OF SUPPLY IN RING BALANCES/i.test(text) || !/1 WALLET HAS DEPOSITED IT/i.test(text)) throw new Error(text.replace(/\n/g, " | "));
+  await ana.fill("#e-search", "ember");
+  await settles(async () => String(await ana.locator(".coins li").count()), "1", "coins matching a search for ember");
+  await ana.fill("#e-search", "no such coin");
+  await ana.waitForSelector("text=No coin here matches");
+  await ana.click("button:text-is('Show all')");
+  await settles(async () => String(await ana.locator(".coins li").count()), "3", "coins after clearing the search");
+  await ana.selectOption("#e-order", "cap");
   await shot(ana, "04-explore");
 });
 
@@ -296,6 +316,8 @@ await step("receipt: the link after a deposit opens a page that agrees with the 
   const text = await ben.locator(".kv").innerText();
   if (!text.includes(onLedger.slot.toLocaleString("en-US"))) throw new Error("the slot shown is not the chain's");
   if (!/500,000\s+LNTRN/i.test(text)) throw new Error(text.replace(/\n/g, " | "));
+  if (!/PAYING WALLET SPENT\s+500,000 LNTRN/i.test(text.replace(/\n/g, " ")))
+    throw new Error(`no line for what the wallet spent: ${text.replace(/\n/g, " | ")}`);
   await shot(ben, "07-receipt");
   await ben.goto(`${base}/wallet`);
 });
@@ -424,6 +446,12 @@ await step("privacy score, three times: the coin page's two figures are the chai
     if (BigInt(served.supply) !== supply || BigInt(served.inRing) !== inRing) throw new Error("the server's supply or Ring total is not the chain's");
     await ana.goto(`${base}/coin/${mint}`);
   });
+  // The coin's history on the curve: its launch, three buys and a sell, each with a receipt.
+  await settles(
+    async () => String(await ana.locator("h2:text-is('Recent activity on the curve') ~ ul.events li a:text-is('Receipt')").count()),
+    "5",
+    "curve transactions listed",
+  );
   await shot(ana, "14-coin");
 });
 
@@ -497,6 +525,10 @@ await step("phone width: every app page fits without sideways scroll", async () 
 
 await browser.close();
 const failed = results.filter(([result]) => result === "FAIL").length;
-console.log(`\n${results.length - failed} of ${results.length} steps passed. Browser errors: ${errors.length}`);
+responses.sort((a, b) => b[0] - a[0]);
+const slow = responses.filter(([waited]) => waited > 100);
+console.log(`\nFirst word of status after a click: slowest ${responses[0]?.[0]} ms, over ${responses.length} actions. ${slow.length} took longer than 100 ms.`);
+for (const [waited, selector] of slow) console.log(`   ${waited} ms after ${selector}`);
+console.log(`${results.length - failed} of ${results.length} steps passed. Browser errors: ${errors.length}`);
 for (const error of errors.slice(0, 12)) console.log("  ", error.slice(0, 240));
-process.exit(failed || errors.length ? 1 : 0);
+process.exit(failed || errors.length || slow.length ? 1 : 0);

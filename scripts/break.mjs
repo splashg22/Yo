@@ -252,7 +252,7 @@ await check("a reload in the middle of a deposit loses nothing: the chain and th
 
 // ---- a frozen chain mid-action ---------------------------------------------------------------
 await check("a chain that freezes for five seconds mid-deposit: the action finishes or says why, and the books still balance", async () => {
-  const validator = execSync("pgrep -f solana-test-validator | head -1").toString().trim();
+  const validator = execSync("pgrep -x solana-test-val | head -1").toString().trim(); // the process name, as the system shortens it
   await fillWallet(page, "deposit", { amount: "0.125" });
   await page.click("text=Sign and deposit");
   execSync(`kill -STOP ${validator}`);
@@ -433,7 +433,11 @@ await check("the chain stops answering: a second server pointed at a dead addres
     for (const path of ["/status", "/explore", `/coin/${coin.mint}`]) {
       const started = Date.now();
       await visitor.goto(dead + path);
-      const text = await waitForComplaint(visitor, 20000).catch(() => visitor.locator("main").innerText());
+      // The status page states it in its own row; the others raise a notice.
+      await visitor
+        .waitForFunction(() => /not answering|could not be reached/i.test(document.querySelector("main").innerText), null, { timeout: 20000 })
+        .catch(() => undefined);
+      const text = await visitor.locator("main").innerText();
       if (!/not answering|could not be reached|cannot reach|unreachable/i.test(text)) throw new Error(`${path}: ${text.replace(/\s+/g, " ").slice(0, 200)}`);
       heard.push(`${path} in ${((Date.now() - started) / 1000).toFixed(1)}s`);
     }

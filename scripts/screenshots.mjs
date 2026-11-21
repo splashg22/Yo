@@ -11,7 +11,7 @@ const out = join(root, "shots");
 mkdirSync(out, { recursive: true });
 const { chromium } = createRequire(import.meta.url)("playwright");
 const base = `http://127.0.0.1:${process.env.PORT ?? 3311}`;
-const PAGES = ["/", "/explore", "/launch", "/wallet", "/otc", "/pay", "/docs", "/terms", "/privacy"];
+const PAGES = ["/", "/explore", "/launch", "/wallet", "/otc", "/pay", "/status", "/changelog", "/docs", "/terms", "/privacy"];
 const SIZES = { desktop: { width: 1440, height: 900, deviceScaleFactor: 1 }, phone: { width: 390, height: 844, deviceScaleFactor: 2 } };
 
 const browser = await chromium.launch();
