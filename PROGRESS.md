@@ -14,7 +14,7 @@ needed reversing. The launchpad uses ports of its own. Evidence: `OTC-CHECK.md`.
 
 ### 2. Where the code lives
 
-`/home/user/ringpad`, its own git repository, 27 commits, **not pushed anywhere**. I could
+`/home/user/ringpad`, its own git repository, 29 commits, **not pushed anywhere**. I could
 not create a private GitHub repository (refused, 403). A full copy with history is in
 `ringpad.bundle`, sent to you. An early copy (research and homepage only) is still on the
 public `Yo` branch `claude/exciting-gates-vdquz4`; nothing new has gone there. Steps for
