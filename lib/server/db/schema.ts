@@ -42,13 +42,22 @@ create table if not exists markets (
   real_tokens numeric not null,
   complete boolean not null default false,
   completed_at bigint,
-  last_trade_at bigint
+  last_trade_at bigint,
+  -- The pool the coin trades in after it graduated, once one exists.
+  pool text,
+  -- As the coin's own creation event gave them. Shown for a coin that was not launched on this site.
+  name text not null default '',
+  symbol text not null default '',
+  uri text not null default '',
+  holders int not null default 0,
+  trades int not null default 0
 );
+create index if not exists markets_by_pool on markets (pool);
 -- One row per trade. The key is the transaction and the trade's place inside it, so a trade can never be counted twice.
 create table if not exists trades (
   signature text not null, idx int not null,
   mint text not null, slot bigint not null, tx_index int not null, at bigint not null,
-  wallet text not null, is_buy boolean not null,
+  wallet text not null, is_buy boolean not null, venue text not null default 'curve',
   sol numeric not null, tokens numeric not null,
   price numeric not null,
   virtual_sol numeric not null, virtual_tokens numeric not null, real_sol numeric not null, real_tokens numeric not null,
