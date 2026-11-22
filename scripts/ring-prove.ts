@@ -76,7 +76,14 @@ if (!existsSync(keyFile)) {
   const made = Object.fromEntries(["a", "b", "c"].map((name) => [name, [...crypto.getRandomValues(new Uint8Array(32))]]));
   writeFileSync(keyFile, JSON.stringify(made), { mode: 0o600 });
 }
-const seeds = JSON.parse(readFileSync(keyFile, "utf8")) as Record<"a" | "b" | "c", number[]>;
+const funded = JSON.parse(readFileSync(keyFile, "utf8")) as Record<"a" | "b" | "c", number[]>;
+// --fresh: three wallets that have never touched the chain, so that every step, registration included, really runs.
+// They are paid their test SOL by the first of the wallets above, which is the one that was sent devnet SOL.
+const fresh = process.argv.includes("--fresh");
+const seeds = fresh
+  ? (Object.fromEntries(["a", "b", "c"].map((name) => [name, [...crypto.getRandomValues(new Uint8Array(32))]])) as Record<"a" | "b" | "c", number[]>)
+  : funded;
+if (fresh) writeFileSync(".data-devnet/prove-keys-fresh.json", JSON.stringify(seeds), { mode: 0o600 });
 async function person(seed: number[]) {
   const bytes = () => Uint8Array.from(seed) as Bytes32;
   const signer = await createKeyPairSignerFromPrivateKeyBytes(bytes());
@@ -107,6 +114,41 @@ async function submit(transaction: Transaction, signers: KeyPairSigner[]): Promi
 }
 const link = (signature: string): string => `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 
+/** What each transaction cost, for the table in RING-RESULTS.md. */
+const costs: { step: string; signature: string; slot: number; version: string; feeLamports: number; payerPaidLamports: string; computeUnits: number }[] = [];
+/**
+ * Reads a transaction back from the chain, by its signature, and says what the chain recorded: that it went
+ * through, its version, its fee, and what the paying wallet's SOL did. Nothing here is taken from what was sent.
+ */
+async function readBack(step: string, signature: Signature, say: (line: string) => void): Promise<void> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const found = await client.solanaRpc.getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 1, encoding: "json" }).send();
+    if (!found?.meta) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      continue;
+    }
+    if (found.meta.err)
+      throw new Error(`the chain records it as failed: ${JSON.stringify(found.meta.err, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v))}`);
+    const paid = BigInt(found.meta.preBalances[0]!) - BigInt(found.meta.postBalances[0]!);
+    const entry = {
+      step,
+      signature,
+      slot: Number(found.slot),
+      version: String((found as { version?: unknown }).version),
+      feeLamports: Number(found.meta.fee),
+      payerPaidLamports: paid.toString(),
+      computeUnits: Number(found.meta.computeUnitsConsumed ?? 0),
+    };
+    costs.push(entry);
+    say(
+      `Read back from the chain: went through in slot ${entry.slot}, version ${entry.version}, fee ${entry.feeLamports} lamports, the paying wallet's SOL fell by ${entry.payerPaidLamports} lamports, ${entry.computeUnits} compute units`,
+    );
+    say(`Signature: ${signature}`);
+    return;
+  }
+  throw new Error("the chain did not return the transaction within 30 seconds");
+}
+
 console.log(`Test wallets (devnet only):\n  A ${a.signer.address}\n  B ${b.signer.address}\n  C ${c.signer.address}\n`);
 
 await step("0. Reach devnet: RPC, the Ring's indexer, and the prover's attested enclave", async (say) => {
@@ -120,8 +162,33 @@ await step("0. Reach devnet: RPC, the Ring's indexer, and the prover's attested 
   say(`Prover's proving keys match the SDK's (${JSON.stringify(report, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v)).slice(0, 200)})`);
 });
 
-const funded = (await lamportsOf(a.signer.address)) >= 300_000_000n;
-if (!funded) {
+if (fresh) {
+  await step("Fund the three new wallets' first one with 0.4 devnet SOL (a plain public transfer)", async (say) => {
+    const payer = await person(funded.a);
+    say(`From ${payer.signer.address}, which holds ${(Number(await lamportsOf(payer.signer.address)) / 1e9).toFixed(4)} SOL`);
+    const { getTransferSolInstruction } = await import("@solana-program/system");
+    const {
+      appendTransactionMessageInstruction,
+      compileTransaction,
+      createTransactionMessage,
+      pipe,
+      setTransactionMessageFeePayer,
+      setTransactionMessageLifetimeUsingBlockhash,
+    } = await import("@solana/kit");
+    const { value: latest } = await client.solanaRpc.getLatestBlockhash().send();
+    const message = pipe(
+      createTransactionMessage({ version: 0 }),
+      (m) => setTransactionMessageFeePayer(payer.signer.address, m),
+      (m) => setTransactionMessageLifetimeUsingBlockhash(latest, m),
+      (m) => appendTransactionMessageInstruction(getTransferSolInstruction({ source: payer.signer, destination: a.signer.address, amount: 400_000_000n }), m),
+    );
+    const sent = await submit(compileTransaction(message), [payer.signer]);
+    await readBack("fund A", sent.signature, say);
+    say(`A now holds ${await lamportsOf(a.signer.address)} lamports on the chain`);
+  });
+}
+const hasSol = (await lamportsOf(a.signer.address)) >= 300_000_000n;
+if (!hasSol) {
   console.log(`\nWallet A holds ${(Number(await lamportsOf(a.signer.address)) / 1e9).toFixed(4)} SOL. The on-chain steps need about 0.3 devnet SOL there.`);
   for (const name of ["1. Register", "2. Deposit", "3. Transfer", "4. Withdraw"])
     steps.push({ name, outcome: "not run", evidence: [`Wallet A (${a.signer.address}) has no devnet SOL. Both public faucets refused this machine.`] });
@@ -147,6 +214,7 @@ if (!funded) {
       );
       const sent = await submit(compileTransaction(message), [a.signer]);
       say(`Funded B with 0.05 SOL from A: ${link(sent.signature)}`);
+      await readBack("fund B", sent.signature, say);
     }
     for (const [name, who] of [
       ["A", a],
@@ -156,11 +224,14 @@ if (!funded) {
       if (registration === undefined) say(`${name} is already registered with these keys`);
       else {
         const sent = await submit(registration, [who.signer]);
-        say(`${name} registered: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
+        say(`${name} registered: ${sent.bytes} bytes, ${link(sent.signature)}`);
+        await readBack(`register ${name}`, sent.signature, say);
       }
     }
     const records = await client.getUserRecords([a.signer.address, b.signer.address]);
-    say(`Registry read back: ${JSON.stringify(records, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v)).slice(0, 300)}`);
+    const owners = (records as unknown as { records: ({ owner?: string } | null)[] }).records.map((record) => record?.owner ?? "MISSING");
+    say(`Registry read back from the Ring's indexer: records for ${owners.join(" and ")}`);
+    if (owners.includes("MISSING")) throw new Error("a wallet that was just registered is not in the registry");
   });
 
   const DEPOSIT = 100_000_000n;
@@ -171,7 +242,8 @@ if (!funded) {
     const before = a.wallet.balance(SOL_MINT).amount;
     const deposit = await buildDepositTransaction({ client, feePayer: a.signer.address, recipient: a.keypair.shieldedAddress(), amount: DEPOSIT });
     const sent = await submit(deposit, [a.signer]);
-    say(`Deposit: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
+    say(`Deposit: ${sent.bytes} bytes, ${link(sent.signature)}`);
+    await readBack("deposit", sent.signature, say);
     await syncWallet({ client, wallet: a.wallet, keys: keysOf(a), config: { requireSlot: sent.slot } });
     const after = a.wallet.balance(SOL_MINT).amount;
     say(`A's Ring balance, read with A's keys: ${before} -> ${after} lamports`);
@@ -192,7 +264,8 @@ if (!funded) {
     });
     say(`Proof made by the attested prover and the transaction built in ${((Date.now() - started) / 1000).toFixed(1)} s`);
     const sent = await submit(transfer, [a.signer]);
-    say(`Transfer: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
+    say(`Transfer: ${sent.bytes} bytes, ${link(sent.signature)}`);
+    await readBack("transfer", sent.signature, say);
     await syncWallet({ client, wallet: a.wallet, keys: keysOf(a), config: { requireSlot: sent.slot } });
     await syncWallet({ client, wallet: b.wallet, keys: keysOf(b), config: { requireSlot: sent.slot } });
     say(`A: ${beforeA} -> ${a.wallet.balance(SOL_MINT).amount}; B: ${beforeB} -> ${b.wallet.balance(SOL_MINT).amount}`);
@@ -202,7 +275,9 @@ if (!funded) {
       .getTransaction(sent.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 1, encoding: "json" })
       .send();
     const moved = (onChain?.meta?.postBalances ?? []).map((post, index) => BigInt(post) - BigInt(onChain!.meta!.preBalances[index]!));
-    say(`Public SOL movements in the transaction: ${JSON.stringify(moved.map(String))} (the fee only; ${SEND} appears nowhere)`);
+    say(
+      `Every public SOL movement in the transaction, from the chain: ${JSON.stringify(moved.map(String))}. The amount transferred, ${SEND}, is not among them`,
+    );
     if (moved.some((change) => change === SEND || change === -SEND)) throw new Error("the transferred amount is visible in the public balances");
     say(`B's history, read with B's keys: ${getPrivateTransactions(b.wallet).length} entries`);
   });
@@ -218,7 +293,8 @@ if (!funded) {
       amount: OUT,
     });
     const sent = await submit(withdrawal, [b.signer]);
-    say(`Withdrawal: ${sent.version}, ${sent.bytes} bytes, ${link(sent.signature)}`);
+    say(`Withdrawal: ${sent.bytes} bytes, ${link(sent.signature)}`);
+    await readBack("withdraw", sent.signature, say);
     const after = await lamportsOf(c.signer.address);
     say(`Fresh address C on-chain: ${before} -> ${after} lamports`);
     if (after - before !== OUT) throw new Error(`C received ${after - before}, not ${OUT}`);
@@ -230,7 +306,7 @@ if (!funded) {
 
 writeFileSync(
   ".data-devnet/ring-prove.json",
-  JSON.stringify({ at: new Date().toISOString(), wallets: [a, b, c].map((who) => who.signer.address), steps }, null, 2),
+  JSON.stringify({ at: new Date().toISOString(), fresh, wallets: [a, b, c].map((who) => who.signer.address), steps, costs }, null, 2),
 );
 console.log(`\n${steps.filter((entry) => entry.outcome === "proven").length} of ${steps.length} steps proven. Evidence saved to .data-devnet/ring-prove.json`);
 process.exit(steps.some((entry) => entry.outcome === "failed") ? 1 : 0);

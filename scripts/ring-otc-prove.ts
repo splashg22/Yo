@@ -32,7 +32,8 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 
 const key = process.env.HELIUS_API_KEY ?? "";
 if (!key) throw new Error("HELIUS_API_KEY is not set. Add it to .env.");
-const keyFile = ".data-devnet/prove-keys.json";
+// --fresh: the wallets of the latest `ring:prove --fresh` run, which hold Ring balances on both sides.
+const keyFile = process.argv.includes("--fresh") ? ".data-devnet/prove-keys-fresh.json" : ".data-devnet/prove-keys.json";
 if (!existsSync(keyFile)) throw new Error("Run npm run ring:prove first: it makes and funds the test wallets.");
 const hide = (text: string): string => text.replaceAll(key, "<key>");
 const seeds = JSON.parse(readFileSync(keyFile, "utf8")) as Record<"a" | "b" | "c", number[]>;
@@ -53,6 +54,28 @@ const sync = async (slot?: bigint): Promise<void> => {
 const link = (signature: string): string => `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 
 const evidence: string[] = [];
+/** What the chain recorded of a transaction: whether it went through, and what it cost its paying wallet. */
+async function chainSays(signature: string): Promise<string> {
+  for (let attempt = 0; attempt < 20; attempt++) {
+    const found = await client.solanaRpc
+      .getTransaction(signature as Parameters<typeof client.solanaRpc.getTransaction>[0], {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 1,
+        encoding: "json",
+      })
+      .send();
+    if (!found?.meta) {
+      await new Promise((resolve) => setTimeout(resolve, 1500));
+      continue;
+    }
+    const paid = BigInt(found.meta.preBalances[0]!) - BigInt(found.meta.postBalances[0]!);
+    const failed = found.meta.err
+      ? `FAILED (${JSON.stringify(found.meta.err, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v))})`
+      : "went through";
+    return `${failed} in slot ${found.slot}, version ${String((found as { version?: unknown }).version)}, fee ${found.meta.fee} lamports, the paying wallet's SOL fell by ${paid} lamports, ${found.meta.computeUnitsConsumed ?? 0} compute units`;
+  }
+  return "the chain did not return it within 30 seconds";
+}
 const say = (line: string): void => {
   evidence.push(line);
   console.log("   ", line);
@@ -104,7 +127,8 @@ try {
   const [beforeA, beforeB] = [ringSol(a), ringSol(b)];
   await client.solanaRpc.sendTransaction(both.wire, { encoding: "base64", skipPreflight: false, preflightCommitment: "confirmed" }).send();
   const slot = await client.confirmTransaction(both.signature);
-  say(`It went through: ${link(both.signature)}`);
+  say(`Signature: ${both.signature}`);
+  say(`Read back from the chain: ${await chainSays(both.signature)}`);
   await sync(slot);
   say(`A: ${beforeA} -> ${ringSol(a)} (gave ${A_GIVES}, got ${B_GIVES}); B: ${beforeB} -> ${ringSol(b)} (got ${A_GIVES}, gave ${B_GIVES})`);
   if (ringSol(a) - beforeA !== B_GIVES - A_GIVES || ringSol(b) - beforeB !== A_GIVES - B_GIVES)
@@ -147,6 +171,8 @@ try {
   say(
     `One good leg and one stale leg in one transaction: ${status?.err ? `failed on the chain (${JSON.stringify(status.err, (_k, v: unknown) => (typeof v === "bigint" ? v.toString() : v))})` : refused ? `not taken (${refused})` : "WENT THROUGH"}  ${link(broken.signature)}`,
   );
+  say(`Signature: ${broken.signature}`);
+  say(`Read back from the chain: ${await chainSays(broken.signature)}`);
   await sync();
   say(`After it: A ${holdA} -> ${ringSol(a)}; B ${holdB} -> ${ringSol(b)}`);
   if (ringSol(a) !== holdA || ringSol(b) !== holdB) throw new Error("a leg went through by itself: the two did not settle together");

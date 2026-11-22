@@ -52,6 +52,13 @@ async function send(instructions: TransactionInstruction[], payer: Keypair, sign
   throw new Error(`not confirmed within a minute: ${link(signature)}`);
 }
 
+/** What the chain recorded of a transaction: its fee and what it cost the wallet that paid. */
+async function cost(signature: string): Promise<string> {
+  const found = await chain.getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  if (!found?.meta) return "not returned by the chain";
+  return `${found.meta.err ? "FAILED" : "went through"} in slot ${found.slot}, fee ${found.meta.fee} lamports, the paying wallet's SOL fell by ${found.meta.preBalances[0]! - found.meta.postBalances[0]!} lamports`;
+}
+
 let answer = "not answered";
 try {
   const mint = Keypair.generate();
@@ -88,7 +95,8 @@ try {
     `The Ring program's upgrade authority on devnet is ${upgradeAuthority}; B is ${b.publicKey.toBase58()}: a different wallet, with no role in the coin either`,
   );
   const registered = await send([toWeb3(register)], b, [b]);
-  say(`B registered the coin with the Ring: ${link(registered)}`);
+  say(`B registered the coin with the Ring. Signature: ${registered}`);
+  say(`Read back from the chain: ${await cost(registered)}`);
   // Registering it a second time must not be possible, or must change nothing.
   try {
     await send([toWeb3(register)], b, [b]);
