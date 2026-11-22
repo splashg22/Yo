@@ -228,7 +228,7 @@ export async function createApp(options: AppOptions): Promise<App> {
       if (path === "/admin/reconcile") return admin(request, response);
       if (path.startsWith("/u/")) return served(response, decodeURIComponent(path.slice(3)));
       // A page. The framework reads the nonce from the policy on the request and puts it on every script it writes.
-      const policy = contentSecurityPolicy(newNonce(), { dev, imageHosts });
+      const policy = contentSecurityPolicy(newNonce(), { dev, imageHosts, host: request.headers.host });
       request.headers["content-security-policy"] = policy;
       response.setHeader("content-security-policy", policy);
       for (const [name, value] of Object.entries(fixed)) response.setHeader(name, value);

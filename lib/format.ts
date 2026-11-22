@@ -89,8 +89,9 @@ export function formatCompact(value: number): string {
   if (size >= 1e6) return scaled(1e6, "M");
   if (size >= 1e4) return scaled(1e3, "K");
   if (size >= 100) return `${sign}${size.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+  // A whole number is a count (holders, trades): it has no decimals to show.
+  if (Number.isInteger(size)) return `${sign}${size}`;
   if (size >= 1) return `${sign}${size.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  if (size === 0) return "0";
   if (size >= 0.0001) return `${sign}${Number(size.toPrecision(3))}`;
   return `${sign}${compactZeros(plainSmall(size), 3)}`;
 }

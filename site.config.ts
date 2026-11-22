@@ -34,6 +34,7 @@ export const site = {
 export const nav = [
   { href: "/explore", label: "Explore" },
   { href: "/terminal", label: "Terminal" },
+  { href: "/portfolio", label: "Portfolio" },
   { href: "/launch", label: "Launch" },
   { href: "/wallet", label: "Ring wallet" },
   { href: "/otc", label: "OTC" },

@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { TerminalPage } from "@/components/pages/TerminalPage";
+import { Board } from "@/components/terminal/Board";
 
 export const metadata: Metadata = { title: "Terminal" };
 
 export default function Page() {
-  return <TerminalPage />;
+  return <Board />;
 }

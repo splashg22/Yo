@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
-import { CoinPage } from "@/components/pages/CoinPage";
+import { CoinScreen } from "@/components/terminal/CoinScreen";
 
 export const metadata: Metadata = { title: "Coin" };
 
 export default async function Page({ params }: { params: Promise<{ mint: string }> }) {
-  return <CoinPage mint={(await params).mint} />;
+  return <CoinScreen mint={(await params).mint} />;
 }

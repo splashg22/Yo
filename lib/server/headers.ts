@@ -8,7 +8,9 @@ export const newNonce = (): string => randomBytes(16).toString("base64");
  * does); nothing is ever evaluated from text; the page talks only to this site; it cannot be framed.
  * Styles allow inline attributes, which the interface uses for sizes worked out at run time; no script can come in that way.
  */
-export function contentSecurityPolicy(nonce: string, options: { dev: boolean; imageHosts: string[] }): string {
+export function contentSecurityPolicy(nonce: string, options: { dev: boolean; imageHosts: string[]; host?: string }): string {
+  // The live connection is a websocket to this same host. It is named outright: not every browser reads 'self' as covering it.
+  const live = options.host && /^[\w.-]+(:\d+)?$/.test(options.host) ? ` ws://${options.host} wss://${options.host}` : "";
   return [
     "default-src 'self'",
     // In development the framework's hot reload evaluates code; a production build never does.
@@ -18,7 +20,7 @@ export function contentSecurityPolicy(nonce: string, options: { dev: boolean; im
     `img-src 'self' data: blob:${options.imageHosts.map((host) => ` ${host}`).join("")}`,
     "font-src 'self'",
     "media-src 'self'",
-    "connect-src 'self'",
+    `connect-src 'self'${live}`,
     "worker-src 'self' blob:",
     "object-src 'none'",
     "base-uri 'none'",

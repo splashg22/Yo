@@ -1,9 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
+import { TxProvider } from "@/components/tx/Tx";
+import { PriceProvider } from "@/components/ui/Money";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
 import { site } from "@/site.config";
 import "./globals.css";
+import "./app.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:4710"),
@@ -25,15 +28,20 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <head>
         <link rel="preload" href="/fonts/doto.woff2" as="font" type="font/woff2" crossOrigin="" />
+        <link rel="preload" href="/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body>
         <Background />
         <WalletProvider>
-          <div className="shell">
-            <Header />
-            <main id="main">{children}</main>
-            <Footer />
-          </div>
+          <PriceProvider>
+            <TxProvider>
+              <div className="shell">
+                <Header />
+                <main id="main">{children}</main>
+                <Footer />
+              </div>
+            </TxProvider>
+          </PriceProvider>
         </WalletProvider>
       </body>
     </html>

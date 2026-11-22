@@ -33,7 +33,15 @@ function viewFor(pathname: string): [number, number] {
 const RINGS = [0.34, 0.55, 0.8, 1.08, 1.42];
 const MEASURE = 1120;
 
+/**
+ * The moving rings belong to the homepage. Every other page is a working screen, where text and figures
+ * fill the width and nothing decorative passes behind them.
+ */
 export function Background() {
+  return usePathname() === "/" ? <HomeBackground /> : null;
+}
+
+function HomeBackground() {
   const pathname = usePathname();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const route = useRef(pathname);
