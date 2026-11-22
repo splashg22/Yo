@@ -34,7 +34,7 @@ export function StatsRow() {
           ? `The counters could not be read: ${problem}`
           : stats === null
             ? "Reading the chain."
-            : `Read from ${stats.network === "local" ? "the local test chain" : "devnet"} just now.${stats.reason ? ` ${stats.reason}` : ""}`}
+            : `Read from ${stats.network === "local" ? "the local test chain" : stats.network === "mainnet" ? "Solana mainnet (read only)" : "devnet"} just now.${stats.reason ? ` ${stats.reason}` : ""}`}
       </p>
     </>
   );

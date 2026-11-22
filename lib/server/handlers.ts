@@ -8,6 +8,7 @@ import { otc } from "./operations/otc";
 import { ringOperations } from "./operations/ring";
 import { system } from "./operations/system";
 import { windowOperations } from "./operations/window";
+import { READ_ONLY_REFUSAL, settings } from "./env";
 import { failure, log } from "./log";
 import { market } from "./market";
 import { onConfirmed } from "./sender";
@@ -20,6 +21,28 @@ type Registry = { [Name in OpName]: (input: Input) => Api[Name]["output"] | Prom
 const operations: Registry = { ...system, ...marketOperations, ...ringOperations, ...otc, ...windowOperations };
 
 export const isOperation = (name: string): name is OpName => Object.hasOwn(operations, name);
+/**
+ * What may be asked on mainnet: reads of public facts, and nothing that builds, signs, sends, moves or records money.
+ * A list of what is allowed, not of what is forbidden, so a new operation is refused there until someone decides otherwise.
+ */
+export const READS_ALLOWED_ON_MAINNET: ReadonlySet<OpName> = new Set<OpName>([
+  "config",
+  "status",
+  "price/sol",
+  "stats",
+  "explore",
+  "coin",
+  "coin/trades",
+  "coin/candles",
+  "coin/holders",
+  "position",
+  "portfolio",
+  "address/seen",
+  "wallet/activity",
+  "wallet/public",
+]);
+/** Every operation this server answers, by name. */
+export const operationNames = (): OpName[] => Object.keys(operations) as OpName[];
 
 /**
  * Starts what has to be running behind every operation, once per database: the indexer, and what happens
@@ -62,4 +85,10 @@ export async function within<Output>(label: string, work: () => Output | Promise
 }
 
 /** Runs one operation. Any failure comes back as an Error whose message is one plain sentence. */
-export const run = <Name extends OpName>(name: Name, input: Input = {}): Promise<Api[Name]["output"]> => within(name, () => operations[name](input));
+export const run = <Name extends OpName>(name: Name, input: Input = {}): Promise<Api[Name]["output"]> =>
+  within(name, () => {
+    // On mainnet this server reads and does nothing else. Only the operations named as reads are answered; anything
+    // else, and anything added later and not put on that list, is refused here, before it starts.
+    if (settings().readOnly && !READS_ALLOWED_ON_MAINNET.has(name)) return Promise.reject(new Error(READ_ONLY_REFUSAL));
+    return operations[name](input);
+  });

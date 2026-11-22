@@ -12,7 +12,7 @@ import { Connection, VersionedTransaction } from "@solana/web3.js";
 import bs58 from "bs58";
 import type { Settlement } from "../contract";
 import { forgetBalances } from "./balances";
-import { settings } from "./env";
+import { assertMaySend, settings } from "./env";
 import { failure, log } from "./log";
 import { connection, explain } from "./solana";
 import { builtHere } from "./transactions";
@@ -95,6 +95,7 @@ function broadcast(entry: Tracked, preflight: boolean): Promise<string>[] {
  * transaction and costs its fee, which is the price of not waiting; the terminal uses it, nothing else does.
  */
 export async function submit(base64: string, options: { fast?: boolean } = {}): Promise<TxOutcome> {
+  assertMaySend();
   let transaction: VersionedTransaction;
   try {
     transaction = VersionedTransaction.deserialize(Buffer.from(base64, "base64"));

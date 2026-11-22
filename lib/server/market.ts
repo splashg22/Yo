@@ -7,7 +7,10 @@ import { Hub } from "./live";
 import { failure, log } from "./log";
 import { Indexer, type Applied } from "./indexer/indexer";
 import { marketCapOf, priceOf, progressOf, type Candle, type Market, type Trade } from "./indexer/model";
+import { AMM_PROGRAM, PUMP_PROGRAM } from "./indexer/decode";
+import { HeliusTxStream, PUMP_MINT_AUTHORITY } from "./indexer/helius-stream";
 import { RpcSource } from "./indexer/rpc-source";
+import { StreamSource } from "./indexer/stream-source";
 import type { ChainSource } from "./indexer/types";
 import type { CoinView, TradeView } from "../contract";
 import { coinsToDrop } from "./indexer/retention";
@@ -21,6 +24,8 @@ const BOARD_SHOWN = 400;
 const PATCH_MS = 200;
 /** How often coins nobody trades are looked for and dropped. */
 const TIDY_EVERY_MS = 60_000;
+/** How often the choice of coins followed trade by trade is made again. */
+const REFOLLOW_EVERY_MS = 5_000;
 /** A coin somebody opened is kept this long after, whatever its trading. */
 const KEEP_ASKED_MS = 24 * 3_600_000;
 
@@ -67,7 +72,7 @@ export class MarketService {
   /** Called with each applied block, after the hub has been told: for settling deposits and for tests. */
   readonly onApplied = new Set<(block: Applied) => void>();
 
-  constructor(source: ChainSource) {
+  constructor(private readonly source: ChainSource) {
     this.indexer = new Indexer(
       database(),
       source,
@@ -89,10 +94,52 @@ export class MarketService {
       undefined,
       settings().feedScope === "all",
     );
+    if (source instanceof StreamSource && settings().feedScope === "coins") {
+      this.refollow();
+      this.following = setInterval(() => this.refollow(), REFOLLOW_EVERY_MS);
+    }
     this.tidying = setInterval(
       () => void this.tidy().catch((error: unknown) => log("error", "dropping dead coins failed", { error: String(error) })),
       TIDY_EVERY_MS,
     );
+  }
+
+  /**
+   * With a stream that carries only chosen coins: the coins whose every trade is being received. The rest are known
+   * (they were seen being made) and their figures stay as they were when last heard: `view` says since when.
+   * Undefined when every coin is live, which is the case for whole blocks and for a full stream.
+   */
+  private live: Set<string> | undefined;
+  private following: ReturnType<typeof setInterval> | undefined;
+  /** Chooses the coins to receive every trade of: the ones somebody needs, then the newest, up to the setting. */
+  private refollow(): void {
+    if (!(this.source instanceof StreamSource)) return;
+    const now = Date.now();
+    const markets = [...this.indexer.markets.values()].filter((market) => !market.quote);
+    const wanted = markets.filter((market) => this.needed(market.mint, now));
+    const newest = markets
+      .filter((market) => !wanted.includes(market))
+      .sort((a, b) => b.createdAt - a.createdAt)
+      .slice(0, settings().feedFollowNewest);
+    const chosen = [...wanted, ...newest];
+    const before = this.live;
+    this.live = new Set(chosen.map((market) => market.mint));
+    // A coin trades at its curve's address until it graduates, and at its pool's after.
+    this.source.follow(chosen.map((market) => market.pool ?? curveAddress(market.mint).toBase58()));
+    // A coin that has just stopped or started being live says so on the board.
+    for (const market of markets) if ((before?.has(market.mint) ?? true) !== this.live.has(market.mint)) this.touch(market.mint);
+  }
+  /** What the feed is doing, for /health. */
+  feed(): Record<string, unknown> {
+    const { feedProvider, feedScope } = settings();
+    const stream = this.source instanceof StreamSource ? this.source : undefined;
+    return {
+      provider: stream ? feedProvider : "rpc",
+      scope: stream ? feedScope : "all",
+      ...(stream ? { down: stream.down, late: stream.late, repeats: stream.repeats, gaps: stream.gaps } : {}),
+      followedLive: this.live?.size ?? this.indexer.markets.size,
+      followed: this.indexer.markets.size,
+    };
   }
 
   /** When each coin was last asked for by name, so one somebody has open or opened lately is not dropped. */
@@ -213,6 +260,7 @@ export class MarketService {
       launchedHere: listed !== undefined,
       ...(market.seenFromSlot === undefined ? {} : { followedSince: market.createdAt }),
       ...(market.quote ? { unsupported: { reason: "quote" as const, quote: market.quote } } : {}),
+      ...(this.live && !this.live.has(mint) && !market.quote ? { notLiveSince: market.lastTradeAt ?? market.createdAt } : {}),
       marketCapLamports: marketCapOf(market).toString(),
       microLamportsPerCoin: priceOf(market.virtualSol, market.virtualTokens).toString(),
       changeBasisPoints: stats.change.h24 ?? 0,
@@ -255,8 +303,30 @@ export class MarketService {
   async stop(): Promise<void> {
     clearTimeout(this.patchTimer);
     clearInterval(this.tidying);
+    clearInterval(this.following);
+    if (this.source instanceof StreamSource) this.source.close();
     await this.indexer.stop();
   }
+}
+
+/**
+ * Where the indexer's data comes from, by the settings. Changing provider or scope is a change of settings:
+ *   FEED_PROVIDER=rpc         whole blocks over the RPC (the local chain, devnet)
+ *   FEED_PROVIDER=helius-ws   Helius's transaction stream; FEED_SCOPE=coins for the cheapest plan, all for everything
+ */
+function sourceFromSettings(): ChainSource {
+  const { feedProvider, feedScope, heliusApiKey, network } = settings();
+  if (feedProvider === "rpc") return new RpcSource(connection);
+  if (!heliusApiKey) throw new Error("FEED_PROVIDER is helius-ws but HELIUS_API_KEY is not set");
+  if (network === "local") throw new Error("FEED_PROVIDER helius-ws needs RING_NETWORK devnet or mainnet: there is no Helius stream of a local chain");
+  return new StreamSource(
+    new HeliusTxStream({
+      socketUrl: `wss://${network}.helius-rpc.com/?api-key=${heliusApiKey}`,
+      rpc: connection,
+      // Everything: the two programs. The cheapest plan: only what makes a coin, plus the coins chosen to be followed.
+      always: feedScope === "all" ? [PUMP_PROGRAM, AMM_PROGRAM] : [PUMP_MINT_AUTHORITY],
+    }),
+  );
 }
 
 let running: { key: string; service: Promise<MarketService> } | undefined;
@@ -273,7 +343,7 @@ export function market(): Promise<MarketService> {
   const key = `${databaseUrl}|${databaseSchema}|${dataDir}`;
   if (running?.key !== key) {
     const service = (async () => {
-      const made = new MarketService(sourceFor ? sourceFor() : new RpcSource(connection));
+      const made = new MarketService(sourceFor ? sourceFor() : sourceFromSettings());
       await made.indexer.start();
       return made;
     })();

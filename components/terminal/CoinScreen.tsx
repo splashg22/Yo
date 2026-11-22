@@ -43,7 +43,7 @@ const TIMEFRAMES = [
 ];
 
 export function CoinScreen({ mint }: { mint: string }) {
-  const { signer } = useWallet();
+  const { signer, config } = useWallet();
   const store = useMemo(() => new CoinStore(mint), [mint]);
   useEffect(() => {
     void store.start();
@@ -119,6 +119,7 @@ export function CoinScreen({ mint }: { mint: string }) {
     .map((trade) => ({ at: Math.floor(trade.t / 1000), side: trade.b ? "buy" : "sell", who: trade.w === me ? "me" : "creator", price: trade.p }));
   const view: ChartView = { measure, unit, supplyCoins: Number(BigInt(coin.privacy.supply)) / 1e6, solUsd: solPrice?.usd ?? null };
   const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
+  const readOnly = config !== null && config !== "offline" && config.network === "mainnet";
 
   return (
     <>
@@ -134,6 +135,14 @@ export function CoinScreen({ mint }: { mint: string }) {
                   {coin.complete ? (coin.hasPool ? "Graduated: trades in its pool" : "Sold out: no pool yet") : "On the curve"}
                 </span>
                 {!coin.launchedHere && <span className="tag">Not launched here</span>}
+                {coin.followedSince !== undefined && (
+                  <span
+                    className="tag"
+                    title="It was already trading when this site first saw it. Nothing earlier is held: the chart, trades and holders start there."
+                  >
+                    History from when first seen
+                  </span>
+                )}
               </h1>
               <Address value={coin.mint} short />
             </div>
@@ -212,6 +221,14 @@ export function CoinScreen({ mint }: { mint: string }) {
                 This coin is priced in something other than SOL (<span className="address">{shortAddress(coin.unsupported.quote)}</span>). This site reads and
                 trades only coins priced in SOL for now, so it shows no price, chart or trades for this one, and cannot trade it. It is listed so that it is not
                 mistaken for a coin with no activity.
+              </p>
+            </section>
+          ) : readOnly ? (
+            <section className="card" data-read-only>
+              <h2 className="px">Trading is switched off</h2>
+              <p className="body">
+                This build shows Solana mainnet and sends nothing there. Prices, trades and holders on this screen are real and read from the chain; nothing can
+                be bought or sold from here.
               </p>
             </section>
           ) : tradeable ? (

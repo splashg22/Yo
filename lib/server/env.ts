@@ -1,7 +1,17 @@
 /** Server settings, all in one place. The Helius key is read here and never reaches the browser. */
 
 export interface Settings {
-  network: "local" | "devnet";
+  /**
+   * "mainnet" is read-only, always: the server reads Solana mainnet and can build, sign or send nothing there.
+   * There is no setting that makes it trade on mainnet.
+   */
+  network: "local" | "devnet" | "mainnet";
+  /** True on mainnet. Every operation that builds or sends a transaction is refused. */
+  readOnly: boolean;
+  /** Where the indexer's data comes from: whole blocks over the RPC, or Helius's transaction stream. FEED_PROVIDER. */
+  feedProvider: "rpc" | "helius-ws";
+  /** With a stream fed only the coins being followed: how many of the newest coins are followed trade by trade. FEED_FOLLOW_NEWEST. */
+  feedFollowNewest: number;
   rpcUrl: string;
   dataDir: string;
   /** A Postgres connection string. Empty: the state is kept in a file under `dataDir`. */
@@ -72,8 +82,13 @@ const flag = (name: string): boolean => {
  * Where the chain is reached. Local: a validator on this machine. Devnet: Helius, with the key;
  * or DEVNET_RPC_URL if that is set, which is how devnet mode is tested without a key.
  */
-function rpcUrlFor(network: "local" | "devnet"): string {
+function rpcUrlFor(network: "local" | "devnet" | "mainnet"): string {
   if (network === "local") return process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
+  if (network === "mainnet") {
+    if (process.env.MAINNET_RPC_URL) return process.env.MAINNET_RPC_URL;
+    if (process.env.HELIUS_API_KEY) return `https://mainnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
+    throw new Error("RING_NETWORK is mainnet but neither HELIUS_API_KEY nor MAINNET_RPC_URL is set");
+  }
   if (process.env.DEVNET_RPC_URL) return process.env.DEVNET_RPC_URL;
   if (process.env.HELIUS_API_KEY) return `https://devnet.helius-rpc.com/?api-key=${process.env.HELIUS_API_KEY}`;
   throw new Error("RING_NETWORK is devnet but neither HELIUS_API_KEY nor DEVNET_RPC_URL is set");
@@ -93,11 +108,20 @@ function feedScopeFromEnv(): FeedScope {
 
 export function settings(): Settings {
   const network = process.env.RING_NETWORK ?? "local";
-  if (network !== "local" && network !== "devnet") throw new Error('RING_NETWORK must be "local" or "devnet"');
+  if (network !== "local" && network !== "devnet" && network !== "mainnet")
+    throw new Error('RING_NETWORK must be "local", "devnet" or "mainnet" (mainnet is read-only)');
+  const feedProvider = process.env.FEED_PROVIDER ?? "rpc";
+  if (feedProvider !== "rpc" && feedProvider !== "helius-ws") throw new Error('FEED_PROVIDER must be "rpc" or "helius-ws"');
+  const feedFollowNewest = Number(process.env.FEED_FOLLOW_NEWEST ?? 300);
+  if (!Number.isInteger(feedFollowNewest) || feedFollowNewest < 0 || feedFollowNewest > 40_000)
+    throw new Error("FEED_FOLLOW_NEWEST must be a whole number from 0 to 40000");
   const rpcTimeoutMs = Number(process.env.RPC_TIMEOUT_MS ?? 20_000);
   if (!Number.isInteger(rpcTimeoutMs) || rpcTimeoutMs < 100) throw new Error("RPC_TIMEOUT_MS must be a whole number of milliseconds, 100 or more");
   return {
     network,
+    readOnly: network === "mainnet",
+    feedProvider,
+    feedFollowNewest,
     rpcUrl: rpcUrlFor(network),
     dataDir: process.env.APP_DATA_DIR ?? ".data",
     databaseUrl: process.env.DATABASE_URL ?? "",
@@ -139,4 +163,11 @@ export function assertLocalOnly(what: string): void {
   if (network !== "local" || !["127.0.0.1", "localhost", "[::1]"].includes(host)) {
     throw new Error(`${what} is a local-validator mock and refuses to run against ${host} (${network})`);
   }
+}
+
+/** What is said when anything that would build or send a transaction is asked for on mainnet. */
+export const READ_ONLY_REFUSAL = "this build only reads Solana mainnet. It builds and sends nothing there: trading is switched off. Nothing was built or sent.";
+/** Refuses, on mainnet, anything that would build, sign or send. Called at every door a transaction could leave by. */
+export function assertMaySend(): void {
+  if (settings().readOnly) throw new Error(READ_ONLY_REFUSAL);
 }

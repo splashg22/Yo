@@ -50,7 +50,13 @@ export function StatusPage() {
             <dt>Checked</dt>
             <dd>{formatTime(status.checkedAt)}</dd>
             <dt>Network</dt>
-            <dd>{status.network === "local" ? "A local test chain on this machine" : "Solana devnet"}</dd>
+            <dd>
+              {status.network === "local"
+                ? "A local test chain on this machine"
+                : status.network === "mainnet"
+                  ? "Solana mainnet, read only. This build builds and sends no transaction there"
+                  : "Solana devnet"}
+            </dd>
             <dt>Chain</dt>
             <dd>
               {yesNo(

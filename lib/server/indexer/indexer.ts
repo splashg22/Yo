@@ -325,13 +325,15 @@ export class Indexer {
         );
       }
       if (this.cursor >= this.head) break;
-      const to = Math.min(this.head, this.cursor + 200);
+      // A stream's slots are real slot numbers with long empty stretches between its blocks, and asking it for a range is free.
+      const stream = this.source.kind === "stream";
+      const to = stream ? this.head : Math.min(this.head, this.cursor + 200);
       const slots = (await this.source.slots(this.cursor + 1, to)).filter((slot) => slot > this.cursor);
       for (let start = 0; start < slots.length; start += FETCH_AHEAD) {
         const blocks = await Promise.all(slots.slice(start, start + FETCH_AHEAD).map((slot) => this.source.block(slot)));
         for (const block of blocks) {
           if (!block || block.slot <= this.cursor) continue;
-          if (this.tip && block.parentHash !== this.tip.hash) await this.reorganise(block);
+          if (!stream && this.tip && block.parentHash !== this.tip.hash) await this.reorganise(block);
           await this.apply(block);
         }
       }

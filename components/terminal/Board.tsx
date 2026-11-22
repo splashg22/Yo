@@ -66,7 +66,8 @@ const ORDER: Record<ColumnKey, (a: CoinView, b: CoinView) => number> = {
 };
 
 export function Board() {
-  const { signer } = useWallet();
+  const { signer, config } = useWallet();
+  const readOnly = config !== null && config !== "offline" && config.network === "mainnet";
   const router = useRouter();
   const tx = useTx();
   // Replaced, never changed in place, so everything worked out from it knows when to work it out again.
@@ -315,7 +316,7 @@ export function Board() {
               shown={tab === column.key}
               cursor={cursor.column === column.key ? cursor.index : -1}
               quick={quick}
-              canQuick={signer !== null && oneClick}
+              canQuick={signer !== null && oneClick && !readOnly}
               onQuick={(coin) => signer && void quickBuy(coin, signer)}
             />
           ))}
@@ -487,7 +488,17 @@ function Row({
           <span className="quiet" title="Volume in 24 hours">
             V <UsdOfSol lamports={coin.volume24hLamports} />
           </span>
-          <span className={change !== null && change < 0 ? "down" : "up"}>{change === null ? "" : formatChange(change)}</span>
+          {coin.notLiveSince !== undefined ? (
+            // Not passed off as live: this coin's trades are not being received, and its figures are as old as this says.
+            <span
+              className="quiet"
+              title="This coin's trades are not being received as they happen. Its figures are from the time shown. Opening it makes it live."
+            >
+              as of <Age at={coin.notLiveSince} />
+            </span>
+          ) : (
+            <span className={change !== null && change < 0 ? "down" : "up"}>{change === null ? "" : formatChange(change)}</span>
+          )}
         </span>
       </Link>
       {canQuick && tradeable ? (

@@ -37,7 +37,7 @@ export interface RawBlock {
 }
 const SKIPPED = /-32007|-32009|-32004|was skipped|not available|Block not available/i;
 
-function txOf(entry: RawTx, index: number): ChainTx | null {
+export function txOf(entry: RawTx, index: number): ChainTx | null {
   const meta = entry.meta;
   if (!meta || meta.err) return null;
   const keys: string[] = [...entry.transaction.message.accountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];

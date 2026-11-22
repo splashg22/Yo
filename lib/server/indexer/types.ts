@@ -69,6 +69,11 @@ export interface EarlyTx {
   events: ChainEvent[];
 }
 export interface ChainSource {
+  /**
+   * "stream": the blocks are gathered from a stream of transactions. They carry no real hashes, so a block is not
+   * tested against the one before it, and a range of slots costs nothing to ask for. Absent: blocks read from a chain.
+   */
+  readonly kind?: "stream";
   /** The newest confirmed slot. */
   head(): Promise<number>;
   /** The confirmed slots in a range, both ends included, in order. Skipped slots are left out. */

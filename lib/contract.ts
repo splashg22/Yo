@@ -9,7 +9,8 @@ export type { Offer, RingEvent };
 export type PublicRingEvent = Omit<RingEvent, "sealed" | "parties">;
 
 export interface Config {
-  network: "local" | "devnet";
+  /** "mainnet" is read-only: this site shows mainnet's coins and trades and can send nothing there. */
+  network: "local" | "devnet" | "mainnet";
   /**
    * "mock": Ring balances are kept by the local stand-in, not by the Privacy Rings program.
    * "real": the Privacy Rings program itself, through its SDK in the browser. "unavailable": not connected on this network.
@@ -37,6 +38,12 @@ export interface CoinView {
    * Nothing earlier is held, and its name and creator are empty until they have been read from the chain.
    */
   followedSince?: number;
+  /**
+   * Set when this server is not receiving this coin's trades as they happen (the data plan carries live trades only for
+   * coins somebody has open and for the newest coins): the moment its figures were last true, in milliseconds.
+   * Opening the coin makes it live. Absent: the figures are live.
+   */
+  notLiveSince?: number;
   /** Set for a coin this site cannot trade or chart yet, with the reason. "quote": it is priced in something other than SOL. */
   unsupported?: { reason: "quote"; quote: string };
   /** False for a pump.fun coin that was made somewhere else and is only traded here. */
@@ -69,7 +76,7 @@ export interface Settlement {
   listed: string[];
 }
 export interface Status {
-  network: "local" | "devnet";
+  network: "local" | "devnet" | "mainnet";
   ring: "mock" | "real" | "unavailable";
   checkedAt: number;
   chain: { reachable: boolean; slot?: number; version?: string; problem?: string };
@@ -176,7 +183,7 @@ export interface Activity {
   failed: boolean;
 }
 export interface Stats {
-  network: "local" | "devnet";
+  network: "local" | "devnet" | "mainnet";
   available: boolean;
   reason?: string;
   launched?: number;

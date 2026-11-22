@@ -159,6 +159,7 @@ async function health(response: ServerResponse): Promise<void> {
       ...(indexer.failure ? { problem: indexer.failure } : {}),
     };
     report.live = { clients: hub.clients, framesSent: hub.sent, clientsDropped: hub.dropped };
+    report.feed = service.feed();
   } catch (error) {
     ok = false;
     report.chain = false;

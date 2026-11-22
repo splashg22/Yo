@@ -15,7 +15,7 @@ import {
 import { createHash } from "node:crypto";
 import { NATIVE } from "../constants";
 import { bootstrap } from "./bootstrap";
-import { assertLocalOnly, assertRing, ringAvailable, settings } from "./env";
+import { assertLocalOnly, assertMaySend, assertRing, ringAvailable, settings } from "./env";
 import { depositInstructions, escrow } from "./escrow";
 import { claimFeesInstructions, claimableFees, graduateInstructions, launchInstructions, tokenProgramOf, tradeInstructions } from "./pump";
 import { state } from "./store";
@@ -63,6 +63,8 @@ async function compileMessage(
   kind: string,
   options: SendOptions = {},
 ): Promise<Compiled> {
+  // Every transaction this server builds passes through here. On mainnet none is built.
+  assertMaySend();
   const tables: AddressLookupTableAccount[] = [];
   const table = state().lookupTable;
   if (table) {
