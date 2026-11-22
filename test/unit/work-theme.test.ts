@@ -46,7 +46,15 @@ const contrast = (a: string, b: string): number => {
 const SURFACES = ["page", "panel", "row", "hover"];
 const TEXT = ["ink", "mute", "quiet", "buy", "sell", "accent-text"];
 
+const warmDark = { ...styledDark, ...block('html[data-surface="work"][data-style="warm"]') };
+const warmLight = {
+  ...styledLight,
+  ...block('html[data-surface="work"][data-style="warm"]'),
+  ...block('html[data-surface="work"][data-style="warm"][data-theme="light"]'),
+};
 describe.each([
+  ["friendlier styles: warm, dark", warmDark],
+  ["friendlier styles: warm, light", warmLight],
   ["dark", dark],
   ["light", light],
   ["friendlier styles, dark", styledDark],

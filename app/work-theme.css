@@ -414,6 +414,7 @@ html[data-surface="work"][data-style] {
   --sell-wash: #2e1c18;
   --on-fill: #14171c;
   --text: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-pill: 999px;
   --r-panel: 10px;
   --r-control: 8px;
   --r-row: 6px;
@@ -490,13 +491,13 @@ html[data-surface="work"][data-style] :is(.btn, .quick, .seg button, .presets bu
 html[data-surface="work"][data-style] :is(.seg, .ticket .sides) {
   border: 0;
   background: var(--row);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: var(--s2);
   gap: var(--s1);
 }
 html[data-surface="work"][data-style] :is(.seg button, .ticket .sides button) {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--mute);
   min-height: 28px;
@@ -508,7 +509,7 @@ html[data-surface="work"][data-style] .seg button[aria-pressed="true"] {
 }
 html[data-surface="work"][data-style] .feed-tabs > button {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   margin: var(--s3) 0 var(--s3) var(--s3);
   min-height: 30px;
   padding: 0 var(--s5);
@@ -536,7 +537,7 @@ html[data-surface="work"][data-style] :is(.coin-row .name b, .trade-head .who b)
 /* lively colour in small doses: pills and thin bars */
 html[data-surface="work"][data-style] .tag {
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--row);
   padding: var(--s1) var(--s3);
   color: var(--mute);
@@ -546,7 +547,7 @@ html[data-surface="work"][data-style] .tag.hot {
   color: var(--on-accent);
 }
 html[data-surface="work"][data-style] .coin-row .nums :is(.up, .down) {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: 0 var(--s3);
   justify-self: end;
 }
@@ -561,12 +562,12 @@ html[data-surface="work"][data-style] .coin-row .nums :is(.up, .down):empty {
 }
 html[data-surface="work"][data-style] .meter {
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--row);
   overflow: hidden;
 }
 html[data-surface="work"][data-style] .meter i {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--buy-fill);
 }
 /* the share of trades that were buys: a thin bar, lime against warm red, beside the two counts */
@@ -574,7 +575,7 @@ html[data-surface="work"][data-style] .coin-row .ratio {
   display: inline-block;
   width: 34px;
   height: 4px;
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--sell-fill);
   overflow: hidden;
   vertical-align: middle;
@@ -595,7 +596,7 @@ html[data-surface="work"][data-style] :is(.coin-row, .vrow) {
   border-color: var(--faint);
 }
 html[data-surface="work"][data-style] .coin-row .quick {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   background: var(--row);
   border-color: var(--row);
 }
@@ -607,7 +608,7 @@ html[data-surface="work"][data-style] .ticket .sides button.sell[aria-pressed="t
   background: var(--sell-fill);
 }
 html[data-surface="work"][data-style] :is(.ticket .go, .btn.primary) {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 html[data-surface="work"][data-style] .statusbar {
   border-color: var(--faint);
@@ -617,7 +618,7 @@ html[data-surface="work"][data-style] .top {
 }
 html[data-surface="work"][data-style] .board-col h2 .quiet {
   background: var(--row);
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   padding: var(--s1) var(--s3);
   margin-left: var(--s2);
 }
@@ -675,7 +676,7 @@ html[data-surface="work"][data-style="playful"] .tag {
 
 /* the small choices under the buy button: pills, the chosen one filled */
 html[data-surface="work"][data-style] .settings .opts :is(button, input, .field-row) {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
   border-color: var(--row);
   background: var(--row);
   color: var(--mute);
@@ -691,7 +692,7 @@ html[data-surface="work"][data-style="playful"] .settings .opts button[aria-pres
   color: var(--on-accent);
 }
 html[data-surface="work"][data-style="playful"] .presets button {
-  border-radius: 999px;
+  border-radius: var(--r-pill);
 }
 html[data-surface="work"][data-style="playful"] .ticket .go {
   min-height: 52px;
@@ -750,4 +751,89 @@ html[data-surface="work"][data-surface] .coin-row > .quick {
 html[data-surface="work"][data-surface] .coin-row > a > .coin-picture {
   align-self: start;
   margin-top: var(--s3);
+}
+
+/*
+ * ---- a third version: warm and quiet ----
+ * data-style="warm". The same parts again in a warmer, calmer key: a warm near-black, off-white ink, warm greys,
+ * hairlines round the panels, corners barely rounded, and colour kept for what it means. The brand's own text face.
+ */
+html[data-surface="work"][data-style="warm"] {
+  --page: #0f0e0d;
+  --panel: #171614;
+  --row: #201e1b;
+  --hover: #2a2824;
+  --ink: #f2efe9;
+  --mute: #aca79e;
+  --quiet: #969085;
+  --rule: #7a756c;
+  --edge: #2b2926; /* a hairline: a panel is drawn round, quietly */
+  --faint: #232120;
+  --buy: #5ed6a2;
+  --sell: #ff8a76;
+  --buy-fill: #5ed6a2;
+  --sell-fill: #f0705a;
+  --buy-wash: #1a2a22;
+  --sell-wash: #30201c;
+  --on-fill: #171614;
+  --on-accent: #171614;
+  --on-ink: #0f0e0d;
+  --text: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-pill: 3px;
+  --r-panel: 4px;
+  --r-control: 3px;
+  --r-row: 0px;
+  --gap: var(--s4);
+  --pad: var(--s4);
+}
+html[data-surface="work"][data-style="warm"][data-theme="light"] {
+  --page: #f1eee8;
+  --panel: #fbfaf7;
+  --row: #f5f3ee;
+  --hover: #e8e4dc;
+  --ink: #171614;
+  --mute: #4b4842;
+  --quiet: #635e55;
+  --rule: #7d776d;
+  --edge: #dcd7cd;
+  --faint: #e8e4dc;
+  --buy: #075c3a;
+  --sell: #b5371c;
+  --buy-fill: #8fe3bd;
+  --sell-fill: #ee8873;
+  --buy-wash: #e2f3ea;
+  --sell-wash: #fbe6e0;
+  --accent-text: #855000;
+  --on-ink: #fbfaf7;
+}
+/* tags stay small pills; everything else is nearly square */
+html[data-surface="work"][data-style="warm"] :is(.tag, .board-col h2 .quiet, .coin-row .nums :is(.up, .down), .meter, .meter i, .coin-row .ratio) {
+  border-radius: 10px;
+}
+html[data-surface="work"][data-style="warm"] :is(.board-col, .card, .panel, .filters, .feed, .chart-box, .ticket, .notice, table.plain) {
+  border-color: var(--edge);
+}
+html[data-surface="work"][data-style="warm"] :is(.seg, .ticket .sides) {
+  padding: var(--s1);
+  border: 1px solid var(--edge);
+  background: var(--panel);
+}
+/* column heads in small spaced capitals: the one place the interface raises its voice */
+html[data-surface="work"][data-style="warm"] .board-col h2 {
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+  color: var(--mute);
+}
+html[data-surface="work"][data-style="warm"] .figures .v {
+  font-weight: 400;
+  font-size: 18px;
+}
+html[data-surface="work"][data-style="warm"] .coin-row .quick {
+  border-color: var(--edge);
+  background: var(--panel);
+  color: var(--mute);
+}
+html[data-surface="work"][data-style="warm"] .coin-picture {
+  border-radius: 4px;
 }
