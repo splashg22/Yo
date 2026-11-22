@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { onLiveStatus, type LiveStatus } from "@/lib/client/live";
 import { formatUsd } from "@/lib/format";
 import { Time, useSolPrice } from "../ui/Money";
+import { DisplaySettings } from "../Surface";
 import { useWallet } from "../wallet/WalletProvider";
 
 const TEXT: Record<LiveStatus, string> = { live: "Live", connecting: "Connecting", offline: "Offline: figures are not updating" };
@@ -45,8 +46,9 @@ export function LiveStrip({ onHelp }: { onHelp?: () => void }) {
       ) : (
         <span>No dollar price here: figures are in SOL</span>
       )}
+      <DisplaySettings />
       {onHelp && (
-        <button className="link desk-only" type="button" onClick={onHelp} style={{ marginLeft: "auto" }}>
+        <button className="link desk-only" type="button" onClick={onHelp} style={{ marginLeft: "auto" }} data-keys>
           Keys <kbd>?</kbd>
         </button>
       )}

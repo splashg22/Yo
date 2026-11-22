@@ -302,8 +302,9 @@ function Traders({ coin, me }: { coin: CoinView; me: string | null }) {
     );
   }
   return (
-    <div className="feed-body" ref={list.scroller} role="table" aria-label="Top traders, by what they made" aria-rowcount={traders.length}>
-      <div style={{ height: list.total + ROW + 34, position: "relative" }}>
+    // Seven columns do not fit a phone: the table keeps its width and scrolls sideways inside its box.
+    <div className="feed-body scroll-x" ref={list.scroller} role="table" aria-label="Top traders, by what they made" aria-rowcount={traders.length}>
+      <div style={{ height: list.total + ROW + 34, position: "relative", minWidth: 660 }}>
         <p className="note-line" style={{ height: 34, display: "flex", alignItems: "center", gap: 18 }} data-trader-summary>
           <span>
             Made = sold, less bought, plus what is still held at the price now.{" "}

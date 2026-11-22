@@ -14,11 +14,11 @@ import { shortAddress } from "@/lib/format";
 import { Time, UsdOfSol } from "../ui/Money";
 
 function Liquidity({ check }: { check: ChecksView["liquidity"] }) {
-  if (check.kind === "curve") return <>No pool yet: on the curve</>;
+  if (check.kind === "curve") return <>On the curve</>;
   if (check.kind === "none") return <>No pool yet</>;
   if (check.kind === "unread") return <>Not read</>;
   const bps = check.kind === "burned" ? check.burnedBps : check.lockedBps;
-  const word = check.kind === "burned" ? "burned" : "locked for good";
+  const word = check.kind === "burned" ? "burned" : "locked";
   // All of it, said only when it is all of it. Anything less is a share somebody could withdraw.
   if (bps >= 10_000) return <>100% {word}</>;
   return (

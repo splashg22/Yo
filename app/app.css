@@ -98,10 +98,10 @@ button {
   text-transform: none;
 }
 .up {
-  color: var(--ink);
+  color: var(--buy);
 }
 .down {
-  color: var(--accent);
+  color: var(--sell);
 }
 .quiet {
   color: var(--mute);
@@ -214,7 +214,7 @@ table.grid th {
   white-space: nowrap;
   position: sticky;
   top: 0;
-  background: #000;
+  background: var(--page);
   z-index: 1;
 }
 table.grid td {
@@ -230,7 +230,7 @@ table.grid td.r {
   padding-left: 12px;
 }
 table.grid tr:hover td {
-  background: rgba(255, 255, 255, 0.04);
+  background: var(--tint-1);
 }
 .table-wrap {
   overflow-x: auto;
@@ -251,7 +251,7 @@ table.grid tr:hover td {
   gap: 12px;
   padding: 8px 12px;
   border: 1px solid var(--rule);
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   font: inherit;
   cursor: pointer;
@@ -278,7 +278,7 @@ table.grid tr:hover td {
   max-height: 280px;
   overflow-y: auto;
   border: 1px solid var(--ink);
-  background: #000;
+  background: var(--page);
 }
 .choice li {
   padding: 10px 12px;
@@ -290,10 +290,10 @@ table.grid tr:hover td {
   gap: 12px;
 }
 .choice li[aria-selected="true"] {
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 .choice li.active {
-  background: rgba(255, 255, 255, 0.1);
+  background: var(--tint-3);
 }
 .tick {
   position: relative;
@@ -336,7 +336,7 @@ table.grid tr:hover td {
   font-family: var(--mono);
   font-size: 12px;
   color: var(--mute);
-  background: #000;
+  background: var(--page);
   border: 0;
   border-right: 1px solid var(--rule);
   padding: 0 12px;
@@ -347,7 +347,7 @@ table.grid tr:hover td {
   border-right: 0;
 }
 .seg button[aria-pressed="true"] {
-  color: #000;
+  color: var(--on-ink);
   background: var(--ink);
 }
 .field-row {
@@ -362,7 +362,7 @@ table.grid tr:hover td {
   flex: 1;
   min-width: 0;
   min-height: 44px;
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   border: 0;
   padding: 0 12px;
@@ -409,7 +409,7 @@ table.grid tr:hover td {
 }
 .tray > div {
   border: 1px solid var(--ink);
-  background: #000;
+  background: var(--page);
   padding: 10px 12px;
   display: grid;
   gap: 4px;
@@ -429,11 +429,11 @@ table.grid tr:hover td {
 }
 .tray .failed,
 .tray .expired {
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
 }
 .tray .failed .state,
 .tray .expired .state {
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 .tray button {
   font: inherit;
@@ -616,7 +616,7 @@ table.grid tr:hover td {
 }
 .feed-tabs > button[aria-selected="true"] {
   color: var(--ink);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  box-shadow: inset 0 -2px 0 var(--accent-text, var(--accent));
 }
 .feed-tabs .tools {
   margin-left: auto;
@@ -647,14 +647,14 @@ table.grid tr:hover td {
   white-space: nowrap;
 }
 .vrow.mine {
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent-text, var(--accent));
   padding-left: 8px;
 }
 .vhead {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #000;
+  background: var(--page);
   display: grid;
   gap: 12px;
   align-items: end;
@@ -681,8 +681,8 @@ table.grid tr:hover td {
   color: var(--mute);
 }
 .tag.hot {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
+  color: var(--accent-text, var(--accent));
 }
 .meter {
   height: 3px;
@@ -700,7 +700,7 @@ table.grid tr:hover td {
   display: grid;
   gap: 12px;
   padding: 12px;
-  background: #000;
+  background: var(--page);
 }
 .ticket .sides {
   display: grid;
@@ -714,14 +714,14 @@ table.grid tr:hover td {
   letter-spacing: 0.16em;
   text-transform: uppercase;
   min-height: 44px;
-  background: #000;
+  background: var(--page);
   color: var(--mute);
   border: 0;
   cursor: pointer;
 }
 .ticket .sides button[aria-pressed="true"] {
   background: var(--ink);
-  color: #000;
+  color: var(--on-ink);
 }
 .ticket .sides button.sell[aria-pressed="true"] {
   background: var(--accent);
@@ -736,7 +736,7 @@ table.grid tr:hover td {
   font-family: var(--mono);
   font-size: 13px;
   min-height: 40px;
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   border: 1px solid var(--rule);
   cursor: pointer;
@@ -753,7 +753,7 @@ table.grid tr:hover td {
   border-color: var(--faint);
 }
 .ticket .go:disabled {
-  background: #000;
+  background: var(--page);
   color: var(--mute);
   border-color: var(--rule);
   cursor: not-allowed;
@@ -774,12 +774,12 @@ table.grid tr:hover td {
   min-height: 52px;
   border: 1px solid var(--ink);
   background: var(--ink);
-  color: #000;
+  color: var(--on-ink);
   cursor: pointer;
 }
 .ticket .go.sell {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
 }
 .ticket dl,
 .facts {
@@ -826,7 +826,7 @@ table.grid tr:hover td {
   min-height: 36px;
   min-width: 0;
   padding: 0 6px;
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   border: 1px solid var(--rule);
   cursor: pointer;
@@ -837,8 +837,8 @@ table.grid tr:hover td {
   cursor: text;
 }
 .settings .opts button[aria-pressed="true"] {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
+  color: var(--accent-text, var(--accent));
 }
 .note-line {
   font-size: 12px;
@@ -846,7 +846,7 @@ table.grid tr:hover td {
   line-height: 1.45;
 }
 .note-line.warn {
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 .card {
   border: 1px solid var(--rule);
@@ -869,7 +869,7 @@ table.grid tr:hover td {
   gap: 4px 20px;
   align-items: center;
   border-top: 1px solid var(--rule);
-  background: #000;
+  background: var(--page);
   padding: 6px 16px;
   font-size: 12px;
   color: var(--mute);
@@ -939,10 +939,10 @@ kbd {
 }
 .coin-row:hover,
 .coin-row.cursor {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--tint-2);
 }
 .coin-row.cursor {
-  box-shadow: inset 2px 0 0 var(--accent);
+  box-shadow: inset 2px 0 0 var(--accent-text, var(--accent));
 }
 .coin-row .name {
   display: grid;
@@ -989,13 +989,13 @@ kbd {
   min-height: 36px;
   min-width: 64px;
   border: 1px solid var(--rule);
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   cursor: pointer;
 }
 .coin-row .quick:hover:not(:disabled) {
-  border-color: var(--accent);
-  color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
+  color: var(--accent-text, var(--accent));
 }
 .toolbar {
   display: flex;
@@ -1030,14 +1030,14 @@ kbd {
   position: fixed;
   inset: 0;
   z-index: 70;
-  background: rgba(0, 0, 0, 0.82);
+  background: var(--scrim);
   display: grid;
   place-items: center;
   padding: 16px;
 }
 .sheet > div {
   border: 1px solid var(--ink);
-  background: #000;
+  background: var(--page);
   padding: 20px;
   width: min(560px, 100%);
   max-height: 86vh;
@@ -1108,7 +1108,7 @@ kbd {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     padding: 8px 12px;
-    background: #000;
+    background: var(--page);
     border-top: 1px solid var(--ink);
   }
   .trade-dock button {
@@ -1119,11 +1119,11 @@ kbd {
     min-height: 48px;
     border: 1px solid var(--ink);
     background: var(--ink);
-    color: #000;
+    color: var(--on-ink);
   }
   .trade-dock button.sell {
     background: var(--accent);
-    border-color: var(--accent);
+    border-color: var(--accent-text, var(--accent));
   }
   .figures {
     gap: 4px 18px;
@@ -1276,14 +1276,14 @@ kbd {
 .recording-bar {
   margin: 0;
   padding: 8px 16px;
-  border-bottom: 1px solid var(--accent);
-  background: #000;
+  border-bottom: 1px solid var(--accent-text, var(--accent));
+  background: var(--page);
   color: var(--ink);
   font-size: 13px;
   line-height: 1.4;
 }
 .recording-bar b {
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 
 /* ---- a board row's third line: what it traded, what backs it, who bought and sold; and the one-column ranking ---- */

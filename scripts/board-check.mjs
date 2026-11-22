@@ -84,7 +84,8 @@ check(
   /MC \$/.test(row) &&
     /V \$/.test(row) &&
     /Liq \$/.test(row) &&
-    /\d+\/\d+/.test(row) &&
+    /B \d/.test(row) &&
+    /S \d/.test(row) &&
     /holder/.test(row) &&
     ["T10", "Dev", "Snp", "Bnd", "Ins"].every((label) => row.includes(label)),
   row.slice(0, 140),
@@ -179,7 +180,7 @@ check(
 );
 check(
   "pool liquidity is read from the chain: a share burned or locked, no pool yet, or not read",
-  /Pool liquidity (\d+(\.\d)?% (burned|locked for good)|No pool yet|Not read)/.test(checks),
+  /Pool liquidity (\d+(\.\d)?% (burned|locked)|On the curve|No pool yet|Not read)/.test(checks),
   /Pool liquidity [^.]{0,40}/.exec(checks)?.[0] ?? "",
 );
 check("the creator's other coins card says what it cannot see", /does not mean a clean history/.test(await page.locator("[data-dev]").innerText()));

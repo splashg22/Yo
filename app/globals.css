@@ -10,6 +10,16 @@
   --ink: #ffffff;
   --mute: rgba(255, 255, 255, 0.72);
   --rule: rgba(255, 255, 255, 0.34);
+  /* Surfaces and the colours that sit on them. Here they are the brand's: black, white, the accent. The working screens
+     give these other values (app/work-theme.css); nothing below this block writes a colour of its own. */
+  --page: #000;
+  --on-ink: #000; /* text on a control filled with --ink */
+  --tint-1: rgba(255, 255, 255, 0.04);
+  --tint-2: rgba(255, 255, 255, 0.06);
+  --tint-3: rgba(255, 255, 255, 0.1);
+  --scrim: rgba(0, 0, 0, 0.82);
+  --buy: var(--ink);
+  --sell: var(--accent);
   --gutter: clamp(20px, 5vw, 72px);
   --measure: 1120px;
   color-scheme: dark;
@@ -24,7 +34,7 @@ body {
   color: var(--ink);
 }
 html {
-  background: #000;
+  background: var(--page);
 }
 html {
   overflow-x: clip;
@@ -176,7 +186,7 @@ img {
   font-size: 13px;
   letter-spacing: 0.18em;
   color: var(--ink);
-  background: #000;
+  background: var(--page);
   cursor: pointer;
   text-transform: uppercase;
 }
@@ -266,7 +276,7 @@ table.plain td:first-child {
   display: grid;
   gap: 16px;
   max-width: 620px;
-  background: #000;
+  background: var(--page);
 }
 .panel dl {
   display: grid;
@@ -330,7 +340,7 @@ table.plain td:first-child {
 .field input {
   font: inherit;
   color: var(--ink);
-  background: #000;
+  background: var(--page);
   border: 1px solid var(--rule);
   padding: 13px 14px;
   text-transform: none;
@@ -342,7 +352,7 @@ table.plain td:first-child {
   padding: 16px 18px;
   color: var(--mute);
   max-width: 620px;
-  background: #000;
+  background: var(--page);
 }
 
 @media (max-width: 760px) {
@@ -514,7 +524,7 @@ canvas.bg {
   top: -34px;
   width: min(268px, 19vw);
   border: 1px solid var(--ink);
-  background: #000;
+  background: var(--page);
   padding: 11px 13px;
   display: grid;
   gap: 5px;
@@ -760,13 +770,13 @@ canvas.bg {
 }
 .status-line.bad:not(:empty)::before {
   content: "Problem: ";
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 .field select,
 .field input[type="file"] {
   font: inherit;
   color: var(--ink);
-  background: #000;
+  background: var(--page);
   border: 1px solid var(--rule);
   padding: 13px 14px;
   width: 100%;
@@ -796,7 +806,7 @@ canvas.bg {
   border: 1px solid var(--ink);
   margin: 4px 0 0;
   flex: none;
-  background: #000;
+  background: var(--page);
 }
 .check input:checked {
   background: var(--ink);
@@ -909,7 +919,7 @@ canvas.bg {
   color: var(--mute);
   font-size: 12px;
   max-width: 760px;
-  background: #000;
+  background: var(--page);
 }
 @media (max-width: 760px) {
   .coins > li {
@@ -945,7 +955,7 @@ canvas.bg {
   position: absolute;
   left: -9999px;
   top: 8px;
-  background: #000;
+  background: var(--page);
   border: 1px solid var(--ink);
   padding: 10px 14px;
   z-index: 20;
@@ -987,7 +997,7 @@ pre.code {
   padding: 16px 18px;
   overflow-x: auto;
   max-width: 100%;
-  background: #000;
+  background: var(--page);
   color: var(--ink);
   margin: 0;
   white-space: pre;
@@ -1006,7 +1016,7 @@ pre.code {
 }
 .state-bad::before {
   background: var(--accent);
-  border-color: var(--accent);
+  border-color: var(--accent-text, var(--accent));
 }
 @media (max-width: 760px) {
   .changelog li {
@@ -1204,7 +1214,7 @@ pre.code {
   object-fit: cover;
   font-weight: 900;
   font-size: 18px;
-  background: #000;
+  background: var(--page);
 }
 input[type="file"] {
   font: inherit;
@@ -1281,7 +1291,7 @@ input[type="file"] {
   border-bottom-color: var(--ink);
 }
 .board button[aria-pressed="true"] b {
-  color: var(--accent);
+  color: var(--accent-text, var(--accent));
 }
 .board-name,
 .board-figures {

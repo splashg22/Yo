@@ -49,6 +49,26 @@ describe("a pump.fun coin priced in another coin", () => {
     await indexer.reached(source.release(1000));
 
     const markets = [...indexer.markets.values()];
+    // A pool can be made with SOL as its first side and the coin as its second. Its events are then the other way
+    // round, and read as usual a coin's price would be the inverse of its price. So a pool is followed only when the
+    // chain shows it holding, in SOL, what its events say its second side holds.
+    const WSOL = "So11111111111111111111111111111111111111112";
+    const pooled = new Map(
+      markets.filter((market) => market.pool && !market.venue && !market.pricedIn && !market.quote).map((market) => [market.pool!, market]),
+    );
+    let held = 0;
+    for (const block of new RecordedSource(RECORDING).all())
+      for (const tx of block.txs)
+        for (const event of tx.events) {
+          if (event.kind !== "trade" || event.venue !== "amm" || !pooled.has(event.mint.slice(5))) continue;
+          const sol = tx.balances.find((balance) => balance.owner === event.mint.slice(5) && balance.mint === WSOL)?.amount;
+          if (sol === undefined) continue;
+          held += 1;
+          const apart = sol > event.realSol ? sol - event.realSol : event.realSol - sol;
+          // (Within a twentieth: a transaction can trade in the same pool twice, and the balance is the last word.)
+          expect(apart * 20n <= event.realSol, `${event.mint}: holds ${sol} lamports, event says ${event.realSol}`).toBe(true);
+        }
+    expect(held).toBeGreaterThan(100);
     const priced = markets.filter((market) => market.pricedIn);
     const listedOnly = markets.filter((market) => market.quote);
     expect(priced.length + listedOnly.length).toBeGreaterThan(1);

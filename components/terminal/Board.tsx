@@ -37,6 +37,7 @@ import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
 import type { CoinView } from "@/lib/contract";
 import { formatAmount, formatChange, formatCompact, formatSol, parseAmount, shortAddress } from "@/lib/format";
 import { useTx } from "../tx/Tx";
+import { useDensity, useWorkSurface } from "../Surface";
 import { CoinPicture } from "../ui/CoinPicture";
 import { Choice, Segments, Tick } from "../ui/controls";
 import { Age, UsdOfSol } from "../ui/Money";
@@ -44,7 +45,10 @@ import { useVirtual } from "../ui/useVirtual";
 import { useWallet } from "../wallet/WalletProvider";
 import { LiveStrip } from "./LiveStrip";
 
+/** A row's height: the brand's look, and the working theme's two sizes. */
 const ROW = 98;
+const ROW_COMPACT = 74;
+const ROW_COMFORTABLE = 92;
 const WINDOWS = [
   { value: "m5", label: "5m" },
   { value: "h1", label: "1h" },
@@ -640,7 +644,9 @@ function Column({
   const byMint = useMemo(() => new Map(coins.map((coin) => [coin.mint, coin])), [coins]);
   const rows = useMemo(() => (held ? held.flatMap((mint) => byMint.get(mint) ?? []) : coins), [held, byMint, coins]);
   const waiting = held ? coins.filter((coin) => !held.includes(coin.mint)).length : 0;
-  const list = useVirtual(rows.length, ROW, 4);
+  const work = useWorkSurface();
+  const density = useDensity();
+  const list = useVirtual(rows.length, work ? (density === "compact" ? ROW_COMPACT : ROW_COMFORTABLE) : ROW, 4);
   const cursorRow = cursor >= 0 ? rows[cursor] : undefined;
 
   const drawn = [];
@@ -839,7 +845,8 @@ function Row({
               Liq <UsdOfSol lamports={coin.liquidityLamports} />
             </span>
             <span title="Buys and sells in the last 24 hours">
-              <span className="up">{formatCompact(coin.buys24h)}</span>/<span className="down">{formatCompact(coin.sells24h)}</span>
+              {/* Buys and sells are told apart by their letter as well as their colour. */}
+              <span className="up">B {formatCompact(coin.buys24h)}</span> <span className="down">S {formatCompact(coin.sells24h)}</span>
             </span>
           </span>
         )}

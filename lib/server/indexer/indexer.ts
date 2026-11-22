@@ -192,6 +192,15 @@ function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number, pr
   if (pool && !poolQuote) return undefined;
   const mint = pool ? tx.balances.find((balance) => balance.owner === pool && balance.mint !== poolQuote)?.mint : event.mint;
   if (!mint) return undefined;
+  if (pool) {
+    // A pool can be made either way round: the coin against SOL, or SOL against the coin. The event's amounts are in
+    // the pool's own order and do not say which. The chain does: what the pool holds of SOL after this transaction
+    // is what the event says the pool holds of its second side, or it is not a pool priced in SOL at all. Read the
+    // other way round, a coin's price would be the inverse of its price.
+    const held = tx.balances.find((balance) => balance.owner === pool && balance.mint === poolQuote)?.amount ?? 0n;
+    const apart = held > event.realSol ? held - event.realSol : event.realSol - held;
+    if (event.realSol === 0n || apart * 50n > event.realSol) return undefined;
+  }
   // A curve trade already turned into lamports names the coin it was priced in, and carries no other money.
   const quote = pricedIn ? undefined : pool ? (poolQuote === USDC ? USDC : undefined) : event.quoteMint;
   return {

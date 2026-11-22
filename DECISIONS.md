@@ -161,6 +161,10 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 155 | A six-decimal coin in a pump.fun pool that pump.fun did not make is shown, on its own supply; other decimals stay unsupported there | Its trades were stored assuming six decimals. Meteora coins are converted at the door; pump.fun-pool strangers are not yet |
 | 156 | Pictures are fetched ahead for the board and rankings, and the picture address answers within a quarter of a second whether or not the picture is there | A browser keeps six connections to a host. Six slow pictures were holding up the board's own requests |
 | 157 | I had called non-SOL pump.fun coins "USDC-priced". They are priced in other coins | Corrected in TERMINAL-FEATURES.md section 12. Found by listing the quote coin of every recorded trade |
+| 158 | A pump.fun pool is followed only when the chain shows it holding, in SOL, what its events call its second side | A pool can be made SOL-first. Read as coin-first, a coin's price is the inverse of its price: three coins showed market caps in the tens of billions |
+| 159 | The working screens' theme is built and not applied: it shows only where the cookie `ring-work-theme=preview` is set | Asked to be shown first. Removing the gate is one line in `app/layout.tsx` and one in `components/Surface.tsx` |
+| 160 | The brand's colours became variables whose default is the brand's own value | So the working theme is a second set of values, not a second stylesheet. The brand's pages render exactly as before |
+| 161 | In the light theme the accent as text is a darker shade; as a fill it is the brand's | The brand amber on white is about 2 to 1. Every text colour is held to 4.5 to 1 on every surface by a test |
 
 ## Only you
 

@@ -25,6 +25,7 @@ import { explain, rpcCalls } from "../lib/server/solana";
 import { database, durable, ready } from "../lib/server/store";
 import type { Input } from "../lib/server/validate";
 import { CONFIG_HEADER, PRICE_HEADER } from "../lib/price-header";
+import { PATH_HEADER } from "../lib/surface";
 import { buildConfig } from "../lib/server/operations/system";
 import { knownSolPrice } from "../lib/server/usd";
 import { keepWarm } from "../lib/server/warm";
@@ -305,6 +306,7 @@ export async function createApp(options: AppOptions): Promise<App> {
       if (price) request.headers[PRICE_HEADER] = JSON.stringify(price);
       else delete request.headers[PRICE_HEADER];
       request.headers[CONFIG_HEADER] = JSON.stringify(buildConfig());
+      request.headers[PATH_HEADER] = path;
       await page(request, response);
     })().catch((error: unknown) => {
       log("error", "request failed", failure(error));

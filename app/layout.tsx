@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
 import { TxProvider } from "@/components/tx/Tx";
@@ -10,6 +10,9 @@ import { CONFIG_HEADER, PRICE_HEADER, parseHandedConfig, parseHandedPrice } from
 import { site } from "@/site.config";
 import "./globals.css";
 import "./app.css";
+import "./work-theme.css";
+import { SurfaceSync } from "@/components/Surface";
+import { DENSITY_COOKIE, PATH_HEADER, PREVIEW_COOKIE, THEME_COOKIE, densityOf, isWorkPath, themeOf } from "@/lib/surface";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:4710"),
@@ -32,8 +35,17 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const handed = await headers();
   const price = parseHandedPrice(handed.get(PRICE_HEADER));
   const config = parseHandedConfig(handed.get(CONFIG_HEADER));
+  // Working screens have a theme of their own, and two settings a person may have chosen. All three are on <html>
+  // before the first paint, so nothing flashes from one look to the other.
+  const kept = await cookies();
+  const work = kept.get(PREVIEW_COOKIE)?.value === "preview" && isWorkPath(handed.get(PATH_HEADER) ?? "");
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      data-theme={themeOf(kept.get(THEME_COOKIE)?.value)}
+      data-density={densityOf(kept.get(DENSITY_COOKIE)?.value)}
+      {...(work ? { "data-surface": "work" } : {})}
+    >
       <head>
         <link rel="preload" href="/fonts/doto.woff2" as="font" type="font/woff2" crossOrigin="" />
         <link rel="preload" href="/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossOrigin="" />
@@ -41,6 +53,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body>
         <Background />
+        <SurfaceSync />
         <WalletProvider initialConfig={config}>
           <PriceProvider initial={price}>
             <TxProvider>

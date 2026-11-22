@@ -1,0 +1,376 @@
+/*
+ * The working screens' own theme: the terminal, a coin's page, the portfolio, the wallet and the other screens
+ * people sit in for hours. The brand, the homepage and the pages that explain the product keep theirs (globals.css,
+ * app.css): none of this applies unless <html> carries data-surface="work".
+ *
+ * Same family as the brand: square corners, the same three typefaces, the same accent. What changes is what long
+ * use needs: soft greys in steps instead of pure black, three levels of text, a sentence-case sans for the
+ * interface, figures in a mono with every digit the same width, and one green and one red beside the accent.
+ *
+ * Everything is a variable. A colour is written in this file only inside the two blocks of variables below.
+ * Every text colour is checked against every surface it sits on in test/unit/work-theme.test.ts.
+ */
+
+/* ---- dark: four steps of grey, three levels of text ---- */
+html[data-surface="work"] {
+  --page: #101216; /* behind everything */
+  --panel: #16191f; /* a column, a card, the chart, a sheet */
+  --row: #1c2027; /* a field, a control, a raised row, a table head */
+  --hover: #252a33; /* a row under the pointer, the marked row, a pressed control */
+  --ink: #eceef1; /* figures, names, anything read first */
+  --mute: #b3bac5; /* labels and sentences */
+  --quiet: #8b93a0; /* units, ages, column heads: the third level */
+  --rule: #6b7382; /* the edge of a control: a field, a button, a choice */
+  --edge: #2f353f; /* the edge of a panel */
+  --faint: #272c35; /* lines between rows */
+  --buy: #3fcf8e;
+  --sell: #ff6b78;
+  --accent-fill: var(--accent); /* an action's background */
+  --accent-text: var(--accent); /* the accent as text or as a line */
+  --on-accent: #14171c;
+  --on-ink: #101216;
+  --tint-1: var(--row);
+  --tint-2: var(--hover);
+  --tint-3: var(--hover);
+  --scrim: rgba(6, 7, 9, 0.72);
+  --display: var(--text); /* the pixel face is kept for the logo and large headings: see below */
+  --ui: 13px; /* a row's text */
+  --ui-small: 12px;
+  --row-pad: 4px;
+  color-scheme: dark;
+}
+/* ---- light: the same steps, turned over ---- */
+html[data-surface="work"][data-theme="light"] {
+  --page: #f2f3f5;
+  --panel: #ffffff;
+  --row: #f7f8fa;
+  --hover: #e9ecf0;
+  --ink: #14171c;
+  --mute: #444c59;
+  --quiet: #5f6875;
+  --rule: #7c8491;
+  --edge: #d3d7dd;
+  --faint: #e1e4e9;
+  --buy: #06693f;
+  --sell: #c5283b;
+  /* The accent itself is too light to read as text on white. As a fill it stays the brand's; as text it is its dark shade. */
+  --accent-text: #8a5200;
+  --on-accent: #14171c;
+  --on-ink: #ffffff;
+  --scrim: rgba(20, 23, 28, 0.45);
+  color-scheme: light;
+}
+html[data-surface="work"][data-density="comfortable"] {
+  --ui: 14px;
+  --ui-small: 13px;
+  --row-pad: 8px;
+}
+
+/* ---- surfaces ---- */
+html[data-surface="work"],
+html[data-surface="work"] body {
+  background: var(--page);
+  color: var(--ink);
+}
+html[data-surface="work"]
+  :is(.board-col, .card, .panel, .filters, .feed, .chart-box, .ticket, .tray > div, .sheet > div, .notice, table.plain, .statusbar, .recording-bar) {
+  background: var(--panel);
+  border-color: var(--edge);
+}
+html[data-surface="work"]
+  :is(.field-row, .field input, .field select, .field textarea, input, select, textarea, .vhead, .board-col > header, .feed-tabs, .chart-bar, kbd) {
+  background: var(--row);
+  border-color: var(--rule);
+  color: var(--ink);
+}
+html[data-surface="work"] .field-row :is(input, select) {
+  background: transparent;
+}
+html[data-surface="work"] :is(.coin-row, .vrow) {
+  border-color: var(--faint);
+}
+html[data-surface="work"] :is(.coin-row:hover, .coin-row.cursor, .vrow:hover) {
+  background: var(--hover);
+}
+html[data-surface="work"] .coin-row.cursor {
+  box-shadow: inset 2px 0 0 var(--accent-text);
+}
+html[data-surface="work"] .vrow.mine {
+  background: var(--row);
+}
+
+/* ---- type: a sans in sentence case for the interface; the pixel face for the logo and large headings only ---- */
+html[data-surface="work"] body {
+  font: 400 14px/1.5 var(--text);
+}
+html[data-surface="work"] :is(.brand, .h1, .h2, .app-head h1) {
+  font-family: "Doto", ui-monospace, monospace;
+}
+html[data-surface="work"]
+  :is(
+    .top nav,
+    .foot nav,
+    .mobile-nav,
+    .h3,
+    .label,
+    .btn,
+    .link,
+    .tabs button,
+    table th,
+    table.plain th,
+    table.plain td::before,
+    .panel dt,
+    .kv dt,
+    .px,
+    .strip,
+    .badge,
+    .tag,
+    .vhead,
+    .feed-tabs > button,
+    .card > h2,
+    .field-row .unit,
+    .tray .state,
+    .ticket .sides button,
+    .ticket .go,
+    .presets button .k,
+    .trade-dock button,
+    .coin-row .name b,
+    .trade-head .who b,
+    .field input,
+    .field select,
+    .quick
+  ) {
+  font-family: var(--text);
+  text-transform: none;
+  letter-spacing: 0;
+}
+html[data-surface="work"] :is(.top nav, .mobile-nav, .btn, .tabs button, .feed-tabs > button, .ticket .sides button, .ticket .go, .trade-dock button, .quick) {
+  font-weight: 600;
+  font-size: var(--ui);
+}
+html[data-surface="work"] :is(.label, table th, table.plain th, .panel dt, .kv dt, .vhead, .card > h2, .board-col h2, .field-row .unit, .tag, .strip, .badge) {
+  font-weight: 500;
+  font-size: var(--ui-small);
+  color: var(--quiet);
+}
+html[data-surface="work"] :is(.card > h2, .board-col h2, .h3) {
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+}
+html[data-surface="work"] :is(.coin-row .name b, .trade-head .who b) {
+  font-weight: 700;
+  font-size: 14px;
+}
+/* Figures and addresses: a mono, every digit the same width, so a column of prices lines up. */
+html[data-surface="work"] :is(.mono, .num, .address, .coin-row .nums, .coin-row .figs, .coin-row .risk, .vrow, .statusbar, .figures .v, .chart-bar .read, kbd) {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+}
+html[data-surface="work"] .address {
+  text-transform: none;
+}
+html[data-surface="work"] :is(.body, p, dd, li) {
+  color: var(--mute);
+}
+html[data-surface="work"] :is(.note-line, .quiet, .coin-row .sub, .coin-row .full, .coin-row .risk, .coin-row .figs) {
+  color: var(--quiet);
+}
+html[data-surface="work"] :is(dd, .figures .v, .coin-row .nums) {
+  color: var(--ink);
+}
+
+/* ---- colour with a job: green buys and gains, red sells and losses, the accent for actions ---- */
+html[data-surface="work"] .up {
+  color: var(--buy);
+}
+html[data-surface="work"] .down {
+  color: var(--sell);
+}
+html[data-surface="work"] :is(.btn, .quick) {
+  border-color: var(--rule);
+  background: var(--row);
+  color: var(--ink);
+  padding: 8px 14px;
+}
+html[data-surface="work"] :is(.btn:hover:not(:disabled), .quick:hover:not(:disabled)) {
+  border-color: var(--accent-text);
+  color: var(--accent-text);
+}
+/* The one thing a screen is there to do. */
+html[data-surface="work"] :is(.ticket .go, .btn.primary) {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"] .link {
+  color: var(--accent-text);
+  border-color: currentColor;
+  font-weight: 500;
+  font-size: inherit;
+}
+html[data-surface="work"] .tag {
+  border-color: var(--edge);
+  background: var(--row);
+  padding: 0 5px;
+  white-space: nowrap;
+  flex: none;
+}
+html[data-surface="work"] .tag.hot {
+  color: var(--accent-text);
+  border-color: var(--accent-text);
+}
+html[data-surface="work"] :is(a:focus-visible, button:focus-visible, select:focus-visible, textarea:focus-visible, input:focus-visible) {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+html[data-surface="work"] .meter {
+  background: var(--faint);
+}
+html[data-surface="work"] .meter i {
+  background: var(--accent-text);
+}
+html[data-surface="work"] .recording-bar b {
+  color: var(--accent-text);
+}
+html[data-surface="work"] .dot {
+  background: var(--buy);
+}
+html[data-surface="work"] .dot.off {
+  background: var(--sell);
+}
+
+/* ---- chrome: quieter, shorter, out of the way of the work ---- */
+html[data-surface="work"] .top {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--faint);
+}
+html[data-surface="work"] .top nav a {
+  color: var(--mute);
+}
+html[data-surface="work"] .top nav a[aria-current="page"] {
+  color: var(--ink);
+  border-bottom: 2px solid var(--accent-text);
+}
+html[data-surface="work"] .strip {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+html[data-surface="work"] .app-head {
+  display: none;
+}
+
+/* ---- the board: compact rows whose figures line up from one row to the next ---- */
+html[data-surface="work"] .board-col {
+  height: calc(100vh - 150px);
+}
+html[data-surface="work"] .board-col > header {
+  min-height: 36px;
+  border-color: var(--edge);
+}
+html[data-surface="work"] .coin-row {
+  grid-template-columns: 36px minmax(0, 1fr) auto auto;
+  gap: 0 10px;
+  row-gap: 1px;
+  padding: 0 10px;
+  font-size: var(--ui);
+  line-height: 1.3;
+}
+html[data-surface="work"] .coin-row .coin-picture {
+  width: 36px !important;
+  height: 36px !important;
+}
+html[data-surface="work"] .coin-row :is(.sub, .full) {
+  font-size: var(--ui-small);
+}
+html[data-surface="work"] .coin-row .nums {
+  font-size: var(--ui);
+  line-height: 1.3;
+}
+/* Three figures, then five shares, each in a column of its own width: the eye runs down a column, not along a sentence. */
+html[data-surface="work"] .coin-row .figs {
+  display: grid;
+  grid-template-columns: minmax(0, 104px) minmax(0, 112px) minmax(0, 1fr);
+  gap: 0 8px;
+  font-size: var(--ui-small);
+}
+html[data-surface="work"] .coin-row .risk {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 76px));
+  gap: 0 8px;
+  font-size: 11px;
+}
+html[data-surface="work"] .coin-row :is(.figs, .risk) > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html[data-surface="work"] .coin-row .quick {
+  min-height: 30px;
+  min-width: 52px;
+  padding: 0 8px;
+}
+html[data-surface="work"] .vrow,
+html[data-surface="work"] .vhead {
+  font-size: var(--ui-small);
+}
+html[data-surface="work"] .toolbar {
+  gap: 8px;
+}
+html[data-surface="work"] .toolbar :is(.btn, .field-row, input) {
+  min-height: 34px;
+  height: 34px;
+}
+html[data-surface="work"] .display-settings {
+  display: inline-flex;
+  gap: 8px;
+  margin-left: auto;
+}
+@media (max-width: 1100px) {
+  html[data-surface="work"] .board3 .board-col {
+    height: calc(100vh - 230px);
+  }
+}
+/* A phone: the two lines of figures run under the button too, so all of them fit; the button keeps the first two lines. */
+@media (max-width: 600px) {
+  html[data-surface="work"] .coin-row :is(.figs, .risk) {
+    grid-column: 2 / -1;
+  }
+  html[data-surface="work"] .coin-row .figs {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 0 12px;
+  }
+  html[data-surface="work"] .coin-row .risk {
+    grid-template-columns: repeat(5, auto);
+    justify-content: start;
+    gap: 0 8px;
+    font-size: 10.5px;
+  }
+  html[data-surface="work"] .coin-row > .quick {
+    grid-row: 1 / span 1;
+    align-self: start;
+    margin-top: 6px;
+  }
+  html[data-surface="work"] .display-settings {
+    margin-left: 0;
+  }
+}
+
+/* ---- a group of choices: the chosen one is filled, not only coloured ---- */
+html[data-surface="work"] .seg {
+  border-color: var(--rule);
+}
+html[data-surface="work"] .seg button {
+  background: var(--row);
+  color: var(--mute);
+  border-color: var(--rule);
+  font-family: var(--text);
+  font-size: var(--ui-small);
+  font-weight: 500;
+  min-height: 34px;
+}
+html[data-surface="work"] .seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+  font-weight: 700;
+}
