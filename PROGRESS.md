@@ -154,3 +154,15 @@ why") and `BACKEND.md` ("Open").
 ## Next
 
 See "The next three things".
+
+## 22 November: the every-coin board
+
+Built on the recorded mainnet stretch (`npm run replay -- <recording>`, checked by `npm run check:board`, 30 of 30):
+three live columns plus trending by 5m, 1h, 6h and 24h; search across every coin followed; rows with image, age,
+market cap, liquidity, volume, buys and sells, holders and the five holder shares; coin page with top traders,
+safety checks, the creator's other coins and how far back its trades go. Coverage and plan A against plan B are in
+TERMINAL-FEATURES.md section 10 and on the docs page under "What the terminal covers".
+
+Still open: the live Helius stream has never been run (no paid key yet); "pool liquidity locked" is not built and is
+shown as not checked; other launchpads and Raydium, Meteora and Orca are not covered; USDC-priced coins are listed
+as not supported.

@@ -4,6 +4,7 @@
  * Figures as they are shown: SOL with its dollar value beside it, a coin's price in both, and times as
  * "how long ago" with the exact moment a tap away. One place, so every page shows them the same way.
  */
+import { clockNow } from "@/lib/client/clock";
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { api } from "@/lib/client/api";
 import { formatAge, formatPrice, formatSol, formatTime, formatUsd, usdOfLamports, usdOfPrice } from "@/lib/format";
@@ -77,13 +78,15 @@ export function CoinPrice({ micro, stack }: { micro: bigint | string | number; s
 }
 
 // One clock for every age on the page: a single timer, and each figure re-renders only when its own text changes.
-let now = Date.now();
+let now = clockNow();
 const watchers = new Set<() => void>();
 let clock: ReturnType<typeof setInterval> | undefined;
 function watch(listener: () => void): () => void {
   watchers.add(listener);
+  // Read again as soon as anything is watching: the page's clock may have been set since this file was loaded.
+  now = clockNow();
   clock ??= setInterval(() => {
-    now = Date.now();
+    now = clockNow();
     for (const each of watchers) each();
   }, 1000);
   return () => {

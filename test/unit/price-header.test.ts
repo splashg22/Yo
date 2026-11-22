@@ -34,13 +34,22 @@ describe("the build's settings the server hands to the page", () => {
     const { parseHandedConfig } = await import("../../lib/price-header");
     expect(parseHandedConfig(JSON.stringify(config))).toEqual(config);
   });
+  it("carry the read-only mainnet mode, and a recording's times when one is being played back", async () => {
+    const { parseHandedConfig } = await import("../../lib/price-header");
+    const mainnet = { ...config, network: "mainnet", ring: "unavailable" };
+    expect(parseHandedConfig(JSON.stringify(mainnet))).toEqual(mainnet);
+    const recording = { from: 1_795_324_000_000, to: 1_795_324_129_000, now: 1_795_324_060_000 };
+    expect(parseHandedConfig(JSON.stringify({ ...mainnet, recording }))).toEqual({ ...mainnet, recording });
+    // A recording that is not three plain moments is dropped; the rest of the settings stand.
+    expect(parseHandedConfig(JSON.stringify({ ...mainnet, recording: { from: "then", to: 2, now: 3 } }))).toEqual(mainnet);
+  });
   it("are no settings when anything about them is off, so the page asks the server instead of trusting them", async () => {
     const { parseHandedConfig } = await import("../../lib/price-header");
     for (const wrong of [
       null,
       "",
       "{not json",
-      JSON.stringify({ ...config, network: "mainnet" }),
+      JSON.stringify({ ...config, network: "testnet" }),
       JSON.stringify({ ...config, ring: "on" }),
       JSON.stringify({ ...config, features: {} }),
       JSON.stringify({ ...config, fees: { ...config.fees, tradeBps: -1 } }),

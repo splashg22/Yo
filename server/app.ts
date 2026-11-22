@@ -15,6 +15,7 @@ import { bucketOf, callerOf, overLimit } from "../lib/server/limit";
 import type { LiveClient } from "../lib/server/live";
 import { failure, log } from "../lib/server/log";
 import { market } from "../lib/server/market";
+import { coinImage } from "../lib/server/coin-image";
 import { storedFile } from "../lib/server/pictures";
 import { previewAllows } from "../lib/server/preview";
 import { TEE_POLICY_HOST, passOn, ringGateOpen } from "../lib/server/ringgate";
@@ -238,6 +239,32 @@ function served(response: ServerResponse, name: string): void {
   response.end(file.bytes);
 }
 
+/**
+ * This server's own small copy of a coin's picture. "No picture" is an empty 204, not a 404: the page falls back to
+ * the coin's first letter either way, and a missing picture is not an error worth a line in anyone's console.
+ */
+async function coinPicture(response: ServerResponse, name: string): Promise<void> {
+  const mint = decodeURIComponent(name);
+  const uri = (await market()).indexer.markets.get(mint)?.uri ?? "";
+  // A picture not fetched yet is fetched behind this answer, not in front of it: a browser keeps only a few connections
+  // to one host, and a row of slow pictures must never hold up the board's own requests. The page asks again shortly.
+  const fetching = uri ? coinImage(mint, uri).catch(() => "later" as const) : Promise.resolve(null);
+  const bytes = await Promise.race([fetching, new Promise<"later">((resolve) => setTimeout(() => resolve("later"), 250))]);
+  if (bytes === null || bytes === "later") {
+    // "No picture" is kept by the browser for ten minutes; "could not be fetched just now" is not kept at all.
+    response.writeHead(204, { "cache-control": bytes === null ? "public, max-age=600" : "no-store", ...fixed });
+    response.end();
+    return;
+  }
+  response.writeHead(200, {
+    "content-type": "image/webp",
+    "cache-control": "public, max-age=86400",
+    ...fixed,
+    "content-security-policy": "default-src 'none'; sandbox",
+  });
+  response.end(bytes);
+}
+
 /** Builds the server, starts the indexer and the housekeeping, and returns it ready to listen. */
 export async function createApp(options: AppOptions): Promise<App> {
   const { dev, page } = options;
@@ -267,6 +294,7 @@ export async function createApp(options: AppOptions): Promise<App> {
       if (path === "/ring/rpc" || path.startsWith("/ring/v1/spr/"))
         return ringGate(request, response, path === "/ring/rpc" ? "rpc" : path.slice("/ring/v1/spr/".length));
       if (path.startsWith("/u/")) return served(response, decodeURIComponent(path.slice(3)));
+      if (path.startsWith("/coin-image/")) return coinPicture(response, path.slice("/coin-image/".length));
       // A page. The framework reads the nonce from the policy on the request and puts it on every script it writes.
       const policy = contentSecurityPolicy(newNonce(), { dev, imageHosts, host: request.headers.host, connectHosts });
       request.headers["content-security-policy"] = policy;

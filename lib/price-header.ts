@@ -31,14 +31,17 @@ export function parseHandedConfig(text: string | null | undefined): Config | nul
   if (!text) return null;
   try {
     const value = JSON.parse(text) as Partial<Config> | null;
-    if (!value || (value.network !== "local" && value.network !== "devnet")) return null;
+    if (!value || (value.network !== "local" && value.network !== "devnet" && value.network !== "mainnet")) return null;
     if (value.ring !== "mock" && value.ring !== "real" && value.ring !== "unavailable") return null;
     if (typeof value.features?.sealedWindow !== "boolean") return null;
     const fees = value.fees;
     if (!fees || typeof fees.wallet !== "string" || !/^\d{1,12}$/.test(fees.launchLamports)) return null;
     if (!Number.isInteger(fees.tradeBps) || !Number.isInteger(fees.otcBps) || fees.tradeBps < 0 || fees.otcBps < 0) return null;
+    const recording = value.recording;
+    const played = recording && [recording.from, recording.to, recording.now].every((moment) => Number.isSafeInteger(moment) && moment > 0);
     return {
       network: value.network,
+      ...(played ? { recording: { from: recording.from, to: recording.to, now: recording.now } } : {}),
       ring: value.ring,
       features: { sealedWindow: value.features.sealedWindow },
       fees: { wallet: fees.wallet.slice(0, 44), tradeBps: fees.tradeBps, launchLamports: fees.launchLamports, otcBps: fees.otcBps },

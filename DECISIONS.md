@@ -135,6 +135,18 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 129 | The built-in presets are named for what they filter, not for what they promise | "Spread holdings", "Very early", "Migration watch". None is called safe. |
 | 130 | Offline orders: while the terminal is open, for now; signed in advance as an opt-in for take profit and a laddered stop loss, never for buys | Your answers of 22 November. No hosted signer. The pool route is to be proven on the local chain before it is offered there. Nothing on mainnet. |
 | 131 | This server's door to Helius passes five named headers out and four back, and the body byte for byte | Found by running the real Ring: the prover's request is sealed bytes with its sealing in headers. Everything else of the caller's is dropped. |
+| 132 | The board opens on four sets joined (newest, nearest to graduating, latest graduated, most traded in the hour), not "the 400 most recently active" | With every coin followed, the busiest 400 this second are nearly all old graduated coins; the new and nearly-graduated columns would open empty |
+| 133 | "New" holds only coins seen being made. A coin first seen part-way is in trending and search, and in the other two columns | Its age is not known; listing it as new with the time we first saw it would be a made-up age |
+| 134 | Holders and top-ten of a coin first seen part-way are shown as "at least", and fail filters | Only wallets whose balance changed since are known. A floor is not the figure |
+| 135 | Coin pictures are fetched by the server, redrawn at 96px and served from here, never hot-linked | A visitor's browser would otherwise call a stranger's host for every row; and an image is the classic way to feed a viewer a hostile file |
+| 136 | The outside fetch allows https only, refuses private names and addresses, re-checks every redirect, caps size and time. A name that changes its answer between check and connection is not defended against | Stated in `lib/server/outside.ts`. The worst it allows is one GET whose answer is discarded unless it decodes as an image |
+| 137 | A gateway's 429 or 5xx means "ask again in a minute", not "no picture" | ipfs.io rate-limits. Writing those coins off for an hour left most of the board without pictures |
+| 138 | Searching by address never reads the chain; opening the coin does | Typing must not cost RPC credits or start a 5,000-trade backfill by accident |
+| 139 | pump.fun's Mayhem vault is left out of holder figures like the curve; market cap keeps the supply the creation event states | Found on the recording: top-ten read 101%. The vault is one address for every coin, taken from pump.fun's SDK. Whether pump.fun's own site counts the vault's coins in market cap is not verified |
+| 140 | A coin in a pump.fun pool that is not a pump.fun coin (no curve account, or not 6 decimals) is "not supported yet", with no price | Market cap and shares assume a pump.fun coin's supply and decimals; they would be wrong |
+| 141 | "Pool liquidity locked" is shown as "not checked" | It is not built. An unmade check is not shown as passed |
+| 142 | A recording is played by a script (`npm run replay`), never by a setting of the real server; every page carries a bar that cannot be dismissed, and ages run on the recording's clock | A recording must not be mistakable for live, and must not be one typo in `.env` away |
+| 143 | Opening a coin by address marks it "first seen now" until its creation event is found in its past trades | Before, a coin older than 5,000 trades showed as made the moment it was opened |
 
 ## Only you
 

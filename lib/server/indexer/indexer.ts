@@ -805,7 +805,7 @@ export class Indexer {
   /** Records what a followed coin's own creation event said of it, once its past has been read. */
   async rename(mint: string, created: { name: string; symbol: string; uri: string; at: number; slot: number }): Promise<void> {
     await this.db.tx((sql) =>
-      sql.query("update markets set name = $2, symbol = $3, uri = $4, created_at = $5, created_slot = $6 where mint = $1", [
+      sql.query("update markets set name = $2, symbol = $3, uri = $4, created_at = $5, created_slot = $6, seen_from = null where mint = $1", [
         mint,
         created.name,
         created.symbol,

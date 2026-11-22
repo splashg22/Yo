@@ -8,7 +8,8 @@
  * when the source stops answering, and when it comes back.
  *
  * It is a source of data that really happened. It is never shown as live: the server uses it only when a test or a
- * script hands it over, and what it holds is old by the time it is played.
+ * script hands it over (scripts/replay-server.ts, which makes every page say it is a recording), and what it holds
+ * is old by the time it is played.
  */
 import { readFileSync } from "node:fs";
 import { gunzipSync } from "node:zlib";
@@ -55,6 +56,15 @@ export class RecordedSource implements ChainSource {
   /** The newest slot made available so far, or one before the recording if none has been. */
   get tip(): number {
     return this.released === 0 ? this.firstSlot - 1 : this.order[this.released - 1]!;
+  }
+  /** How many blocks have been made available. */
+  get tipIndex(): number {
+    return this.released;
+  }
+  /** Each block's own time, in seconds, in order. A block without one takes the time of the block before it. */
+  times(): number[] {
+    let before = 0;
+    return this.order.map((slot) => (before = this.blocks.get(slot)!.blockTime ?? before));
   }
   /** Seconds of chain time the recording covers. */
   get seconds(): number {

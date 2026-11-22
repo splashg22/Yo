@@ -349,6 +349,12 @@ export async function curveOf(mint: string): Promise<Curve> {
 
 /** The account that holds a coin's bonding curve: every buy and sell touches it. */
 export const curveAddress = (mint: string): PublicKey => sdk.bondingCurvePda(new PublicKey(mint));
+/**
+ * pump.fun's "Mayhem mode" vault: one address, the same for every coin. A coin made in that mode has a second
+ * thousand million coins minted to it, which pump.fun's own agent trades. It holds coins without being a holder in
+ * the sense anyone means, exactly as the curve does, so it is left out of every "who holds this" figure.
+ */
+export const MAYHEM_VAULT: string = (sdk as unknown as { getSolVaultPda(): PublicKey }).getSolVaultPda().toBase58();
 
 export async function curveExists(mint: string): Promise<boolean> {
   return (await connection().getAccountInfo(sdk.bondingCurvePda(new PublicKey(mint)))) !== null;

@@ -7,6 +7,8 @@
  */
 import type { CoinView } from "./contract";
 
+/** A coin is "about to graduate" once its curve has sold this share, in hundredths of a percent. */
+export const NEARLY_BPS = 6_000;
 export interface Figure {
   key: string;
   /** What the filter's two fields are headed with. */
@@ -25,9 +27,10 @@ export const FIGURES: Figure[] = [
   { key: "volume", label: "Volume, 24h", unit: "SOL", of: (coin) => sol(coin.volume24hLamports) },
   { key: "buys", label: "Buys, 24h", unit: "", of: (coin) => coin.buys24h },
   { key: "sells", label: "Sells, 24h", unit: "", of: (coin) => coin.sells24h },
-  { key: "holders", label: "Holders", unit: "", of: (coin) => coin.holders },
+  // For a coin that was already trading when first seen, only the wallets seen since are counted: a floor, not the figure.
+  { key: "holders", label: "Holders", unit: "", of: (coin) => (coin.followedSince === undefined ? coin.holders : null) },
   { key: "progress", label: "Curve sold", unit: "%", of: (coin) => (coin.complete ? 100 : coin.progressBps / 100) },
-  { key: "top10", label: "Top ten hold", unit: "%", of: (coin) => percent(coin.risk?.top10Bps) },
+  { key: "top10", label: "Top ten hold", unit: "%", of: (coin) => (coin.followedSince === undefined ? percent(coin.risk?.top10Bps) : null) },
   { key: "dev", label: "Dev holds", unit: "%", of: (coin) => (coin.followedSince === undefined ? percent(coin.risk?.devBps) : null) },
   { key: "snipers", label: "Snipers hold", unit: "%", of: (coin) => percent(coin.risk?.snipers?.heldBps) },
   { key: "bundles", label: "Bundles hold", unit: "%", of: (coin) => percent(coin.risk?.bundles?.heldBps) },

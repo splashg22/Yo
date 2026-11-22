@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { onLiveStatus, type LiveStatus } from "@/lib/client/live";
 import { formatUsd } from "@/lib/format";
 import { Time, useSolPrice } from "../ui/Money";
+import { useWallet } from "../wallet/WalletProvider";
 
 const TEXT: Record<LiveStatus, string> = { live: "Live", connecting: "Connecting", offline: "Offline: figures are not updating" };
 
@@ -14,14 +15,24 @@ export function LiveStrip({ onHelp }: { onHelp?: () => void }) {
   // Connected, but the server itself is behind the chain: the figures on screen are old, and a trade would be priced on them.
   const behind = state.status === "live" && state.staleMs > 3000;
   const price = useSolPrice();
+  const { config } = useWallet();
+  const recording = config !== null && config !== "offline" && config.recording !== undefined;
   return (
     <div className="statusbar" role="status" data-live={behind ? "stale" : state.status}>
       <span>
         <span className={`dot${state.status === "live" && !behind ? "" : " off"}`} aria-hidden="true" />
-        {behind ? "Live data paused" : TEXT[state.status]}
+        {recording
+          ? behind
+            ? "Recording: played to its end"
+            : state.status === "live"
+              ? "Playing a recording"
+              : TEXT[state.status]
+          : behind
+            ? "Live data paused"
+            : TEXT[state.status]}
         {state.status === "live" && !behind && state.latencyMs !== null && ` ${state.latencyMs} ms`}
       </span>
-      {behind && (
+      {behind && !recording && (
         <span data-stale>
           The server last read the chain {Math.round(state.staleMs / 1000)} seconds ago. Prices here are that old; a trade is still checked against the chain
           when it is built.

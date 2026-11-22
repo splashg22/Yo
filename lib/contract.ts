@@ -12,6 +12,11 @@ export interface Config {
   /** "mainnet" is read-only: this site shows mainnet's coins and trades and can send nothing there. */
   network: "local" | "devnet" | "mainnet";
   /**
+   * Set only while the server plays back a recorded stretch of the chain instead of following it: the recording's
+   * first and last moments and how far the playback has got, in milliseconds. Every page says so while it is set.
+   */
+  recording?: { from: number; to: number; now: number };
+  /**
    * "mock": Ring balances are kept by the local stand-in, not by the Privacy Rings program.
    * "real": the Privacy Rings program itself, through its SDK in the browser. "unavailable": not connected on this network.
    */
@@ -32,6 +37,49 @@ export interface RiskView {
   bundles: { wallets: number; heldBps: number } | null;
   insiders: { wallets: number; heldBps: number } | null;
 }
+/** What a coin's own account on the chain says of it. The safety checks rest on these. */
+export interface CoinFacts {
+  program: "token" | "token-2022";
+  decimals: number;
+  /** In base units. */
+  supply: string;
+  /** Who may mint more of the coin. Null: nobody can. */
+  mintAuthority: string | null;
+  /** Who may freeze a holder's coins. Null: nobody can. */
+  freezeAuthority: string | null;
+  /** True when pump.fun's program has a curve account for this coin: it is a pump.fun coin. */
+  pump: boolean;
+  /** When this was read from the chain, in milliseconds. */
+  readAt: number;
+}
+/** One wallet's trading of one coin, from the trades this server holds. */
+export interface TraderView {
+  wallet: string;
+  boughtLamports: string;
+  soldLamports: string;
+  boughtCoins: string;
+  soldCoins: string;
+  /** What it holds now, in base units, as far as this server has seen. */
+  holding: string;
+  trades: number;
+  firstAt: number;
+  tags: string[];
+}
+export interface ChecksView {
+  /** Null when the coin's account could not be read from the chain; `factsProblem` says why. */
+  facts: CoinFacts | null;
+  factsProblem?: string;
+  /** Other coins by the same creator, as far as this server has seen: only coins it follows. */
+  dev: { creator: string; coins: { mint: string; name: string; symbol: string; createdAt: number; complete: boolean; marketCapLamports: string }[] };
+  /**
+   * How far back this coin's trades go here. `complete`: every trade since it was made. Otherwise trades are held
+   * from `from` (null: none held yet), and `limit` is the most past trades read for a coin opened by address.
+   */
+  history: { from: number | null; complete: boolean; limit: number };
+  /** The oldest trade of any coin this server holds, in milliseconds: when its record begins. */
+  recordFrom: number | null;
+}
+
 export interface CoinView {
   mint: string;
   name: string;
@@ -46,6 +94,8 @@ export interface CoinView {
    * Nothing earlier is held, and its name and creator are empty until they have been read from the chain.
    */
   followedSince?: number;
+  /** Lamports traded in the last five minutes, hour, six hours and day. */
+  volumeLamports: { m5: string; h1: string; h6: string; h24: string };
   /** SOL standing behind the price: what buyers have put into the curve, or the SOL side of the pool. Lamports. */
   liquidityLamports: string;
   /** Trades in the last 24 hours, by side. */
@@ -63,8 +113,13 @@ export interface CoinView {
    * Opening the coin makes it live. Absent: the figures are live.
    */
   notLiveSince?: number;
-  /** Set for a coin this site cannot trade or chart yet, with the reason. "quote": it is priced in something other than SOL. */
-  unsupported?: { reason: "quote"; quote: string };
+  /**
+   * Set for a coin this site cannot trade or chart yet, with the reason. "quote": it is priced in something other than SOL.
+   * "foreign": it trades in a pump.fun pool but is not a pump.fun coin, so the figures this site works out would be wrong for it.
+   */
+  unsupported?: { reason: "quote"; quote: string } | { reason: "foreign" };
+  /** When the coin graduated, in milliseconds, if this server saw it happen. */
+  graduatedAt?: number;
   /** False for a pump.fun coin that was made somewhere else and is only traded here. */
   launchedHere: boolean;
   marketCapLamports: string;
@@ -244,7 +299,20 @@ export interface Api {
   "session/open": Op<Nothing, { token: string; expiresAt: number }, true>;
   "session/close": Op<{ session: string }, { ok: true }>;
   /** Every coin the indexer follows. `seq` is the number of the live "board" channel as of this answer: subscribe from it and nothing is missed. */
-  explore: Op<Nothing, { coins: CoinView[]; seq: number }>;
+  /** `recordFrom`: when the oldest trade this server holds happened, in milliseconds. Figures "in 24 hours" reach back no further. */
+  /**
+   * `feed`: how much of the chain this server is fed. "all": every trade of every coin it covers. "coins": every new coin,
+   * and every trade of only `live` of the `followed` coins; the rest carry `notLiveSince`, and rankings count only the live ones.
+   */
+  explore: Op<Nothing, { coins: CoinView[]; seq: number; recordFrom: number | null; feed: { scope: "all" | "coins"; live: number; followed: number } }>;
+  /** Coins by name, ticker or address, among every coin this server follows. An address it does not follow answers with nothing: opening the coin reads it from the chain. */
+  search: Op<{ q: string }, { coins: CoinView[] }>;
+  /** The wallets that traded a coin, by what they made on it, from the trades held here. */
+  "coin/traders": Op<{ mint: string }, { traders: TraderView[] }>;
+  /** A coin's safety facts from the chain, its creator's other coins, and how far back its trades go here. */
+  "coin/checks": Op<{ mint: string }, ChecksView>;
+  /** The coins that traded most in a window, most first: at most a hundred. */
+  trending: Op<{ window: "m5" | "h1" | "h6" | "h24" }, { coins: CoinView[] }>;
   coin: Op<{ mint: string }, CoinView & { seq: number }>;
   /** A coin's trades, newest first. `before` continues from the last trade of the previous page. `wallet` keeps only that wallet's. */
   "coin/trades": Op<{ mint: string; before?: { slot: number; x: number; i: number }; limit?: number; wallet?: string }, { trades: TradeView[]; seq: number }>;

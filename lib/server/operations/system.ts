@@ -1,4 +1,5 @@
 /** Configuration, health, the local faucet, and submitting and looking up transactions. */
+import { playback } from "../playback";
 import { PublicKey, type ConfirmedTransactionMeta } from "@solana/web3.js";
 import { NATIVE } from "../../constants";
 import type { Config, Status, TransactionView, TxOutcomeView } from "../../contract";
@@ -122,8 +123,10 @@ const outcomeView = (outcome: TxOutcome): TxOutcomeView => ({
 /** What this build runs on: the answer to `config`, and what the server hands to every page it renders. */
 export function buildConfig(): Config {
   const { network, features, fees } = settings();
+  const recording = playback();
   return {
     network,
+    ...(recording ? { recording } : {}),
     ring: ringMode(),
     features,
     fees: { wallet: fees.wallet, tradeBps: fees.tradeBps, launchLamports: fees.launchLamports.toString(), otcBps: fees.otcBps },

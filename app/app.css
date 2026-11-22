@@ -1271,3 +1271,95 @@ kbd {
     gap: 7px;
   }
 }
+
+/* ---- a server playing back a recording says so on every page ---- */
+.recording-bar {
+  margin: 0;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--accent);
+  background: #000;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.4;
+}
+.recording-bar b {
+  color: var(--accent);
+}
+
+/* ---- a board row's third line: what it traded, what backs it, who bought and sold; and the one-column ranking ---- */
+.coin-row {
+  grid-template-rows: auto auto auto;
+  row-gap: 2px;
+}
+.coin-row > a > .coin-picture,
+.coin-row > .quick {
+  grid-row: 1 / span 3;
+}
+.coin-row .figs {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  display: flex;
+  gap: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--mute);
+  white-space: nowrap;
+  overflow: hidden;
+}
+.coin-row .risk {
+  grid-row: 3;
+  overflow: hidden;
+}
+.board3.one {
+  grid-template-columns: minmax(0, 1fr);
+}
+/* Each part of a row has its own column by name, so a row with a part missing keeps the rest where they are. */
+.coin-row > a > .coin-picture {
+  grid-column: 1;
+}
+.coin-row .name {
+  grid-column: 2;
+  grid-row: 1;
+}
+.coin-row .nums {
+  grid-column: 3;
+  grid-row: 1;
+}
+.coin-row > .quick {
+  grid-column: 4;
+}
+.coin-picture {
+  position: relative;
+}
+.coin-picture > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.board3.one .board-col {
+  display: grid;
+}
+
+.plain-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+}
+
+/* A long label in a row is cut at the row's edge, never drawn under the button beside it. */
+.coin-row .sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.coin-row .sub .tag {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: bottom;
+}

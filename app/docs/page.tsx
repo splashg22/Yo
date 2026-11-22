@@ -178,6 +178,52 @@ export default function Docs() {
           </ul>
           <p>Neither is a count of holders inside the Ring. That number is what the encryption hides.</p>
 
+          <h2 id="coverage">What the terminal covers</h2>
+          <p>Said exactly, because a board that quietly leaves coins out is worse than one that says which.</p>
+          <p>Covered:</p>
+          <ul>
+            <li>pump.fun coins priced in SOL, while they trade on the bonding curve, from the block they are made in.</li>
+            <li>The same coins after graduation, in their pump.fun pool (PumpSwap), SOL pools only.</li>
+            <li>
+              pump.fun coins that were already trading when this site first saw them: followed from their first trade seen, marked &quot;followed&quot;, with
+              their name, picture and creator read from the chain afterwards.
+            </li>
+          </ul>
+          <p>Listed, and marked &quot;not supported yet&quot;, with no price shown:</p>
+          <ul>
+            <li>pump.fun coins priced in USDC or anything else that is not SOL.</li>
+            <li>Coins that trade in a pump.fun pool but were not made on pump.fun.</li>
+          </ul>
+          <p>Not covered at all, and not on the board:</p>
+          <ul>
+            <li>Other launchpads: LetsBonk, Moonshot, Believe, Boop, Jupiter Studio and the rest.</li>
+            <li>Raydium, Meteora and Orca pools, including pools of pump.fun coins made there by hand.</li>
+            <li>Any coin that has not traded since this site began to listen, until somebody opens it by its address.</li>
+          </ul>
+          <p>How far back the record goes:</p>
+          <ul>
+            <li>
+              For a coin seen being made: every trade. For a coin first seen part-way: from that trade on. Its holders are then only the wallets seen since,
+              which the board shows as &quot;at least&quot;.
+            </li>
+            <li>
+              Opening any pump.fun coin by its address reads its last 5,000 trades and its twenty largest holders from the chain, once. An older coin&apos;s
+              earlier trades are not read, and its page says where its history starts.
+            </li>
+            <li>
+              A coin nobody has traded or opened for a while stops being followed, so the board stays quick. Its address still opens it, and reads it again.
+            </li>
+            <li>
+              Volume &quot;in 24 hours&quot; and the trending lists count only what this site has seen. Until it has been listening for a day, the board says
+              when its record begins.
+            </li>
+          </ul>
+          <p>
+            Where the data comes from: Solana itself, through an RPC provider, decoded by this site with pump.fun&apos;s published SDK. No figure is bought from
+            or copied from another terminal. A coin&apos;s picture is fetched by this server from where the coin&apos;s creator points, drawn again small, and
+            served from here, so your browser never calls a stranger&apos;s host.
+          </p>
+
           <h2 id="risk-figures">The risk figures on the board</h2>
           <p>
             Every figure is worked out from this site&apos;s own record of the chain, by the rule given here. Shares are of the coin&apos;s whole supply and

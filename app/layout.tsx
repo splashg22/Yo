@@ -4,6 +4,7 @@ import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
 import { TxProvider } from "@/components/tx/Tx";
 import { PriceProvider } from "@/components/ui/Money";
+import { RecordingBar } from "@/components/RecordingBar";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
 import { CONFIG_HEADER, PRICE_HEADER, parseHandedConfig, parseHandedPrice } from "@/lib/price-header";
 import { site } from "@/site.config";
@@ -44,6 +45,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
           <PriceProvider initial={price}>
             <TxProvider>
               <div className="shell">
+                <RecordingBar />
                 <Header />
                 <main id="main">{children}</main>
                 <Footer />

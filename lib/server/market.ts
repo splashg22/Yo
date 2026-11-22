@@ -2,7 +2,7 @@
  * The market service: one indexer, one live hub, and the views everything else reads.
  * Reads here never go to the chain. They come from memory, or from the database for older history.
  */
-import { curveAddress } from "./pump";
+import { MAYHEM_VAULT, curveAddress } from "./pump";
 import { Hub } from "./live";
 import { failure, log } from "./log";
 import { Indexer, type Applied } from "./indexer/indexer";
@@ -12,16 +12,25 @@ import { HeliusTxStream, PUMP_MINT_AUTHORITY } from "./indexer/helius-stream";
 import { RpcSource } from "./indexer/rpc-source";
 import { StreamSource } from "./indexer/stream-source";
 import type { ChainSource } from "./indexer/types";
-import type { CoinView, TradeView } from "../contract";
+import type { ChecksView, CoinView, TradeView, TraderView } from "../contract";
+import { NEARLY_BPS } from "../board-filters";
+import { Describer } from "./describe";
+import { HISTORY_LIMIT } from "./history-limit";
 import { coinsToDrop } from "./indexer/retention";
 import { riskOf, type Risk } from "./risk";
+import { Rolling, WINDOWS, type WindowKey } from "./rolling";
 import { ringAvailable, settings } from "./env";
 import { ring } from "./ring";
 import { forgetBalances } from "./balances";
 import { connection } from "./solana";
 import { database, onForget, state } from "./store";
 
-const BOARD_SHOWN = 400;
+/** The board's first answer: this many of each kind. The live channel adds to it from there. */
+const BOARD_EACH = 150;
+const SEARCH_SHOWN = 30;
+const TRADERS_SHOWN = 100;
+const DEV_COINS_SHOWN = 50;
+const TRENDING_SHOWN = 100;
 const PATCH_MS = 200;
 /** How often coins nobody trades are looked for and dropped. */
 const TIDY_EVERY_MS = 60_000;
@@ -49,6 +58,7 @@ export const tradeView = (trade: Trade, early = false): TradeView => ({
 export const candleWire = (candle: Candle): number[] => [candle.t, candle.o, candle.h, candle.l, candle.c, candle.v, candle.n, candle.b];
 
 interface Stats {
+  volume: Record<WindowKey, number>;
   buys24h: number;
   sells24h: number;
   volume24h: number;
@@ -103,6 +113,34 @@ export class MarketService {
       this.refollow();
       this.following = setInterval(() => this.refollow(), REFOLLOW_EVERY_MS);
     }
+    this.describer = new Describer(database(), {
+      // Coins with no name yet, the most traded in the last hour first.
+      waiting: (most, skip) => {
+        const now = Math.floor(this.clock() / 1000);
+        const unnamed: { mint: string; volume: number }[] = [];
+        for (const market of this.indexer.markets.values())
+          if (market.name === "" && market.seenFromSlot !== undefined && !market.quote && !this.describer.facts(market.mint) && !skip(market.mint))
+            unnamed.push({ mint: market.mint, volume: this.rolling.window(market.mint, WINDOWS.h1, now).volume });
+        return unnamed
+          .sort((a, b) => b.volume - a.volume)
+          .slice(0, most)
+          .map((entry) => entry.mint);
+      },
+      accounts: (keys) => connection().getMultipleAccountsInfo(keys, "confirmed"),
+      read: async (mint, described) => {
+        const market = this.indexer.markets.get(mint);
+        if (!market) return;
+        if (market.name === "" && market.seenFromSlot !== undefined)
+          await this.indexer.describe(mint, {
+            name: described.name,
+            symbol: described.symbol,
+            uri: described.uri,
+            creator: described.creator || market.creator,
+          });
+        this.touch(mint);
+      },
+      problem: (error) => log("warn", "coins could not be read from the chain", failure(error)),
+    });
     this.tidying = setInterval(
       () => void this.tidy().catch((error: unknown) => log("error", "dropping dead coins failed", { error: String(error) })),
       TIDY_EVERY_MS,
@@ -134,6 +172,10 @@ export class MarketService {
     // A coin that has just stopped or started being live says so on the board.
     for (const market of markets) if ((before?.has(market.mint) ?? true) !== this.live.has(market.mint)) this.touch(market.mint);
   }
+  /** How much of the chain is being received, for the board to say. */
+  coverage(): { scope: "all" | "coins"; live: number; followed: number } {
+    return { scope: this.live ? "coins" : "all", live: this.live?.size ?? this.indexer.markets.size, followed: this.indexer.markets.size };
+  }
   /** What the feed is doing, for /health. */
   feed(): Record<string, unknown> {
     const { feedProvider, feedScope } = settings();
@@ -144,8 +186,18 @@ export class MarketService {
       ...(stream ? { down: stream.down, late: stream.late, repeats: stream.repeats, gaps: stream.gaps } : {}),
       followedLive: this.live?.size ?? this.indexer.markets.size,
       followed: this.indexer.markets.size,
+      describeCalls: this.describer.calls,
+      describeWaiting: this.describer.waitingFor,
     };
   }
+
+  readonly describer: Describer;
+  private readonly rolling = new Rolling();
+  /**
+   * What time it is, for everything measured in "the last hour". The real time, except when a recording is being
+   * played back, where it is the time of the recording's newest block: its last hour is the hour before that.
+   */
+  clock: () => number = () => Date.now();
 
   /** When each coin was last asked for by name, so one somebody has open or opened lately is not dropped. */
   private readonly asked = new Map<string, number>();
@@ -162,22 +214,25 @@ export class MarketService {
     return ringAvailable() && ring.coinStats(mint).inRing > 0n;
   }
   /** Stops following coins nobody trades or needs, and tells the board they are gone. Returns how many. */
-  async tidy(now = Date.now()): Promise<number> {
+  async tidy(now = this.clock()): Promise<number> {
     const gone = coinsToDrop(this.indexer.markets.values(), now, (mint) => this.needed(mint, now));
     if (gone.length === 0) return 0;
     await this.indexer.drop(gone);
     for (const mint of gone) {
       this.sent.delete(mint);
+      this.rolling.drop(mint);
       this.risks.delete(mint);
       this.dirty.delete(mint);
       this.asked.delete(mint);
       this.hub.publish("board", ["x", mint]);
     }
+    await this.describer.forget(gone);
     log("info", "stopped following quiet coins", { dropped: gone.length, followed: this.indexer.markets.size });
     return gone.length;
   }
 
   private applied(block: Applied): void {
+    for (const trade of block.trades) this.rolling.add(trade.mint, Math.floor(trade.at / 1000), Number(trade.sol), trade.isBuy);
     for (const trade of block.trades) {
       const wire = ["t", tradeView(trade)];
       this.hub.publish(`coin:${trade.mint}`, wire);
@@ -191,13 +246,18 @@ export class MarketService {
       this.hub.publish(`coin:${holder.mint}`, ["h", holder.owner, holder.amount.toString()]);
       this.hub.publish(`wallet:${holder.owner}`, ["b", holder.mint, holder.amount.toString()]);
     }
-    for (const market of block.markets) this.dirty.add(market.mint);
+    for (const market of block.markets) {
+      // A coin not seen before: the board's kept answer is out of date at once, not in a second.
+      if (!this.sent.has(market.mint)) this.boardKept = undefined;
+      this.dirty.add(market.mint);
+    }
     this.patchTimer ??= setTimeout(() => void this.patch(), PATCH_MS);
     for (const listener of this.onApplied) listener(block);
   }
 
   /** Has a coin's current figures sent out again: after its past has been filled in. */
   touch(mint: string): void {
+    this.boardKept = undefined;
     this.dirty.add(mint);
     this.patchTimer ??= setTimeout(() => void this.patch(), PATCH_MS);
   }
@@ -232,26 +292,51 @@ export class MarketService {
 
   private async stats(market: Market): Promise<Stats> {
     const [minutes, fives] = await Promise.all([this.indexer.candles(market.mint, 60), this.indexer.candles(market.mint, 300)]);
-    const now = Math.floor(Date.now() / 1000);
+    const now = Math.floor(this.clock() / 1000);
     const price = Number(priceOf(market.virtualSol, market.virtualTokens));
-    let volume24h = 0;
-    let trades24h = 0;
-    let buys24h = 0;
-    for (let index = fives.length - 1; index >= 0 && fives[index]!.t > now - 86_400; index--) {
-      volume24h += fives[index]!.v;
-      trades24h += fives[index]!.n;
-      buys24h += fives[index]!.b;
-    }
+    const day = this.rolling.window(market.mint, WINDOWS.h24, now);
     return {
-      buys24h,
-      sells24h: trades24h - buys24h,
-      volume24h,
+      buys24h: day.buys,
+      sells24h: day.trades - day.buys,
+      volume24h: day.volume,
+      volume: {
+        m5: this.rolling.window(market.mint, WINDOWS.m5, now).volume,
+        h1: this.rolling.window(market.mint, WINDOWS.h1, now).volume,
+        h6: this.rolling.window(market.mint, WINDOWS.h6, now).volume,
+        h24: day.volume,
+      },
       change: {
         m5: changeBps(priceAt(minutes, now - 300), price),
         h1: changeBps(priceAt(minutes, now - 3600), price),
         h24: changeBps(priceAt(fives, now - 86_400), price),
       },
     };
+  }
+
+  /**
+   * The coins that traded most in a window, most first, as the board shows them. Kept for two seconds: a ranking
+   * does not need to be worked out for every caller.
+   */
+  private readonly trends = new Map<WindowKey, { at: number; value: Promise<CoinView[]> }>();
+  trending(window: WindowKey): Promise<CoinView[]> {
+    const kept = this.trends.get(window);
+    if (kept && Date.now() - kept.at < 2_000) return kept.value;
+    const top = this.rolling.top(WINDOWS[window], Math.floor(this.clock() / 1000), TRENDING_SHOWN);
+    const value = Promise.all(top.map(({ mint }) => this.view(mint))).then((views) => views.filter((view): view is CoinView => view !== undefined));
+    this.trends.set(window, { at: Date.now(), value });
+    return value;
+  }
+  /**
+   * Fills the by-the-minute record from the stored one-minute candles of the last day, once, when the server starts:
+   * without it, "volume in 24 hours" would count only from the restart.
+   */
+  async warm(): Promise<void> {
+    const since = Math.floor(this.clock() / 1000) - WINDOWS.h24;
+    const rows = await database().query<{ mint: string; t: number; vol_sol: string; n: number; buys: number }>(
+      "select mint, t, vol_sol::text, n, buys from candles where tf = 60 and t > $1",
+      [since],
+    );
+    for (const row of rows) this.rolling.add(row.mint, Number(row.t), Number(row.vol_sol), false, row.n, row.buys);
   }
 
   /** A coin's risk figures, worked out again at most every few seconds however often the coin trades. */
@@ -261,7 +346,7 @@ export class MarketService {
     const now = Date.now();
     // Nothing has traded since: the figures cannot have changed. Otherwise they are good for a few seconds.
     if (kept && (kept.trades === market.trades || now - kept.at < RISK_GOOD_FOR_MS)) return kept.value;
-    const value = riskOf(database(), market, [curveAddress(market.mint).toBase58(), ...(market.pool ? [market.pool] : [])]);
+    const value = riskOf(database(), market, [curveAddress(market.mint).toBase58(), MAYHEM_VAULT, ...(market.pool ? [market.pool] : [])]);
     this.risks.set(market.mint, { at: now, trades: market.trades, value });
     value.catch(() => this.risks.delete(market.mint));
     return value;
@@ -273,6 +358,7 @@ export class MarketService {
     if (!market) return undefined;
     const listed = state().coins.find((coin) => coin.mint === mint);
     const stats = await this.stats(market);
+    const facts = this.describer.facts(mint);
     const inRing = ringAvailable() ? ring.coinStats(mint) : { inRing: 0n, depositors: 0 };
     // The curve itself, or the pool after it, holds coins but is not a holder in the sense anyone means.
     const venueHolds = market.complete ? (market.pool ? 1 : 0) : market.realTokens > 0n ? 1 : 0;
@@ -283,17 +369,26 @@ export class MarketService {
       creator: market.creator,
       createdAt: market.createdAt,
       signature: listed?.signature ?? "",
-      ...(listed?.image ? { image: listed.image } : {}),
+      // A coin not launched here: this server's own small copy of its picture, fetched when first asked for (lib/server/coin-image.ts).
+      // A coin launched here without a picture has none.
+      ...(listed ? (listed.image ? { image: listed.image } : {}) : market.uri ? { image: `/coin-image/${mint}` } : {}),
       launchedHere: listed !== undefined,
       ...(market.seenFromSlot === undefined ? {} : { followedSince: market.createdAt }),
-      ...(market.quote ? { unsupported: { reason: "quote" as const, quote: market.quote } } : {}),
+      ...(market.quote
+        ? { unsupported: { reason: "quote" as const, quote: market.quote } }
+        : facts && (!facts.pump || facts.decimals !== 6)
+          ? { unsupported: { reason: "foreign" as const } }
+          : {}),
+      // Only a graduation this server saw. A coin first seen in its pool graduated at some earlier time nobody here knows.
+      ...(market.completedAt !== undefined && market.completedAt !== market.createdAt ? { graduatedAt: market.completedAt } : {}),
       ...(this.live && !this.live.has(mint) && !market.quote ? { notLiveSince: market.lastTradeAt ?? market.createdAt } : {}),
       marketCapLamports: marketCapOf(market).toString(),
       microLamportsPerCoin: priceOf(market.virtualSol, market.virtualTokens).toString(),
       changeBasisPoints: stats.change.h24 ?? 0,
-      changeSince: Math.max(market.createdAt, Date.now() - 86_400_000),
+      changeSince: Math.max(market.createdAt, this.clock() - 86_400_000),
       change: stats.change,
       volume24hLamports: String(stats.volume24h),
+      volumeLamports: { m5: String(stats.volume.m5), h1: String(stats.volume.h1), h6: String(stats.volume.h6), h24: String(stats.volume.h24) },
       liquidityLamports: market.realSol.toString(),
       buys24h: stats.buys24h,
       sells24h: stats.sells24h,
@@ -313,19 +408,165 @@ export class MarketService {
     };
   }
 
-  /** The coins the indexer follows, most recently active first. `seq` is the board channel's number as of this answer. */
-  async board(): Promise<{ coins: CoinView[]; seq: number }> {
+  /**
+   * What the board opens on: the newest coins, the ones nearest to graduating, the latest to graduate and the most
+   * traded in the last hour, so each column has its rows whichever coins happen to be busiest this second.
+   * `seq` is the board channel's number as of this answer; the channel keeps the board up to date from there.
+   */
+  private boardKept: { at: number; value: Promise<{ coins: CoinView[]; seq: number; recordFrom: number | null }> } | undefined;
+  board(): Promise<{ coins: CoinView[]; seq: number; recordFrom: number | null }> {
+    if (this.boardKept && Date.now() - this.boardKept.at < 1_000) return this.boardKept.value;
     const seq = this.hub.seq("board");
-    const newest = [...this.indexer.markets.values()].sort((a, b) => (b.lastTradeAt ?? b.createdAt) - (a.lastTradeAt ?? a.createdAt)).slice(0, BOARD_SHOWN);
-    const coins = (await Promise.all(newest.map((market) => this.view(market.mint)))).filter((view): view is CoinView => view !== undefined);
-    for (const view of coins) if (!this.sent.has(view.mint)) this.sent.set(view.mint, view);
-    return { coins: coins.sort((a, b) => b.createdAt - a.createdAt), seq };
+    const all = [...this.indexer.markets.values()];
+    const chosen = new Set<string>();
+    const take = (markets: Market[]): void => {
+      for (const market of markets.slice(0, BOARD_EACH)) chosen.add(market.mint);
+    };
+    take(all.filter((market) => market.seenFromSlot === undefined).sort((a, b) => b.createdAt - a.createdAt));
+    take(
+      all
+        .filter((market) => !market.complete)
+        .map((market) => ({ market, progress: progressOf(market) }))
+        .filter((entry) => entry.progress >= NEARLY_BPS)
+        .sort((a, b) => b.progress - a.progress)
+        .map((entry) => entry.market),
+    );
+    take(all.filter((market) => market.complete).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)));
+    for (const { mint } of this.rolling.top(WINDOWS.h1, Math.floor(this.clock() / 1000), BOARD_EACH)) chosen.add(mint);
+    const value = Promise.all([this.recordFrom(), ...[...chosen].map((mint) => this.view(mint))]).then(([recordFrom, ...views]) => {
+      const coins = views.filter((view): view is CoinView => view !== undefined);
+      for (const view of coins) if (!this.sent.has(view.mint)) this.sent.set(view.mint, view);
+      return { coins: coins.sort((a, b) => b.createdAt - a.createdAt), seq, recordFrom };
+    });
+    this.boardKept = { at: Date.now(), value };
+    value.catch(() => (this.boardKept = undefined));
+    return value;
+  }
+
+  /** Coins whose name or ticker holds the text, best match first, among every coin followed. */
+  async search(text: string): Promise<CoinView[]> {
+    const wanted = text.trim().toLowerCase();
+    if (wanted.length === 0) return [];
+    const now = Math.floor(this.clock() / 1000);
+    const found: { mint: string; rank: number; volume: number }[] = [];
+    for (const market of this.indexer.markets.values()) {
+      const symbol = market.symbol.toLowerCase();
+      const name = market.name.toLowerCase();
+      const rank =
+        symbol === wanted
+          ? 0
+          : name === wanted
+            ? 1
+            : symbol.startsWith(wanted)
+              ? 2
+              : name.startsWith(wanted)
+                ? 3
+                : symbol.includes(wanted) || name.includes(wanted)
+                  ? 4
+                  : -1;
+      if (rank >= 0) found.push({ mint: market.mint, rank, volume: 0 });
+    }
+    for (const entry of found) entry.volume = this.rolling.window(entry.mint, WINDOWS.h24, now).volume;
+    found.sort((a, b) => a.rank - b.rank || b.volume - a.volume);
+    const views = await Promise.all(found.slice(0, SEARCH_SHOWN).map((entry) => this.view(entry.mint)));
+    return views.filter((view): view is CoinView => view !== undefined);
+  }
+
+  /** The wallets that traded a coin, ranked by what they took out less what they put in, counting what they still hold at the price now. */
+  async traders(market: Market, escrow: string | null): Promise<TraderView[]> {
+    const db = database();
+    const [rows, held] = await Promise.all([
+      db.query<{ wallet: string; bought: string; sold: string; coins_in: string; coins_out: string; n: number; first: string }>(
+        `select wallet, sum(case when is_buy then sol else 0 end)::text as bought, sum(case when is_buy then 0 else sol end)::text as sold,
+                sum(case when is_buy then tokens else 0 end)::text as coins_in, sum(case when is_buy then 0 else tokens end)::text as coins_out,
+                count(*)::int as n, min(at)::text as first
+         from trades where mint = $1 group by wallet order by sum(sol) desc limit 5000`,
+        [market.mint],
+      ),
+      db.query<{ owner: string; amount: string }>("select owner, amount::text from holders where mint = $1 and amount > 0", [market.mint]),
+    ]);
+    const holding = new Map(held.map((row) => [row.owner, BigInt(row.amount)]));
+    const price = priceOf(market.virtualSol, market.virtualTokens);
+    const ranked = rows.map((row) => {
+      const holds = holding.get(row.wallet) ?? 0n;
+      // Price is millionths of a lamport for one whole coin; a whole coin is a million base units.
+      const made = BigInt(row.sold) - BigInt(row.bought) + (holds * price) / 1_000_000_000_000n;
+      return { row, holds, made };
+    });
+    ranked.sort((a, b) => (b.made > a.made ? 1 : b.made < a.made ? -1 : 0));
+    return ranked.slice(0, TRADERS_SHOWN).map(({ row, holds }) => ({
+      wallet: row.wallet,
+      boughtLamports: row.bought,
+      soldLamports: row.sold,
+      boughtCoins: row.coins_in,
+      soldCoins: row.coins_out,
+      holding: holds.toString(),
+      trades: row.n,
+      firstAt: Number(row.first),
+      tags: this.tagsOf(market, row.wallet, escrow),
+    }));
+  }
+
+  private recordFromKept: { at: number; value: Promise<number | null> } | undefined;
+  /** When the oldest trade held here happened. Asked of the database at most every ten minutes, once there is an answer. */
+  private recordFrom(): Promise<number | null> {
+    if (!this.recordFromKept || Date.now() - this.recordFromKept.at > 600_000) {
+      const value = database()
+        .query<{ first: string | null }>("select min(at)::text as first from trades")
+        .then((rows) => (rows[0]?.first ? Number(rows[0].first) : null));
+      this.recordFromKept = { at: Date.now(), value };
+      // "Nothing held yet" is not kept: the first trade may arrive any moment.
+      void value.then(
+        (found) => found === null && (this.recordFromKept = undefined),
+        () => (this.recordFromKept = undefined),
+      );
+    }
+    return this.recordFromKept.value;
+  }
+  /** A coin's safety facts from the chain, its creator's other coins here, and how far back its trades go. */
+  async checks(market: Market): Promise<ChecksView> {
+    let facts: ChecksView["facts"] = null;
+    let factsProblem: string | undefined;
+    try {
+      facts = (await this.describer.now(market.mint)) ?? null;
+      if (!facts) factsProblem = "the chain holds no coin account at this address that this site can read";
+    } catch (error) {
+      factsProblem = error instanceof Error ? error.message : String(error);
+    }
+    const others = market.creator
+      ? [...this.indexer.markets.values()]
+          .filter((other) => other.creator === market.creator && other.mint !== market.mint)
+          .sort((a, b) => b.createdAt - a.createdAt)
+          .slice(0, DEV_COINS_SHOWN)
+      : [];
+    const [first, recordFrom] = await Promise.all([
+      database().query<{ first: string | null }>("select min(at)::text as first from trades where mint = $1", [market.mint]),
+      this.recordFrom(),
+    ]);
+    return {
+      facts,
+      ...(factsProblem ? { factsProblem } : {}),
+      dev: {
+        creator: market.creator,
+        coins: others.map((other) => ({
+          mint: other.mint,
+          name: other.name,
+          symbol: other.symbol,
+          createdAt: other.createdAt,
+          complete: other.complete,
+          marketCapLamports: marketCapOf(other).toString(),
+        })),
+      },
+      history: { from: first[0]?.first ? Number(first[0].first) : null, complete: market.seenFromSlot === undefined, limit: HISTORY_LIMIT },
+      recordFrom,
+    };
   }
 
   /** The labels a holder's address carries: the curve, the pool, the creator, the Ring's stand-in. */
   tagsOf(market: Market, owner: string, escrow: string | null): string[] {
     const tags: string[] = [];
     if (owner === curveAddress(market.mint).toBase58()) tags.push("curve");
+    if (owner === MAYHEM_VAULT) tags.push("mayhem");
     if (owner === market.creator) tags.push("creator");
     if (escrow !== null && owner === escrow) tags.push("ring");
     return tags;
@@ -335,6 +576,7 @@ export class MarketService {
     clearTimeout(this.patchTimer);
     clearInterval(this.tidying);
     clearInterval(this.following);
+    this.describer.stop();
     if (this.source instanceof StreamSource) this.source.close();
     await this.indexer.stop();
   }
@@ -375,6 +617,8 @@ export function market(): Promise<MarketService> {
   if (running?.key !== key) {
     const service = (async () => {
       const made = new MarketService(sourceFor ? sourceFor() : sourceFromSettings());
+      await made.warm();
+      await made.describer.start();
       await made.indexer.start();
       return made;
     })();

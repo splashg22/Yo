@@ -2,10 +2,11 @@
 
 /** The tables under the chart: the live trades feed and the holders, each drawn only as far as it is in view. */
 import Link from "next/link";
-import { useMemo, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
+import { api } from "@/lib/client/api";
 import type { CoinStore } from "@/lib/client/coin-store";
 import { COIN_DECIMALS } from "@/lib/constants";
-import type { CoinView, HolderView, TradeView } from "@/lib/contract";
+import type { CoinView, HolderView, TradeView, TraderView } from "@/lib/contract";
 import { formatAmount, formatCompact, formatShare, formatSol, shortAddress } from "@/lib/format";
 import { Segments } from "../ui/controls";
 import { CoinPrice, Time, UsdOfSol } from "../ui/Money";
@@ -13,11 +14,12 @@ import { useVirtual } from "../ui/useVirtual";
 
 const TRADE_COLUMNS = "56px 48px minmax(84px, 1fr) minmax(84px, 1fr) minmax(110px, 1.2fr) minmax(120px, 1.2fr)";
 const HOLDER_COLUMNS = "40px minmax(160px, 2fr) minmax(110px, 1fr) 84px minmax(80px, 1fr)";
+const TRADER_COLUMNS = "36px minmax(150px, 2fr) minmax(84px, 1fr) minmax(84px, 1fr) minmax(84px, 1fr) minmax(90px, 1fr) 48px";
 const ROW = 30;
-const TAG_TEXT: Record<string, string> = { curve: "Bonding curve", creator: "Creator", ring: "Ring stand-in", pool: "Pool" };
+const TAG_TEXT: Record<string, string> = { curve: "Bonding curve", creator: "Creator", ring: "Ring stand-in", pool: "Pool", mayhem: "pump.fun Mayhem vault" };
 
 export function Feed({ store, coin, me }: { store: CoinStore; coin: CoinView; me: string | null }) {
-  const [tab, setTab] = useState<"trades" | "holders">("trades");
+  const [tab, setTab] = useState<"trades" | "holders" | "traders">("trades");
   const [who, setWho] = useState<"all" | "mine" | "creator">("all");
   const all = useSyncExternalStore(
     store.listen,
@@ -36,6 +38,9 @@ export function Feed({ store, coin, me }: { store: CoinStore; coin: CoinView; me
         <button type="button" role="tab" aria-selected={tab === "holders"} onClick={() => setTab("holders")}>
           Holders <span className="quiet mono">{formatCompact(coin.holders)}</span>
         </button>
+        <button type="button" role="tab" aria-selected={tab === "traders"} onClick={() => setTab("traders")}>
+          Top traders
+        </button>
         {tab === "trades" && (
           <div className="tools">
             <Segments
@@ -47,7 +52,13 @@ export function Feed({ store, coin, me }: { store: CoinStore; coin: CoinView; me
           </div>
         )}
       </div>
-      {tab === "trades" ? <Trades trades={trades} coin={coin} me={me} /> : <Holders holders={holders} supply={BigInt(coin.privacy.supply)} me={me} />}
+      {tab === "trades" ? (
+        <Trades trades={trades} coin={coin} me={me} />
+      ) : tab === "holders" ? (
+        <Holders holders={holders} supply={BigInt(coin.privacy.supply)} me={me} />
+      ) : (
+        <Traders coin={coin} me={me} />
+      )}
     </section>
   );
 }
@@ -127,7 +138,7 @@ function Trades({ trades, coin, me }: { trades: TradeView[]; coin: CoinView; me:
 function Holders({ holders, supply, me }: { holders: HolderView[]; supply: bigint; me: string | null }) {
   const list = useVirtual(holders.length, ROW);
   // Share of supply held by the ten largest wallets that are people, not the curve or a pool.
-  const people = holders.filter((holder) => !holder.tags.includes("curve") && !holder.tags.includes("pool"));
+  const people = holders.filter((holder) => !holder.tags.includes("curve") && !holder.tags.includes("pool") && !holder.tags.includes("mayhem"));
   const topTen = people.slice(0, 10).reduce((sum, holder) => sum + BigInt(holder.amount), 0n);
   const creator = holders.find((holder) => holder.tags.includes("creator"));
   const share = (amount: bigint): string => (supply > 0n ? formatShare(Number((amount * 1_000_000n) / supply)) : "");
@@ -202,6 +213,123 @@ function Holders({ holders, supply, me }: { holders: HolderView[]; supply: bigin
             Of supply
           </span>
           <span role="columnheader" />
+        </div>
+        {rows}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The wallets that traded this coin, by what they made on it: SOL taken out, less SOL put in, plus what they still
+ * hold at the price now. From the trades this site holds for the coin, which may not be all of them: the note says.
+ */
+function Traders({ coin, me }: { coin: CoinView; me: string | null }) {
+  const [traders, setTraders] = useState<TraderView[] | null>(null);
+  const [problem, setProblem] = useState("");
+  useEffect(() => {
+    let ended = false;
+    const read = () =>
+      api("coin/traders", { mint: coin.mint }).then(
+        (answer) => !ended && (setTraders(answer.traders), setProblem("")),
+        (error: unknown) => !ended && setProblem(error instanceof Error ? error.message : String(error)),
+      );
+    void read();
+    const timer = setInterval(() => !document.hidden && void read(), 10_000);
+    return () => {
+      ended = true;
+      clearInterval(timer);
+    };
+  }, [coin.mint]);
+  const list = useVirtual(traders?.length ?? 0, ROW);
+  if (!traders || traders.length === 0) {
+    return (
+      <div className="feed-body">
+        <p className="body" style={{ padding: "16px 0" }}>
+          {problem
+            ? `The traders could not be read: ${problem}.`
+            : traders
+              ? "Nobody has traded this coin in what this site holds of it."
+              : "Reading the traders."}
+        </p>
+      </div>
+    );
+  }
+  const price = BigInt(coin.microLamportsPerCoin);
+  const rows = [];
+  for (let index = list.first; index <= list.last; index++) {
+    const trader = traders[index]!;
+    const held = (BigInt(trader.holding) * price) / 1_000_000_000_000n;
+    const made = BigInt(trader.soldLamports) - BigInt(trader.boughtLamports) + held;
+    rows.push(
+      <div
+        key={trader.wallet}
+        role="row"
+        className={`vrow${trader.wallet === me ? " mine" : ""}`}
+        style={{ ...list.place(index), top: list.place(index).top + ROW + 34, gridTemplateColumns: TRADER_COLUMNS }}
+      >
+        <span role="cell" className="quiet num">
+          {index + 1}
+        </span>
+        <span role="cell">
+          <span className="address" title={trader.wallet}>
+            {shortAddress(trader.wallet)}
+          </span>
+          {trader.tags.map((tag) => (
+            <span key={tag} className={`tag${tag === "creator" ? " hot" : ""}`}>
+              {TAG_TEXT[tag] ?? tag}
+            </span>
+          ))}
+          {trader.wallet === me && <span className="tag">You</span>}
+        </span>
+        <span role="cell" className="r num">
+          {formatSol(trader.boughtLamports, 3)}
+        </span>
+        <span role="cell" className="r num">
+          {formatSol(trader.soldLamports, 3)}
+        </span>
+        <span role="cell" className="r num">
+          {formatSol(held, 3)}
+        </span>
+        <span role="cell" className={`r num ${made < 0n ? "down" : "up"}`}>
+          {made < 0n ? "-" : "+"}
+          {formatSol(made < 0n ? -made : made, 3)}
+        </span>
+        <span role="cell" className="r num quiet">
+          {trader.trades}
+        </span>
+      </div>,
+    );
+  }
+  return (
+    <div className="feed-body" ref={list.scroller} role="table" aria-label="Top traders, by what they made" aria-rowcount={traders.length}>
+      <div style={{ height: list.total + ROW + 34, position: "relative" }}>
+        <p className="note-line" style={{ height: 34, display: "flex", alignItems: "center", gap: 18 }} data-trader-summary>
+          <span>
+            Made = sold, less bought, plus what is still held at the price now.{" "}
+            {coin.followedSince === undefined
+              ? "From every trade since the coin was made."
+              : "From the trades held here only: see how far back they go, under About."}
+          </span>
+        </p>
+        <div className="vhead" role="row" style={{ gridTemplateColumns: TRADER_COLUMNS, top: 0 }}>
+          <span role="columnheader">#</span>
+          <span role="columnheader">Wallet</span>
+          <span role="columnheader" className="r">
+            Bought
+          </span>
+          <span role="columnheader" className="r">
+            Sold
+          </span>
+          <span role="columnheader" className="r">
+            Holds
+          </span>
+          <span role="columnheader" className="r">
+            Made
+          </span>
+          <span role="columnheader" className="r">
+            Trades
+          </span>
         </div>
         {rows}
       </div>

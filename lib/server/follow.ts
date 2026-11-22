@@ -17,8 +17,8 @@ import bs58 from "bs58";
 
 const sdk = createRequire(import.meta.url)("@pump-fun/pump-sdk") as typeof PumpSdk;
 const big = (value: { toString(): string }): bigint => BigInt(value.toString());
-/** The most past trades fetched for one coin. Older ones are left out, and the page says the history starts later. */
-export const HISTORY_LIMIT = 5_000;
+import { HISTORY_LIMIT } from "./history-limit";
+export { HISTORY_LIMIT };
 const following = new Map<string, Promise<void>>();
 /** Addresses lately found not to be coins. Asking again inside a minute is answered from here, not from the chain. */
 const notCoins = new Map<string, number>();
@@ -71,6 +71,8 @@ async function adopt(service: MarketService, mint: string): Promise<void> {
     ...(poolInfo ? { pool: pool.toBase58() } : {}),
     holders: 0,
     trades: 0,
+    // Until the event that made it is found among its past trades, it is a coin first seen now, and says so.
+    seenFromSlot: slot,
   };
   // Followed from this moment: anything that happens while the past is being fetched is not missed.
   if (!(await service.indexer.adopt(now))) return;
@@ -80,6 +82,8 @@ async function adopt(service: MarketService, mint: string): Promise<void> {
     if (created) {
       const market = service.indexer.markets.get(mint)!;
       Object.assign(market, { name: created.name, symbol: created.symbol, uri: created.uri, createdAt: created.at, createdSlot: created.slot });
+      // Its whole past is held: it is no longer a coin seen from part-way.
+      delete market.seenFromSlot;
     }
     await service.indexer.backfill(mint, history.trades, await largestHolders(key));
     if (created) await service.indexer.rename(mint, created);

@@ -10,6 +10,7 @@ import { ringAvailable, settings } from "../env";
 import { escrow } from "../escrow";
 import { follow } from "../follow";
 import { isTimeframe, priceOf } from "../indexer/model";
+import { isWindowKey } from "../rolling";
 import { candleWire, market, tradeView } from "../market";
 import { PICTURE_MAX_BYTES, storeCoinDetails } from "../pictures";
 import { claimableFees } from "../pump";
@@ -75,10 +76,14 @@ async function followed(mintInput: unknown) {
 
 export const marketOperations: Handlers<
   | "explore"
+  | "trending"
   | "coin"
   | "coin/trades"
   | "coin/candles"
   | "coin/holders"
+  | "search"
+  | "coin/traders"
+  | "coin/checks"
   | "position"
   | "portfolio"
   | "wallet/activity"
@@ -92,7 +97,37 @@ export const marketOperations: Handlers<
   | "fees/claimable"
   | "fees/build"
 > = {
-  explore: async () => (await market()).board(),
+  explore: async () => {
+    const service = await market();
+    return { ...(await service.board()), feed: service.coverage() };
+  },
+
+  trending: async (input) => {
+    if (!isWindowKey(input.window)) throw new Error("choose a window: m5, h1, h6 or h24");
+    return { coins: await (await market()).trending(input.window) };
+  },
+
+  search: async (input) => {
+    const wanted = text(input.q, "search text", 64).trim();
+    const service = await market();
+    // An address: the coin itself if it is followed. One that is not is read from the chain only when somebody opens it
+    // (the coin page does that), never as a side effect of typing.
+    if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(wanted)) {
+      const view = await service.view(wanted);
+      return { coins: view ? [view] : [] };
+    }
+    return { coins: await service.search(wanted) };
+  },
+
+  "coin/traders": async (input) => {
+    const { service, market: found } = await followed(input.mint);
+    return { traders: await service.traders(found, ringAvailable() ? escrow().publicKey.toBase58() : null) };
+  },
+
+  "coin/checks": async (input) => {
+    const { service, market: found } = await followed(input.mint);
+    return service.checks(found);
+  },
 
   coin: async (input) => {
     const { mint, service } = await followed(input.mint);

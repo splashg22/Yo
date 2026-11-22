@@ -1,7 +1,9 @@
 "use client";
 
 /**
- * The board: every coin the indexer follows, in three live columns. New, about to graduate, graduated.
+ * The board: the coins the indexer follows, in three live columns (new, about to graduate, graduated), or ranked by
+ * what they traded in the last 5 minutes, hour, 6 hours or day. The search covers every coin followed, not only the
+ * rows loaded.
  *
  * It starts from one snapshot and is then kept up to date by the live "board" channel, which sends only what
  * changed about a coin. A column stops reordering while the pointer is over it, and says how many new rows
@@ -12,6 +14,7 @@
 import {
   BUILT_IN_PRESETS,
   FIGURES,
+  NEARLY_BPS,
   NO_FILTERS,
   countSet,
   decodeFilters,
@@ -27,6 +30,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Signer } from "@/lib/client/api";
+import { clockNow } from "@/lib/client/clock";
 import { subscribe } from "@/lib/client/live";
 import { buildTrade, loadSettings, outcomeOf, signAndSubmit } from "@/lib/client/trade";
 import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
@@ -40,9 +44,16 @@ import { useVirtual } from "../ui/useVirtual";
 import { useWallet } from "../wallet/WalletProvider";
 import { LiveStrip } from "./LiveStrip";
 
-/** A coin is "about to graduate" once its curve has sold this share, in hundredths of a percent. */
-const NEARLY_BPS = 6_000;
-const ROW = 84;
+const ROW = 98;
+const WINDOWS = [
+  { value: "m5", label: "5m" },
+  { value: "h1", label: "1h" },
+  { value: "h6", label: "6h" },
+  { value: "h24", label: "24h" },
+] as const;
+type WindowKey = (typeof WINDOWS)[number]["value"];
+const isWindow = (value: unknown): value is WindowKey => WINDOWS.some((window) => window.value === value);
+const volumeIn = (coin: CoinView, window: WindowKey): number => Number(coin.volumeLamports[window]);
 const COLUMNS = [
   { key: "new", title: "New", empty: "No new coins match." },
   { key: "nearly", title: "About to graduate", empty: "No coin is close to selling out its curve." },
@@ -62,7 +73,8 @@ function columnOf(coin: CoinView): ColumnKey {
 const ORDER: Record<ColumnKey, (a: CoinView, b: CoinView) => number> = {
   new: (a, b) => b.createdAt - a.createdAt,
   nearly: (a, b) => b.progressBps - a.progressBps || b.createdAt - a.createdAt,
-  graduated: (a, b) => (b.lastTradeAt ?? b.createdAt) - (a.lastTradeAt ?? a.createdAt),
+  // The graduations this site saw, newest first; then coins that had graduated before it was looking, the most traded first.
+  graduated: (a, b) => (b.graduatedAt ?? 0) - (a.graduatedAt ?? 0) || volumeIn(b, "h1") - volumeIn(a, "h1"),
 };
 
 export function Board() {
@@ -73,6 +85,8 @@ export function Board() {
   // Replaced, never changed in place, so everything worked out from it knows when to work it out again.
   const [coins, setCoins] = useState<ReadonlyMap<string, CoinView>>(new Map());
   const [loaded, setLoaded] = useState(false);
+  const [recordFrom, setRecordFrom] = useState<number | null>(null);
+  const [feed, setFeed] = useState<{ scope: "all" | "coins"; live: number; followed: number } | null>(null);
   const [problem, setProblem] = useState("");
   const [text, setText] = useState("");
   const [filters, setFilters] = useState<BoardFilters>(NO_FILTERS);
@@ -84,7 +98,10 @@ export function Board() {
 
   // The filters live in the address, so a filtered board can be linked to, and a reload or a new tab opens on the same one.
   useEffect(() => {
-    setFilters(decodeFilters(new URLSearchParams(window.location.search).get("f")));
+    const asked = new URLSearchParams(window.location.search);
+    setFilters(decodeFilters(asked.get("f")));
+    const wanted = asked.get("v");
+    if (isWindow(wanted)) setView(wanted);
     try {
       setSaved(parsePresets(localStorage.getItem(PRESETS_KEY)));
     } catch {
@@ -110,6 +127,9 @@ export function Board() {
   const [quick, setQuick] = useState("0.05");
   const [oneClick, setOneClick] = useState(false);
   const [tab, setTab] = useState<ColumnKey>("new");
+  // "board": the three columns. Otherwise the ranking by what was traded in that window.
+  const [view, setView] = useState<"board" | WindowKey>("board");
+  const [trend, setTrend] = useState<string[] | null>(null);
   const [cursor, setCursor] = useState<{ column: ColumnKey; index: number }>({ column: "new", index: 0 });
   const [help, setHelp] = useState(false);
   const search = useRef<HTMLInputElement>(null);
@@ -120,6 +140,8 @@ export function Board() {
     try {
       const answer = await api("explore");
       setCoins(new Map(answer.coins.map((coin) => [coin.mint, coin])));
+      setRecordFrom(answer.recordFrom);
+      setFeed(answer.feed);
       setProblem("");
       setLoaded(true);
       return answer.seq;
@@ -161,19 +183,95 @@ export function Board() {
     };
   }, [load]);
 
-  const columns = useMemo(() => {
+  const changeView = useCallback((next: "board" | WindowKey) => {
+    setView(next);
+    setTrend(null);
+    const url = new URL(window.location.href);
+    if (next === "board") url.searchParams.delete("v");
+    else url.searchParams.set("v", next);
+    window.history.replaceState(null, "", url);
+  }, []);
+  /** Adds coins the server answered with to the ones held, without disturbing what the live channel has since said of a coin already held. */
+  const learn = useCallback((found: CoinView[]) => {
+    setCoins((current) => {
+      if (found.every((coin) => current.has(coin.mint))) return current;
+      const next = new Map(current);
+      for (const coin of found) if (!next.has(coin.mint)) next.set(coin.mint, coin);
+      return next;
+    });
+  }, []);
+  // The ranking is the server's: it counts every coin it follows, not only the rows this page holds. Asked again every few seconds.
+  useEffect(() => {
+    if (view === "board") return;
+    let ended = false;
+    const read = () =>
+      api("trending", { window: view }).then(
+        (answer) => {
+          if (ended) return;
+          learn(answer.coins);
+          setTrend(answer.coins.map((coin) => coin.mint));
+        },
+        (error: unknown) => !ended && setProblem(error instanceof Error ? error.message : String(error)),
+      );
+    void read();
+    const timer = setInterval(() => !document.hidden && void read(), 3_000);
+    return () => {
+      ended = true;
+      clearInterval(timer);
+    };
+  }, [view, learn]);
+  // The search asks the server too, a moment after the typing stops: it knows coins this page has not loaded.
+  const [searched, setSearched] = useState<{ text: string; found: number } | null>(null);
+  useEffect(() => {
+    const wanted = text.trim();
+    if (wanted.length < 2) return setSearched(null);
+    let ended = false;
+    const timer = setTimeout(() => {
+      api("search", { q: wanted }).then(
+        (answer) => {
+          if (ended) return;
+          learn(answer.coins);
+          setSearched({ text: wanted, found: answer.coins.length });
+        },
+        () => undefined,
+      );
+    }, 250);
+    return () => {
+      ended = true;
+      clearTimeout(timer);
+    };
+  }, [text, learn]);
+
+  const shownCoins = useMemo(() => {
     const wanted = text.trim().toLowerCase();
     const limits = limitsOf(filters);
-    const now = Date.now();
-    const lists: Record<ColumnKey, CoinView[]> = { new: [], nearly: [], graduated: [] };
+    const now = clockNow();
+    const kept: CoinView[] = [];
     for (const coin of coins.values()) {
       if (wanted && !coin.symbol.toLowerCase().includes(wanted) && !coin.name.toLowerCase().includes(wanted) && coin.mint.toLowerCase() !== wanted) continue;
       if (!matches(coin, filters, now, limits)) continue;
-      lists[columnOf(coin)].push(coin);
+      kept.push(coin);
+    }
+    return kept;
+  }, [filters, text, coins]);
+  const columns = useMemo(() => {
+    const lists: Record<ColumnKey, CoinView[]> = { new: [], nearly: [], graduated: [] };
+    for (const coin of shownCoins) {
+      const column = columnOf(coin);
+      // "New" is for coins seen being made. One that was already trading when first seen has no known age: it is in the ranking and the search.
+      if (column === "new" && coin.followedSince !== undefined && text.trim() === "") continue;
+      lists[column].push(coin);
     }
     for (const key of Object.keys(lists) as ColumnKey[]) lists[key].sort(ORDER[key]);
     return lists;
-  }, [filters, text, coins]);
+  }, [shownCoins, text]);
+  const ranked = useMemo(() => {
+    if (view === "board") return [];
+    // With something typed: every match, the most traded first. Otherwise the server's ranking, in its order.
+    if (text.trim() !== "") return [...shownCoins].sort((a, b) => volumeIn(b, view) - volumeIn(a, view));
+    const allowed = new Map(shownCoins.map((coin) => [coin.mint, coin]));
+    return (trend ?? []).flatMap((mint) => allowed.get(mint) ?? []);
+  }, [view, trend, shownCoins, text]);
 
   const quickBuy = useCallback(
     async (coin: CoinView, who: Signer) => {
@@ -248,7 +346,7 @@ export function Board() {
       <div className="app" style={{ maxWidth: "none", padding: "12px 0 0", gap: 12 }}>
         <header className="app-head" style={{ margin: "0 16px" }}>
           <h1 className="h3">Terminal</h1>
-          <p>Every coin the indexer follows, live. Trades here are public pump.fun trades.</p>
+          <p>Every coin this server follows. Trades here are public pump.fun trades.</p>
         </header>
         <div className="toolbar">
           <div className="field-row search">
@@ -268,14 +366,27 @@ export function Board() {
           <button className="btn" type="button" aria-expanded={showFilters} onClick={() => setShowFilters(!showFilters)}>
             Filters{active > 0 ? ` (${active})` : ""}
           </button>
-          <label className="field-row" style={{ width: 250 }}>
-            <span className="unit" style={{ borderLeft: 0, borderRight: "1px solid var(--rule)" }}>
-              Quick buy
-            </span>
-            <input aria-label="Quick buy amount, in SOL" inputMode="decimal" value={quick} onChange={(event) => setQuick(event.target.value)} />
-            <span className="unit">SOL</span>
-          </label>
-          <span className="phone-only">
+          <Segments
+            label="View"
+            value={view === "board" ? "board" : "trending"}
+            onChange={(next) => changeView(next === "board" ? "board" : "h1")}
+            options={[
+              { value: "board", label: "Columns" },
+              { value: "trending", label: "Trending" },
+            ]}
+          />
+          {view !== "board" && <Segments label="Trending over" value={view} onChange={changeView} options={[...WINDOWS]} />}
+          {/* Quick buy belongs to trading. On mainnet this build is read-only, so the field is not shown at all. */}
+          {!readOnly && (
+            <label className="field-row" style={{ width: 250 }}>
+              <span className="unit" style={{ borderLeft: 0, borderRight: "1px solid var(--rule)" }}>
+                Quick buy
+              </span>
+              <input aria-label="Quick buy amount, in SOL" inputMode="decimal" value={quick} onChange={(event) => setQuick(event.target.value)} />
+              <span className="unit">SOL</span>
+            </label>
+          )}
+          <span className="phone-only" hidden={view !== "board"}>
             <Segments
               label="Column"
               value={tab}
@@ -388,21 +499,66 @@ export function Board() {
             : if it is a pump.fun coin, its trades are read from the chain and it is followed from then on.
           </p>
         )}
-        <div className="board3">
-          {COLUMNS.map((column) => (
+        {searched && searched.text === typed && !unknownAddress && (
+          <p className="note-line" style={{ margin: "0 16px" }} data-searched>
+            Searched every coin this server follows: {searched.found === 0 ? "none" : searched.found === 30 ? "the best 30" : searched.found} matched by name or
+            ticker. A coin it does not follow yet is found by its address.
+          </p>
+        )}
+        {view === "board" ? (
+          <div className="board3">
+            {COLUMNS.map((column) => (
+              <Column
+                key={column.key}
+                title={column.title}
+                empty={loaded ? column.empty : "Reading what the indexer holds."}
+                coins={columns[column.key]}
+                shown={tab === column.key}
+                cursor={cursor.column === column.key ? cursor.index : -1}
+                quick={quick}
+                canQuick={signer !== null && oneClick && !readOnly}
+                readOnly={readOnly}
+                onQuick={(coin) => signer && void quickBuy(coin, signer)}
+                window="h24"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="board3 one">
             <Column
-              key={column.key}
-              title={column.title}
-              empty={loaded ? column.empty : "Reading what the indexer holds."}
-              coins={columns[column.key]}
-              shown={tab === column.key}
-              cursor={cursor.column === column.key ? cursor.index : -1}
+              title={`Most traded, last ${WINDOWS.find((window) => window.value === view)!.label}`}
+              empty={trend === null ? "Reading the ranking." : "Nothing this server follows traded in that time."}
+              coins={ranked}
+              shown
+              cursor={-1}
               quick={quick}
               canQuick={signer !== null && oneClick && !readOnly}
+              readOnly={readOnly}
               onQuick={(coin) => signer && void quickBuy(coin, signer)}
+              window={view}
+              numbered
             />
-          ))}
-        </div>
+          </div>
+        )}
+        <p className="note-line" style={{ margin: "0 16px" }} data-coverage>
+          {recordFrom !== null && clockNow() - recordFrom < 86_400_000 && (
+            <>
+              This server&apos;s record begins <Age at={recordFrom} /> ago: volume, buys and sells &quot;in 24 hours&quot; count only since then, and a coin
+              marked &quot;followed&quot; shows only the holders seen since.{" "}
+            </>
+          )}
+          {feed?.scope === "coins" && (
+            <span data-partial-feed>
+              This server receives every new coin, and every trade of {feed.live.toLocaleString("en-US")} of the {feed.followed.toLocaleString("en-US")} coins
+              it follows: the newest, and any somebody has open. The rest show their figures with their age, and the trending lists rank only the coins received
+              trade by trade.{" "}
+            </span>
+          )}
+          Covered: pump.fun coins priced in SOL, on the curve and in their pump.fun pool after graduation.{" "}
+          <Link className="link" href="/docs#coverage">
+            What is covered, what is not, and how far back
+          </Link>
+        </p>
       </div>
       <LiveStrip onHelp={() => setHelp(true)} />
       {help && (
@@ -460,6 +616,9 @@ function Column({
   quick,
   canQuick,
   onQuick,
+  window,
+  readOnly,
+  numbered = false,
 }: {
   title: string;
   empty: string;
@@ -469,6 +628,12 @@ function Column({
   quick: string;
   canQuick: boolean;
   onQuick: (coin: CoinView) => void;
+  /** Which window's volume the rows show. */
+  window: WindowKey;
+  /** True where nothing can be traded: a row then offers to open the coin, not to trade it. */
+  readOnly: boolean;
+  /** True for a ranking: each row carries its place. */
+  numbered?: boolean;
 }) {
   // While the pointer is over the column, the rows keep the order they had when it arrived.
   const [held, setHeld] = useState<string[] | null>(null);
@@ -482,7 +647,18 @@ function Column({
   for (let index = list.first; index <= list.last; index++) {
     const coin = rows[index]!;
     drawn.push(
-      <Row key={coin.mint} coin={coin} style={list.place(index)} marked={coin.mint === cursorRow?.mint} quick={quick} canQuick={canQuick} onQuick={onQuick} />,
+      <Row
+        key={coin.mint}
+        coin={coin}
+        style={list.place(index)}
+        marked={coin.mint === cursorRow?.mint}
+        quick={quick}
+        canQuick={canQuick}
+        onQuick={onQuick}
+        window={window}
+        readOnly={readOnly}
+        place={numbered ? index + 1 : undefined}
+      />,
     );
   }
   return (
@@ -513,6 +689,9 @@ function Row({
   quick,
   canQuick,
   onQuick,
+  window,
+  readOnly,
+  place,
 }: {
   coin: CoinView;
   style: { top: number; height: number };
@@ -520,6 +699,9 @@ function Row({
   quick: string;
   canQuick: boolean;
   onQuick: (coin: CoinView) => void;
+  window: WindowKey;
+  readOnly: boolean;
+  place: number | undefined;
 }) {
   const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
   const change = coin.change.m5 ?? coin.change.h1 ?? coin.change.h24;
@@ -533,6 +715,7 @@ function Row({
         <CoinPicture image={coin.image} symbol={coin.symbol} size={40} />
         <span className="name">
           <span className="line1">
+            {place !== undefined && <span className="quiet mono">{place}</span>}
             <b>{coin.symbol || shortAddress(coin.mint)}</b>
             <span className="full" title={coin.name || "This coin's name has not been read from the chain yet"}>
               {coin.name || "Name not read yet"}
@@ -540,22 +723,39 @@ function Row({
           </span>
           <span className="sub">
             {coin.unsupported ? (
-              <span className="tag" title="This coin is priced in something other than SOL. This site cannot chart or trade those yet.">
-                Not priced in SOL: not supported yet
-              </span>
+              coin.unsupported.reason === "quote" ? (
+                <span className="tag" title="This coin is priced in something other than SOL. This site cannot chart or trade those yet.">
+                  Not priced in SOL: not supported yet
+                </span>
+              ) : (
+                <span className="tag" title="It trades in a pump.fun pool but is not a pump.fun coin. The figures this site works out would be wrong for it.">
+                  Not a pump.fun coin: not supported yet
+                </span>
+              )
             ) : (
               <>
                 {/* A coin that was already trading when it was first seen has no known age: what is known is since when it has been followed. */}
                 {coin.followedSince !== undefined && (
                   <span title="It was already trading when this site first saw it. Nothing earlier is held.">followed </span>
                 )}
-                <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"}
+                <Age at={coin.createdAt} /> ·{" "}
+                {coin.followedSince === undefined ? (
+                  <>
+                    {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"}
+                  </>
+                ) : (
+                  <span title="Only the wallets whose holdings changed since this coin was first seen. It has at least this many holders.">
+                    {formatCompact(coin.holders)}+ holders
+                  </span>
+                )}
               </>
             )}
-            <span className="roomy">
-              {" "}
-              · {formatCompact(coin.trades)} trade{coin.trades === 1 ? "" : "s"}
-            </span>
+            {!coin.unsupported && (
+              <span className="roomy">
+                {" "}
+                · {formatCompact(coin.trades)} trade{coin.trades === 1 ? "" : "s"}
+              </span>
+            )}
           </span>
           {!coin.complete && (
             <span className="meter" title={`${(coin.progressBps / 100).toFixed(1)}% of the curve sold`}>
@@ -563,28 +763,49 @@ function Row({
             </span>
           )}
         </span>
-        <span className="nums">
-          <span title="Market cap">
-            <UsdOfSol lamports={coin.marketCapLamports} />
-          </span>
-          <span className="quiet" title="Volume in 24 hours">
-            V <UsdOfSol lamports={coin.volume24hLamports} />
-          </span>
-          {coin.notLiveSince !== undefined ? (
-            // Not passed off as live: this coin's trades are not being received, and its figures are as old as this says.
-            <span
-              className="quiet"
-              title="This coin's trades are not being received as they happen. Its figures are from the time shown. Opening it makes it live."
-            >
-              as of <Age at={coin.notLiveSince} />
+        {/* A coin this site cannot price is shown with no price at all, never with a zero or a guess. */}
+        {coin.unsupported ? (
+          <span className="nums" />
+        ) : (
+          <span className="nums">
+            <span title="Market cap">
+              MC <UsdOfSol lamports={coin.marketCapLamports} />
             </span>
-          ) : (
-            <span className={change !== null && change < 0 ? "down" : "up"}>{change === null ? "" : formatChange(change)}</span>
-          )}
-        </span>
-        {coin.risk && (
+            {coin.notLiveSince !== undefined ? (
+              // Not passed off as live: this coin's trades are not being received, and its figures are as old as this says.
+              <span
+                className="quiet"
+                title="This coin's trades are not being received as they happen. Its figures are from the time shown. Opening it makes it live."
+              >
+                as of <Age at={coin.notLiveSince} />
+              </span>
+            ) : (
+              <span className={change !== null && change < 0 ? "down" : "up"}>{change === null ? "" : formatChange(change)}</span>
+            )}
+          </span>
+        )}
+        {!coin.unsupported && (
+          <span className="figs" data-figs>
+            <span title={`Volume traded in the last ${WINDOWS.find((entry) => entry.value === window)!.label}`}>
+              V <UsdOfSol lamports={coin.volumeLamports[window]} />
+            </span>
+            <span title={coin.complete ? "SOL in the coin's pool" : "SOL in the coin's curve"}>
+              Liq <UsdOfSol lamports={coin.liquidityLamports} />
+            </span>
+            <span title="Buys and sells in the last 24 hours">
+              <span className="up">{formatCompact(coin.buys24h)}</span>/<span className="down">{formatCompact(coin.sells24h)}</span>
+            </span>
+          </span>
+        )}
+        {coin.risk && !coin.unsupported && (
           <span className="risk" data-risk>
-            <span title="Share of supply held by the ten largest holders">T10 {share(coin.risk.top10Bps)}</span>
+            {coin.followedSince === undefined ? (
+              <span title="Share of supply held by the ten largest holders">T10 {share(coin.risk.top10Bps)}</span>
+            ) : (
+              <span title="At least this share is held by ten wallets. Only wallets seen since this coin was first followed are counted, so the real figure may be higher.">
+                T10 {coin.risk.top10Bps === undefined ? "?" : `≥${share(coin.risk.top10Bps)}`}
+              </span>
+            )}
             <span title="Share held by the wallet that created the coin">Dev {coin.followedSince === undefined ? share(coin.risk.devBps) : "?"}</span>
             <span title="Share still held by wallets that bought in the coin's first three slots">Snp {share(coin.risk.snipers?.heldBps)}</span>
             <span title="Share still held by early buyers who bought three or more to a slot">Bnd {share(coin.risk.bundles?.heldBps)}</span>
@@ -597,8 +818,12 @@ function Row({
           {quick}
         </button>
       ) : (
-        <Link className="quick" href={`/coin/${coin.mint}#trade`} style={{ display: "grid", placeItems: "center" }}>
-          {tradeable ? "Trade" : "View"}
+        <Link
+          className="quick"
+          href={tradeable && !readOnly ? `/coin/${coin.mint}#trade` : `/coin/${coin.mint}`}
+          style={{ display: "grid", placeItems: "center" }}
+        >
+          {tradeable && !readOnly ? "Trade" : "View"}
         </Link>
       )}
     </div>

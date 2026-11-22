@@ -357,6 +357,77 @@ Photon's. How much later is unknown until it is measured on mainnet.
    launchpads are "next".
 5. **Fee:** stays a setting, 0.5% proposed, off by default.
 
+## 10. The every-coin board: what is built, what it covers, and plan A against plan B
+
+Built on 22 November against a recorded stretch of mainnet (600 consecutive blocks, about two minutes,
+42,906 pump.fun transactions). It goes live when the Helius key is in `.env` and `FEED_PROVIDER=helius-ws`
+is set; nothing else changes.
+
+### Coverage, exactly
+
+| Source | Status | What is shown |
+| --- | --- | --- |
+| pump.fun bonding curve, coins priced in SOL | **Covered**, from the coin's first block | Everything |
+| PumpSwap (pump.fun's pool program), SOL pools of pump.fun coins | **Covered** | Everything |
+| pump.fun coins already trading before we listened | **Covered from the first trade seen**; name, picture, creator and safety facts read from the chain afterwards | Marked "followed"; holders and top-ten shown as "at least"; snipers, bundles, insiders "not known" |
+| pump.fun coins priced in USDC or another coin | **Listed, not supported** | Name and "not priced in SOL: not supported yet". No price, never a zero |
+| Coins in PumpSwap pools that were not made on pump.fun | **Listed, not supported** once their account is read | "Not a pump.fun coin: not supported yet". No price |
+| pump.fun Mayhem-mode coins | Covered. The Mayhem vault's extra thousand million coins are left out of holder figures, as the curve is | Market cap uses the supply the creation event states |
+| LetsBonk, Moonshot, Believe, Boop, Jupiter Studio and other launchpads | **Not covered** | Not on the board |
+| Raydium, Meteora, Orca pools (including of pump.fun coins) | **Not covered** | Not on the board |
+| PumpSwap pools priced in anything other than SOL | **Not covered** | Not on the board |
+
+Adding a launchpad or a DEX is one decoder each (its trade and pool events) behind the same `ChainSource`
+interface. None is built. Each adds stream volume, which matters on plan A.
+
+### How far back
+
+- A coin seen being made: every trade.
+- A coin first seen part-way: from that trade. The coin page says from when.
+- A coin opened or searched by address that is not followed: its last 5,000 trades and twenty largest holders
+  are read from the chain once (about 5,000 RPC credits for a busy coin), and it is followed from then on.
+  If the event that made it is within those trades, its history is complete and says so.
+- Dead coins: the drop rule (`lib/server/indexer/retention.ts`) stops following a coin nobody trades or needs.
+  It stays findable by address, which reads it again.
+- "24 hours" on any figure reaches back only as far as the server has been listening. The board says when its
+  record begins until that is more than a day ago.
+
+### What each plan gives
+
+| | **Plan A: Helius Developer, $49** (`FEED_SCOPE=coins`) | **Plan B: A + a full stream, $152** (`FEED_SCOPE=all`) |
+| --- | --- | --- |
+| New pairs column | Live: every coin, from its first block | Same |
+| Graduations | Live for coins followed trade by trade. A coin that graduates while not followed is caught when it is next read | Live for every coin |
+| A coin somebody has open | Live | Live |
+| Market cap, volume, buys and sells on board rows | Live for the newest 300 coins (a setting) and any coin open. **Every other row shows "as of" and its age** | Live for every row |
+| Trending 5m / 1h / 6h / 24h | **Ranks only the coins followed trade by trade.** The board says how many that is. It is not "trending across pump.fun" | Ranks every coin that trades |
+| Coins older than the server | **Only when somebody opens one by address** | Found by themselves the first time they trade |
+| Search by name or ticker | Among coins followed | Among every coin that has traded since the server began |
+| Search by address | Any pump.fun coin, either plan | Same |
+| Snipers, bundles, insiders | For coins followed from their first block | Same rule, more coins |
+
+The move from A to B is two settings (`FEED_SCOPE=all`, and the stream provider if it is not Helius). The
+replay behind the screenshots runs with `FEED_SCOPE=all`, because the recording holds every trade: **it shows
+what plan B looks like.** On plan A the same screen has the "as of" labels and the note about the ranking.
+
+### What each feature costs in data
+
+| Feature | Source | Cost |
+| --- | --- | --- |
+| Board, trending, search, top traders, dev history | This server's own record | Nothing beyond the stream |
+| Names and creators of coins first seen part-way | `getMultipleAccounts`, 30 coins a call, one call a second at most | 1 credit a call: under 90,000 a day at the very most, a few thousand in practice |
+| Safety checks (mint and freeze authority) | The same read, once per coin opened | 1 credit |
+| Pictures | The coin's own description and image, by https from where its creator points (IPFS gateways mostly) | No paid service. Public gateways rate-limit; a refused picture is retried later and the row shows the ticker's first letter meanwhile |
+| Opening an old coin by address | `getSignaturesForAddress` and `getTransaction` | Up to about 5,000 credits, once per coin |
+
+### Not done, said plainly
+
+- "Pool liquidity locked" is shown as **not checked**. No check is passed off as passed.
+- The creator's other coins lists only coins this server follows. An empty list is not a clean history, and the card says so.
+- Top traders are worked out from the trades held for the coin, which for a coin first seen part-way is not all of them.
+- The live Helius stream (`HeliusTxStream`) has still never been run: there is no paid key yet. Everything above is proven on recorded blocks.
+- Quick buy is off on mainnet, and the field is not shown there.
+
 ## Sources
 
 Read in full: `github.com/GMGNAI/gmgn-skills` (README and the market, token, swap, track and portfolio

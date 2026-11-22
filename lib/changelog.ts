@@ -19,6 +19,10 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "The terminal's data layer: the chain read as a stream of transactions as well as whole blocks, tested on a recorded stretch of mainnet. A mainnet mode that reads and can send nothing.",
       "Risk figures on every board row (top ten, dev, snipers, bundles, insiders), each by a rule printed in the docs. A lowest and highest allowed value for every figure, saved presets, and filters kept in the link.",
       "Coins that were already trading when first seen are followed from there and say so. Coins nobody trades stop being followed. Coins priced in something other than SOL are listed as not supported yet.",
+      "The board ranks coins by what they traded in the last 5 minutes, hour, 6 hours or day. Its search covers every coin followed, not only the rows on screen. Each row shows liquidity, volume, buys and sells.",
+      "A coin's page lists its top traders by what they made, and its safety checks: whether more can be minted and whether holdings can be frozen, read from the coin's own account, with the creator's other coins and how far back the coin's trades go.",
+      "Names and pictures of coins that were already trading are read from the chain. Pictures are fetched by the server, redrawn small and served from here.",
+      "The docs say exactly which coins the terminal covers, which it lists as not supported, and which it does not see.",
     ],
   },
   {

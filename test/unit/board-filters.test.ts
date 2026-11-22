@@ -81,8 +81,10 @@ describe("the board's filters", () => {
   it("fail a coin on a figure that is not known for it, and never treat not known as zero", () => {
     const seenLate = coin({ followedSince: NOW - 60_000, risk: { top10Bps: 2000, devBps: 0, devSells: 0, snipers: null, bundles: null, insiders: null } });
     for (const key of ["snipers", "bundles", "insiders", "dev", "age"]) expect(matches(seenLate, only(key, { max: "100" }), NOW), key).toBe(false);
+    // Its holders and its top ten are floors: only wallets seen since it was first followed. A floor is not the figure.
+    for (const key of ["top10", "holders"]) expect(matches(seenLate, only(key, { max: "1000000" }), NOW), key).toBe(false);
     // What is known of it still filters as usual.
-    expect(matches(seenLate, only("top10", { max: "25" }), NOW)).toBe(true);
+    expect(matches(seenLate, only("cap", { min: "0" }), NOW)).toBe(true);
     // A coin this site cannot read has no risk figures at all.
     expect(matches(coin({ risk: undefined }), only("top10", { max: "100" }), NOW)).toBe(false);
   });

@@ -9,6 +9,7 @@
  * Either way one signature opens a short session with this site, so pages can refresh the wallet's own records
  * without asking it to sign again. Nothing on a timer ever opens a wallet prompt.
  */
+import { followRecording } from "@/lib/client/clock";
 import { utf8 } from "@/lib/bytes";
 import { noteKeyMessage, noteKeysFor, type NoteKeys } from "@/lib/notes";
 import { getWallets } from "@wallet-standard/app";
@@ -146,7 +147,11 @@ async function extensionSigner(wallet: StandardWallet, onEnded: (ended: boolean)
 export function WalletProvider({ children, initialConfig = null }: { children: ReactNode; initialConfig?: Config | null }) {
   const [signer, setSigner] = useState<Signer | null>(null);
   // `initialConfig` is what the server rendered the page with; without it the page asks.
-  const [config, setConfig] = useState<Config | "offline" | null>(initialConfig);
+  const [config, setConfig] = useState<Config | "offline" | null>(() => {
+    // A server playing back a recording: this page's clock follows the recording's from its first draw.
+    followRecording(initialConfig?.recording);
+    return initialConfig;
+  });
   const [hasBackup, setHasBackup] = useState(false);
   const [extensions, setExtensions] = useState<StandardWallet[]>([]);
   const [lockedBecause, setLockedBecause] = useState<"idle" | null>(null);

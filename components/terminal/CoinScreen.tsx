@@ -23,6 +23,7 @@ import { CoinPrice, Sol, Time, useSolPrice } from "../ui/Money";
 import { useStandinOn } from "../ui/NeedsRing";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
+import { Checks } from "./Checks";
 import { Feed } from "./Feed";
 import { LiveStrip } from "./LiveStrip";
 import { Ticket, type TicketHandle } from "./Ticket";
@@ -217,11 +218,18 @@ export function CoinScreen({ mint }: { mint: string }) {
           {coin.unsupported ? (
             <section className="card" data-unsupported>
               <h2 className="px">Not supported yet</h2>
-              <p className="body">
-                This coin is priced in something other than SOL (<span className="address">{shortAddress(coin.unsupported.quote)}</span>). This site reads and
-                trades only coins priced in SOL for now, so it shows no price, chart or trades for this one, and cannot trade it. It is listed so that it is not
-                mistaken for a coin with no activity.
-              </p>
+              {coin.unsupported.reason === "quote" ? (
+                <p className="body">
+                  This coin is priced in something other than SOL (<span className="address">{shortAddress(coin.unsupported.quote)}</span>). This site reads and
+                  trades only coins priced in SOL for now, so it shows no price, chart or trades for this one, and cannot trade it. It is listed so that it is
+                  not mistaken for a coin with no activity.
+                </p>
+              ) : (
+                <p className="body">
+                  This coin trades in a pump.fun pool but is not a pump.fun coin. This site works out market cap, holders&apos; shares and the rest on the
+                  assumption of a pump.fun coin, so those figures would be wrong here. They are not shown, and it cannot be traded from here.
+                </p>
+              )}
             </section>
           ) : readOnly ? (
             <section className="card" data-read-only>
@@ -252,16 +260,21 @@ export function CoinScreen({ mint }: { mint: string }) {
               </Link>
             </p>
           </section>
+          {!coin.unsupported && <Checks coin={coin} />}
           <section className="card" aria-label="About this coin">
             <h2 className="px">About</h2>
             <dl className="facts">
               <dt>Creator</dt>
               <dd>
-                <span className="address" title={coin.creator}>
-                  {coin.creator.slice(0, 4)}…{coin.creator.slice(-4)}
-                </span>
+                {coin.creator ? (
+                  <span className="address" title={coin.creator}>
+                    {coin.creator.slice(0, 4)}…{coin.creator.slice(-4)}
+                  </span>
+                ) : (
+                  "Not read yet"
+                )}
               </dd>
-              <dt>Launched</dt>
+              <dt>{coin.followedSince === undefined ? "Launched" : "Followed since"}</dt>
               <dd>
                 <Time at={coin.createdAt} />
               </dd>
@@ -281,7 +294,7 @@ export function CoinScreen({ mint }: { mint: string }) {
           </section>
         </aside>
       </div>
-      {tradeable && (
+      {tradeable && !readOnly && (
         <div className="trade-dock">
           <button
             type="button"
