@@ -11,10 +11,10 @@
  *
  * The SDK reaches Helius through this site's own server (lib/server/ringgate.ts), which adds the API key.
  *
- * STATUS, 22 November 2026: reaching the services, attestation, reading a registry record and syncing an
- * empty wallet are proven on devnet (RING-RESULTS.md). Registering, depositing, transferring and
- * withdrawing are written against the SDK's documented interface and have NOT been run: they need devnet
- * SOL, which could not be had. Until RING-RESULTS.md says otherwise, treat them as unverified.
+ * STATUS, 22 November 2026: PROVEN ON DEVNET, in a browser, through this site's wallet page and this server's
+ * door: registering, depositing, transferring between two Ring balances and withdrawing, each read back from the
+ * page and from the chain (scripts/ring-browser-prove.mjs, RING-RESULTS.md). SOL only: a pump.fun coin has not
+ * been deposited or moved on the real program yet. Devnet only. The SDK is alpha software.
  */
 import {
   LocalKeys,

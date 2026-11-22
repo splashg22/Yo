@@ -59,7 +59,7 @@ export const VISIBILITY: Visibility[] = [
     server: `${ASKER} It builds the deposit and records the credit. The stand-in is a ledger on this server, so it knows your Ring balance.`,
     realRing: {
       today:
-        "One transaction built in your browser by the Ring's own SDK: the Privacy Rings deposit instruction. Written against the SDK's documented interface and not yet run by us end to end (RING-RESULTS.md).",
+        "One transaction built in your browser by the Ring's own SDK: the Privacy Rings deposit instruction. Run end to end on devnet on 22 November 2026, through this site's wallet page (RING-RESULTS.md). It is alpha software.",
       source: "lib/client/ring-real.ts",
       server: `${ASKER} It passes the transaction on to Helius's RPC, so it sees the deposit as the chain will show it. It does not learn your Ring balance: that is worked out in your browser from records only your keys open.`,
     },
@@ -78,9 +78,9 @@ export const VISIBILITY: Visibility[] = [
     server: `${ASKER} Everything: both wallets, the coin and the amount. The stand-in is a ledger on this server. The one thing it cannot read is the note, which is sealed in your browser.`,
     realRing: {
       today:
-        "A transaction built in your browser by the Ring's own SDK. The proof is made by Helius's prover; the SDK checks the prover's enclave attestation and sends it the request encrypted. Not yet run by us end to end (RING-RESULTS.md).",
+        "A transaction built in your browser by the Ring's own SDK. The proof is made by Helius's prover; the SDK checks the prover's enclave attestation and sends it the request encrypted. Run end to end on devnet on 22 November 2026, through this site's wallet page (RING-RESULTS.md). It is alpha software.",
       source: "lib/client/ring-real.ts, lib/server/ringgate.ts",
-      server: `${ASKER} It passes your requests on to Helius's indexer and prover and adds this site's API key. By the SDK's design the request to the prover is encrypted to the prover's enclave, so this server cannot read the coin or the amount; we have not verified that independently. Helius's prover does see them.`,
+      server: `${ASKER} It passes your requests on to Helius's indexer and prover and adds this site's API key. The request to the prover is sealed in your browser to the prover's enclave and travels in headers this server passes on unread, so this server cannot read the coin or the amount. That the sealing is sound rests on the SDK and on Helius; we have not audited it. Helius's prover does see them.`,
     },
   },
   {
@@ -96,7 +96,7 @@ export const VISIBILITY: Visibility[] = [
     server: `${ASKER} Everything about the withdrawal, and your balance before and after: the stand-in pays it out.`,
     realRing: {
       today:
-        "A transaction built in your browser by the Ring's own SDK, with a proof from Helius's prover: the Privacy Rings withdraw instruction. Not yet run by us end to end (RING-RESULTS.md).",
+        "A transaction built in your browser by the Ring's own SDK, with a proof from Helius's prover: the Privacy Rings withdraw instruction. Run end to end on devnet on 22 November 2026, through this site's wallet page (RING-RESULTS.md). It is alpha software.",
       source: "lib/client/ring-real.ts, lib/server/ringgate.ts",
       server: `${ASKER} It passes the transaction on, so it sees the withdrawal as the chain will show it. It does not learn your remaining balance. Helius's prover sees what the proof is about.`,
     },
@@ -140,7 +140,7 @@ export const VISIBILITY: Visibility[] = [
     server: `${ASKER} Not what the link asks for: that part of the link never reaches a server. When it is paid, the stand-in sees both wallets, the coin and the amount, and not the note.`,
     realRing: {
       today:
-        "The request sits after the # of the link, which a browser never sends to a server. Paying it is a Ring transfer built in your browser by the Ring's own SDK; it carries no note. Not yet run by us end to end (RING-RESULTS.md).",
+        "The request sits after the # of the link, which a browser never sends to a server. Paying it is a Ring transfer built in your browser by the Ring's own SDK; it carries no note. A Ring transfer has been run end to end on devnet through this site's wallet page (RING-RESULTS.md); paying from a pay link on the real program has not been run by us yet.",
       source: "lib/paylink.ts, lib/client/ring-real.ts",
       server: `${ASKER} Not what the link asks for. The payment is a Ring transfer: this server passes the requests on and, by the SDK's design, cannot read the coin or the amount. Helius's prover does see them.`,
     },

@@ -69,8 +69,8 @@ export function StatusPage() {
             <dd>
               {ring === "real" ? (
                 <span className="state-ok">
-                  Held by the real Privacy Rings program on devnet, reached through its SDK in your browser. It is alpha software, and this build has not yet
-                  run a deposit, transfer or withdrawal through it.
+                  Held by the real Privacy Rings program on devnet, reached through its SDK in your browser. It is alpha software. Registering, depositing,
+                  transferring and withdrawing SOL were run through this site on 22 November 2026; coins other than SOL have not been.
                 </span>
               ) : ring === "unavailable" ? (
                 <span className="state-bad">Not connected on this network in this build.</span>

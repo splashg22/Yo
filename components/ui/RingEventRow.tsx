@@ -64,12 +64,14 @@ export function RingEventRow({
         )}
         {event.kind === "withdraw" && (
           <>
-            {formatCoin(open.coin!, open.amount!)} {symbol(open.coin!)} from {who(open.wallet)} to {who(open.destination)}.
+            {formatCoin(open.coin!, open.amount!)} {symbol(open.coin!)} from {who(open.wallet)}
+            {open.destination ? <> to {who(open.destination)}</> : null}.
           </>
         )}
         {event.kind === "transfer" && (
           <>
-            A transfer from {who(open.from)} to {who(open.to)}.
+            A transfer from {who(open.from)}
+            {open.to ? <> to {who(open.to)}</> : null}.
           </>
         )}
         {event.kind === "otc" && (

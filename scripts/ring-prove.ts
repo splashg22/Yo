@@ -98,8 +98,12 @@ async function submit(transaction: Transaction, signers: KeyPairSigner[]): Promi
   await client.solanaRpc.sendTransaction(wire, { encoding: "base64", skipPreflight: false, preflightCommitment: "confirmed" }).send();
   const slot = await client.confirmTransaction(signature);
   const raw = Buffer.from(wire, "base64");
-  const first = raw[1 + raw[0]! * 64]!;
-  return { signature, slot, bytes: raw.length, version: (first & 0x80) === 0 ? "legacy" : `version ${first & 0x7f}` };
+  // A version 1 transaction starts with its version byte and carries its signatures at the end. Older kinds start
+  // with their signatures, and a version 0 message marks itself in the first byte after them.
+  const leading = raw[0]!;
+  const afterSignatures = raw[1 + leading * 64] ?? 0;
+  const version = (leading & 0x80) !== 0 ? `version ${leading & 0x7f}` : (afterSignatures & 0x80) !== 0 ? `version ${afterSignatures & 0x7f}` : "legacy";
+  return { signature, slot, bytes: raw.length, version };
 }
 const link = (signature: string): string => `https://explorer.solana.com/tx/${signature}?cluster=devnet`;
 

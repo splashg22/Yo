@@ -81,11 +81,40 @@ export interface Passed {
   status: number;
   type: string;
   body: Buffer;
+  /** Headers of the answer that go back to the browser: see PASSED_BACK. */
+  headers?: Record<string, string>;
 }
 const refuse = (status: number, error: string): Passed => ({ status, type: "application/json", body: Buffer.from(JSON.stringify({ error })) });
 
+/** The content type to pass on: the caller's own if it is a plain media type, JSON otherwise. Nothing else of the caller's headers goes on. */
+const passable = (contentType: string | undefined): string =>
+  contentType && /^[a-z0-9.+-]+\/[a-z0-9.+-]+(;\s*charset=[a-z0-9-]+)?$/i.test(contentType) ? contentType : "application/json";
+
+/**
+ * The headers that go on to Helius, and the ones that come back to the browser. Nothing else does, either way:
+ * no cookie, no address, no agent.
+ * - x-sync / x-async: whether the prover should answer with the proof or take the job and be asked later.
+ * - spr-tee, spr-tee-enc, spr-tee-ciphertext: the SDK's encryption to the prover's enclave. The request and the
+ *   answer are sealed in the browser and in the enclave; this server carries them and cannot open them.
+ * - retry-after, on the way back: when the prover asks to be tried again.
+ */
+const PASSED_ON = ["x-sync", "x-async", "spr-tee", "spr-tee-enc", "spr-tee-ciphertext"];
+const PASSED_BACK = ["spr-tee", "spr-tee-enc", "spr-tee-ciphertext", "retry-after"];
+/** A header value that is plain printable text of a sane length. */
+const plain = (value: unknown): value is string => typeof value === "string" && /^[\x20-\x7e]{1,60000}$/.test(value);
+const passedHeaders = (headers: Record<string, string | string[] | undefined>): Record<string, string> =>
+  Object.fromEntries(PASSED_ON.filter((name) => plain(headers[name])).map((name) => [name, headers[name] as string]));
+
 /** Passes one call on, or refuses it. `route` is "rpc" or the path after "/v1/spr/". */
-export async function passOn(route: string, method: string, query: URLSearchParams, body: Buffer | null): Promise<Passed> {
+export async function passOn(
+  route: string,
+  method: string,
+  query: URLSearchParams,
+  body: Buffer | null,
+  contentType?: string,
+  /** The caller's request headers. Only the ones named in PASSED_HEADERS go on, and only with the values the prover knows. */
+  headers: Record<string, string | string[] | undefined> = {},
+): Promise<Passed> {
   if (!ringGateOpen()) return refuse(404, "the real Ring is not connected on this network in this build");
   if (body && body.length > MAX_BODY) return refuse(413, "the request is too large");
   const { heliusApiKey, rpcTimeoutMs } = settings();
@@ -124,10 +153,18 @@ export async function passOn(route: string, method: string, query: URLSearchPara
   try {
     const answer = await fetch(target, {
       method,
-      ...(body && method === "POST" ? { body: new Uint8Array(body), headers: { "content-type": "application/json" } } : {}),
+      // The body goes on byte for byte, under the content type it came with: a request to the prover is not JSON.
+      headers: { ...passedHeaders(headers), ...(body && method === "POST" ? { "content-type": passable(contentType) } : {}) },
+      ...(body && method === "POST" ? { body: new Uint8Array(body) } : {}),
       signal: AbortSignal.timeout(Math.max(rpcTimeoutMs, 60_000)), // a proof can take a while
     });
-    return { status: answer.status, type: answer.headers.get("content-type") ?? "application/json", body: Buffer.from(await answer.arrayBuffer()) };
+    const back = Object.fromEntries(PASSED_BACK.map((name) => [name, answer.headers.get(name)]).filter((entry): entry is [string, string] => plain(entry[1])));
+    return {
+      status: answer.status,
+      type: answer.headers.get("content-type") ?? "application/json",
+      body: Buffer.from(await answer.arrayBuffer()),
+      headers: back,
+    };
   } catch {
     return refuse(503, "the Ring's services are not answering. Nothing was sent. Try again in a moment.");
   }

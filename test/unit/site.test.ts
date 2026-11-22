@@ -168,8 +168,9 @@ describe("what this site's own server sees", () => {
       expect(row.server, row.id).toMatch(/IP address/);
       if (row.realRing) {
         expect(row.realRing.server, row.id).toMatch(/IP address/);
-        // Nothing done through the real program has been run end to end by us yet, and each such row must say so.
-        expect(row.realRing.today, row.id).toMatch(/[Nn]ot yet run by us/);
+        // Each such row says whether it has been run end to end by us, and points at the evidence.
+        expect(row.realRing.today, row.id).toMatch(/RING-RESULTS\.md/);
+        expect(row.realRing.today, row.id).toMatch(/[Rr]un end to end on devnet|has not been run by us yet/);
       }
     }
     // The stand-in is a ledger on the server: the rows for it must not suggest the server is blind.

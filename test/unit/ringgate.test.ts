@@ -85,6 +85,44 @@ describe("the gate to the real Ring", () => {
     expect((await passOn("getUserRecords", "DELETE", new URLSearchParams(), null)).status).toBe(405);
   });
 
+  it("carries a sealed request to the prover byte for byte, with its sealing headers and nothing else of the caller's, and the same on the way back", async () => {
+    openGate();
+    const sealed = Buffer.from([0, 255, 128, 13, 10, 200, 1]); // not text: read as text it would not survive
+    let sent: { url: string; headers: Record<string, string>; body: number[] } | undefined;
+    const real = globalThis.fetch;
+    globalThis.fetch = ((url: URL, init: { headers: Record<string, string>; body: Uint8Array }) => {
+      sent = { url: String(url), headers: init.headers, body: [...init.body] };
+      return Promise.resolve(
+        new Response(new Uint8Array([9, 8, 7]), {
+          status: 200,
+          headers: { "content-type": "application/json", "spr-tee": "1", "retry-after": "2", "set-cookie": "a=b", server: "x" },
+        }),
+      );
+    }) as unknown as typeof fetch;
+    try {
+      const passed = await passOn("prove/transfer_confidential_1_2/indexed", "POST", new URLSearchParams("api-key=theirs&x=1"), sealed, "application/json", {
+        "x-sync": "true",
+        "spr-tee": "1",
+        "spr-tee-enc": "0a1b2c",
+        cookie: "session=secret",
+        authorization: "Bearer theirs",
+        "user-agent": "a browser",
+        "x-forwarded-for": "203.0.113.9",
+        "spr-tee-ciphertext": "line\nbreak",
+      });
+      expect(sent!.body).toEqual([...sealed]);
+      expect(sent!.headers).toEqual({ "x-sync": "true", "spr-tee": "1", "spr-tee-enc": "0a1b2c", "content-type": "application/json" });
+      // This site's key is the one that goes on, never one the caller named.
+      expect(sent!.url).toContain("api-key=test-key-not-real");
+      expect(sent!.url).not.toContain("theirs");
+      expect(sent!.url).toContain("/v1/spr/prove/transfer_confidential_1_2/indexed");
+      expect([...passed.body]).toEqual([9, 8, 7]);
+      expect(passed.headers).toEqual({ "spr-tee": "1", "retry-after": "2" });
+    } finally {
+      globalThis.fetch = real;
+    }
+  });
+
   it("lists only the Ring's programs and the ones the Ring needs", () => {
     expect(RING_PROGRAMS.has(RING)).toBe(true);
     expect(RING_PROGRAMS.has(PUMP)).toBe(false);

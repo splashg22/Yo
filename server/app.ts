@@ -65,7 +65,8 @@ const callerFor = (request: IncomingMessage): string => {
   return forwarded === "direct" ? (request.socket.remoteAddress ?? "unknown") : forwarded;
 };
 
-async function readBody(request: IncomingMessage): Promise<string | null> {
+/** A request's body as the bytes that were sent, or null if it is too large. */
+async function readBytes(request: IncomingMessage): Promise<Buffer | null> {
   const declared = Number(request.headers["content-length"] ?? "0");
   if (!Number.isFinite(declared) || declared > MAX_BODY_BYTES) return null;
   const chunks: Buffer[] = [];
@@ -75,8 +76,9 @@ async function readBody(request: IncomingMessage): Promise<string | null> {
     if (size > MAX_BODY_BYTES) return null;
     chunks.push(chunk);
   }
-  return Buffer.concat(chunks).toString("utf8");
+  return Buffer.concat(chunks);
 }
+const readBody = async (request: IncomingMessage): Promise<string | null> => (await readBytes(request))?.toString("utf8") ?? null;
 
 let requests = 0;
 async function api(request: IncomingMessage, response: ServerResponse, name: string): Promise<void> {
@@ -194,11 +196,26 @@ async function ringGate(request: IncomingMessage, response: ServerResponse, rout
   const wait = overLimit(callerFor(request), "ring");
   if (wait > 0)
     return json(response, 429, { error: `too many requests from this address. Wait ${wait} seconds and try again.` }, { "retry-after": String(wait) });
-  const raw = request.method === "POST" ? await readBody(request).catch(() => null) : "";
+  // The bytes as sent, never read as text: what goes to the prover is encrypted, and text decoding would spoil it.
+  const raw = request.method === "POST" ? await readBytes(request).catch(() => null) : Buffer.alloc(0);
   if (raw === null) return json(response, 413, { error: "the request is too large" });
   const query = new URL(request.url ?? "/", "http://local").searchParams;
-  const passed = await passOn(route, request.method ?? "GET", query, raw === "" ? null : Buffer.from(raw, "utf8"));
-  response.writeHead(passed.status, { "content-type": passed.type, "content-length": passed.body.length, "cache-control": "no-store", ...fixed });
+  const type = request.headers["content-type"];
+  const passed = await passOn(
+    route,
+    request.method ?? "GET",
+    query,
+    raw.length === 0 ? null : raw,
+    typeof type === "string" ? type : undefined,
+    request.headers,
+  );
+  response.writeHead(passed.status, {
+    "content-type": passed.type,
+    "content-length": passed.body.length,
+    "cache-control": "no-store",
+    ...fixed,
+    ...passed.headers,
+  });
   response.end(passed.body);
 }
 
