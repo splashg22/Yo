@@ -12,7 +12,7 @@ import "./globals.css";
 import "./app.css";
 import "./work-theme.css";
 import { SurfaceSync } from "@/components/Surface";
-import { DENSITY_COOKIE, PATH_HEADER, PREVIEW_COOKIE, THEME_COOKIE, densityOf, isWorkPath, themeOf } from "@/lib/surface";
+import { DENSITY_COOKIE, PATH_HEADER, PREVIEW_COOKIE, STYLE_COOKIE, THEME_COOKIE, densityOf, isWorkPath, styleOf, themeOf } from "@/lib/surface";
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.SITE_URL ?? "http://localhost:4710"),
@@ -39,12 +39,14 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   // before the first paint, so nothing flashes from one look to the other.
   const kept = await cookies();
   const work = kept.get(PREVIEW_COOKIE)?.value === "preview" && isWorkPath(handed.get(PATH_HEADER) ?? "");
+  const style = styleOf(kept.get(STYLE_COOKIE)?.value);
   return (
     <html
       lang="en"
       data-theme={themeOf(kept.get(THEME_COOKIE)?.value)}
       data-density={densityOf(kept.get(DENSITY_COOKIE)?.value)}
       {...(work ? { "data-surface": "work" } : {})}
+      {...(work && style ? { "data-style": style } : {})}
     >
       <head>
         <link rel="preload" href="/fonts/doto.woff2" as="font" type="font/woff2" crossOrigin="" />

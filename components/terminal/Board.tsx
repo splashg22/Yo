@@ -847,6 +847,12 @@ function Row({
             <span title="Buys and sells in the last 24 hours">
               {/* Buys and sells are told apart by their letter as well as their colour. */}
               <span className="up">B {formatCompact(coin.buys24h)}</span> <span className="down">S {formatCompact(coin.sells24h)}</span>
+              {/* The same two counts as a thin bar: the share of these trades that were buys. Drawn only by the friendlier styles. */}
+              {coin.buys24h + coin.sells24h > 0 && (
+                <span className="ratio" aria-hidden="true">
+                  <i style={{ width: `${(coin.buys24h / (coin.buys24h + coin.sells24h)) * 100}%` }} />
+                </span>
+              )}
             </span>
           </span>
         )}

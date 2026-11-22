@@ -6,7 +6,7 @@
  */
 import { usePathname } from "next/navigation";
 import { useEffect, useSyncExternalStore } from "react";
-import { DENSITY_COOKIE, PREVIEW_COOKIE, THEME_COOKIE, densityOf, isWorkPath, themeOf, type Density, type Theme } from "@/lib/surface";
+import { DENSITY_COOKIE, PREVIEW_COOKIE, STYLE_COOKIE, THEME_COOKIE, densityOf, isWorkPath, styleOf, themeOf, type Density, type Theme } from "@/lib/surface";
 import { Segments } from "./ui/controls";
 
 const YEAR = 31_536_000;
@@ -54,8 +54,14 @@ export function SurfaceSync() {
   const pathname = usePathname();
   useEffect(() => {
     const root = document.documentElement;
-    if (cookie(PREVIEW_COOKIE) === "preview" && isWorkPath(pathname)) root.dataset.surface = "work";
-    else delete root.dataset.surface;
+    const style = styleOf(cookie(STYLE_COOKIE));
+    if (cookie(PREVIEW_COOKIE) === "preview" && isWorkPath(pathname)) {
+      root.dataset.surface = "work";
+      if (style) root.dataset.style = style;
+    } else {
+      delete root.dataset.surface;
+      delete root.dataset.style;
+    }
     for (const listener of listeners) listener();
   }, [pathname]);
   return null;

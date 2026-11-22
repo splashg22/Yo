@@ -22,6 +22,9 @@ function block(selector: string): Record<string, string> {
 }
 const dark = block('html[data-surface="work"]');
 const light = { ...dark, ...block('html[data-surface="work"][data-theme="light"]') };
+// The two friendlier styles share one palette, laid over the plain theme's.
+const styledDark = { ...dark, ...block('html[data-surface="work"][data-style]') };
+const styledLight = { ...light, ...block('html[data-surface="work"][data-style]'), ...block('html[data-surface="work"][data-style][data-theme="light"]') };
 /** A variable's colour, following var(--x) to its value. */
 function colour(theme: Record<string, string>, name: string): string {
   let value = name === "accent" ? accent : theme[name];
@@ -46,7 +49,9 @@ const TEXT = ["ink", "mute", "quiet", "buy", "sell", "accent-text"];
 describe.each([
   ["dark", dark],
   ["light", light],
-])("the working theme, %s", (_name, theme) => {
+  ["friendlier styles, dark", styledDark],
+  ["friendlier styles, light", styledLight],
+])("the working theme, %s", (name, theme) => {
   it("has four steps of surface, each distinct, and none of them pure black or pure white as the page", () => {
     const steps = SURFACES.map((name) => colour(theme, name));
     expect(new Set(steps).size).toBe(4);
@@ -77,6 +82,16 @@ describe.each([
       const ratio = contrast(colour(theme, "rule"), colour(theme, surface));
       expect(ratio, `rule on ${surface}: ${ratio.toFixed(2)}`).toBeGreaterThanOrEqual(3);
     }
+  });
+
+  it("keeps coloured words readable on their own tint, and dark words readable on a filled pill", () => {
+    if (!name.startsWith("friendlier")) return;
+    expect(contrast(colour(theme, "buy"), colour(theme, "buy-wash"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colour(theme, "sell"), colour(theme, "sell-wash"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colour(theme, "on-fill"), colour(theme, "buy-fill"))).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(colour(theme, "on-fill"), colour(theme, "sell-fill"))).toBeGreaterThanOrEqual(4.5);
+    // The two ends of the buys-to-sells bar can be told apart without their hue.
+    expect(Math.abs(luminance(colour(theme, "buy-fill")) - luminance(colour(theme, "sell-fill")))).toBeGreaterThan(0.2);
   });
 
   it("tells green from red by more than hue, for eyes that cannot: they differ in lightness too", () => {

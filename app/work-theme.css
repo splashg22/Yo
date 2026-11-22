@@ -374,3 +374,346 @@ html[data-surface="work"] .seg button[aria-pressed="true"] {
   color: var(--on-ink);
   font-weight: 700;
 }
+
+/*
+ * ---- two friendlier versions of the same theme, for looking at before either is chosen ----
+ * data-style="soft": a little playful. data-style="playful": clearly playful.
+ * Both: a near-black base with panels told apart by tone and no bright lines, rounded corners, pill tabs, a round
+ * open typeface for the interface with large light figures, a lime for buys and gains, a warm red for sells and
+ * losses, and the brand accent for actions. Table columns keep the mono. Rows keep their height.
+ */
+@font-face {
+  font-family: "Figtree";
+  src: url("/fonts/figtree.woff2") format("woff2");
+  font-weight: 300 900;
+  font-display: swap;
+}
+html[data-surface="work"][data-style] {
+  --page: #0c0d10;
+  --panel: #15171c;
+  --row: #1d2027;
+  --hover: #272b35;
+  --ink: #f1f2f4;
+  --mute: #b4bac4;
+  --quiet: #8d94a0;
+  --rule: #727a88;
+  --edge: #15171c; /* a panel's edge is its own tone: nothing is outlined */
+  --faint: #1d2027;
+  --buy: #b9f04e;
+  --sell: #ff7d5c;
+  --buy-fill: #b9f04e; /* behind dark words: a small pill, a thin bar */
+  --sell-fill: #ff7d5c;
+  --buy-wash: #232b17; /* a quiet tint of the same, behind coloured words */
+  --sell-wash: #2e1c18;
+  --on-fill: #14171c;
+  --text: "Figtree", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --r-panel: 10px;
+  --r-control: 8px;
+  --r-row: 6px;
+  --gap: 10px;
+  --pad: 12px;
+}
+html[data-surface="work"][data-style][data-theme="light"] {
+  --page: #eef0f2;
+  --panel: #ffffff;
+  --row: #f4f5f7;
+  --hover: #e6e9ed;
+  --ink: #14171c;
+  --mute: #444c59;
+  --quiet: #5c6471;
+  --rule: #7c8491;
+  --edge: #ffffff;
+  --faint: #eef0f2;
+  --buy: #335a00;
+  --sell: #b3360f;
+  --buy-fill: #c9f27a;
+  --sell-fill: #ffb4a0;
+  --buy-wash: #eaf7cf;
+  --sell-wash: #fde5de;
+  --on-fill: #14171c;
+}
+html[data-surface="work"][data-style="playful"] {
+  --r-panel: 18px;
+  --r-control: 12px;
+  --r-row: 10px;
+  --gap: 14px;
+  --pad: 16px;
+}
+
+/* corners, and room round the panels (not inside the rows) */
+html[data-surface="work"][data-style] :is(.board-col, .card, .panel, .filters, .feed, .chart-box, .ticket, .tray > div, .sheet > div, .notice, table.plain) {
+  border-radius: var(--r-panel);
+  border-color: var(--edge);
+  overflow: hidden;
+}
+html[data-surface="work"][data-style] :is(.card, .ticket, .filters) {
+  padding: var(--pad);
+}
+html[data-surface="work"][data-style] .board3 {
+  gap: var(--gap);
+}
+html[data-surface="work"][data-style] :is(.vhead, .board-col > header, .feed-tabs, .chart-bar) {
+  background: var(--panel);
+  border-color: var(--faint);
+}
+html[data-surface="work"][data-style] :is(.btn, .quick, .field-row, .field input, .field select, input, select, textarea, .presets button, .chip, kbd) {
+  border-radius: var(--r-control);
+  border-color: var(--row);
+}
+html[data-surface="work"][data-style] .field-row {
+  overflow: hidden;
+}
+html[data-surface="work"][data-style] .field-row :is(input, .unit) {
+  border-radius: 0;
+  border-color: var(--faint);
+}
+html[data-surface="work"][data-style] :is(.btn, .quick, .seg button, .presets button, .chip, .feed-tabs > button, .ticket .go, .ticket .sides button) {
+  transition: transform 80ms ease-out;
+}
+html[data-surface="work"][data-style] :is(.btn, .quick, .seg button, .presets button, .chip, .ticket .go, .ticket .sides button):active:not(:disabled) {
+  transform: scale(0.97);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-surface="work"][data-style] :is(.btn, .quick, .seg button, .presets button, .chip, .ticket .go, .ticket .sides button):active:not(:disabled) {
+    transform: none;
+  }
+}
+
+/* pill tabs: a track, and the chosen one filled */
+html[data-surface="work"][data-style] :is(.seg, .ticket .sides) {
+  border: 0;
+  background: var(--row);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+}
+html[data-surface="work"][data-style] :is(.seg button, .ticket .sides button) {
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mute);
+  min-height: 28px;
+  padding: 0 12px;
+}
+html[data-surface="work"][data-style] .seg button[aria-pressed="true"] {
+  background: var(--ink);
+  color: var(--on-ink);
+}
+html[data-surface="work"][data-style] .feed-tabs > button {
+  border: 0;
+  border-radius: 999px;
+  margin: 6px 0 6px 6px;
+  min-height: 30px;
+  padding: 0 14px;
+  background: transparent;
+  color: var(--mute);
+}
+html[data-surface="work"][data-style] .feed-tabs > button[aria-selected="true"] {
+  background: var(--row);
+  color: var(--ink);
+  box-shadow: none;
+}
+
+/* type: the round face for the interface, with large light figures at the head of a coin's page */
+html[data-surface="work"][data-style] .figures .v {
+  font-family: var(--text);
+  font-weight: 300;
+  font-size: 20px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+html[data-surface="work"][data-style] :is(.coin-row .name b, .trade-head .who b) {
+  font-weight: 700;
+}
+
+/* lively colour in small doses: pills and thin bars */
+html[data-surface="work"][data-style] .tag {
+  border: 0;
+  border-radius: 999px;
+  background: var(--row);
+  padding: 1px 8px;
+  color: var(--mute);
+}
+html[data-surface="work"][data-style] .tag.hot {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"][data-style] .coin-row .nums :is(.up, .down) {
+  border-radius: 999px;
+  padding: 0 7px;
+  justify-self: end;
+}
+html[data-surface="work"][data-style] .coin-row .nums .up {
+  background: var(--buy-wash);
+}
+html[data-surface="work"][data-style] .coin-row .nums .down {
+  background: var(--sell-wash);
+}
+html[data-surface="work"][data-style] .coin-row .nums :is(.up, .down):empty {
+  display: none;
+}
+html[data-surface="work"][data-style] .meter {
+  height: 4px;
+  border-radius: 999px;
+  background: var(--row);
+  overflow: hidden;
+}
+html[data-surface="work"][data-style] .meter i {
+  border-radius: 999px;
+  background: var(--buy-fill);
+}
+/* the share of trades that were buys: a thin bar, lime against warm red, beside the two counts */
+html[data-surface="work"][data-style] .coin-row .ratio {
+  display: inline-block;
+  width: 34px;
+  height: 4px;
+  border-radius: 999px;
+  background: var(--sell-fill);
+  overflow: hidden;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+html[data-surface="work"][data-style] .coin-row .ratio i {
+  display: block;
+  height: 100%;
+  background: var(--buy-fill);
+}
+html[data-surface="work"][data-style] .coin-picture {
+  border-radius: 50%;
+  overflow: hidden;
+  border-color: var(--row);
+  background: var(--row);
+}
+html[data-surface="work"][data-style] :is(.coin-row, .vrow) {
+  border-color: var(--faint);
+}
+html[data-surface="work"][data-style] .coin-row .quick {
+  border-radius: 999px;
+  background: var(--row);
+  border-color: var(--row);
+}
+html[data-surface="work"][data-style] .ticket .sides button[aria-pressed="true"] {
+  background: var(--buy-fill);
+  color: var(--on-fill);
+}
+html[data-surface="work"][data-style] .ticket .sides button.sell[aria-pressed="true"] {
+  background: var(--sell-fill);
+}
+html[data-surface="work"][data-style] :is(.ticket .go, .btn.primary) {
+  border-radius: 999px;
+}
+html[data-surface="work"][data-style] .statusbar {
+  border-color: var(--faint);
+}
+html[data-surface="work"][data-style] .top {
+  border-color: var(--page);
+}
+html[data-surface="work"][data-style] .board-col h2 .quiet {
+  background: var(--row);
+  border-radius: 999px;
+  padding: 1px 8px;
+  margin-left: 4px;
+}
+
+/* clearly playful: the same parts, turned up */
+html[data-surface="work"][data-style="playful"] .board3 {
+  padding: 0 20px;
+}
+html[data-surface="work"][data-style="playful"] .seg button[aria-pressed="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"][data-style="playful"] .feed-tabs > button[aria-selected="true"] {
+  background: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"][data-style="playful"] .coin-row {
+  border-color: transparent;
+  border-radius: var(--r-row);
+}
+html[data-surface="work"][data-style="playful"] .board-col .list {
+  padding: 0 6px;
+}
+html[data-surface="work"][data-style="playful"] .coin-row .nums .up {
+  background: var(--buy-fill);
+  color: var(--on-fill);
+}
+html[data-surface="work"][data-style="playful"] .coin-row .nums .down {
+  background: var(--sell-fill);
+  color: var(--on-fill);
+}
+html[data-surface="work"][data-style="playful"] .coin-row .quick {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"][data-style="playful"] .board-col > header {
+  min-height: 44px;
+  padding: 0 14px;
+}
+html[data-surface="work"][data-style="playful"] .board-col h2 {
+  font-size: 15px;
+}
+html[data-surface="work"][data-style="playful"] .figures .v {
+  font-size: 24px;
+}
+html[data-surface="work"][data-style="playful"] .coin-row .ratio {
+  width: 44px;
+  height: 5px;
+}
+html[data-surface="work"][data-style="playful"] .tag {
+  background: var(--hover);
+  color: var(--ink);
+}
+
+/* the small choices under the buy button: pills, the chosen one filled */
+html[data-surface="work"][data-style] .settings .opts :is(button, input, .field-row) {
+  border-radius: 999px;
+  border-color: var(--row);
+  background: var(--row);
+  color: var(--mute);
+}
+html[data-surface="work"][data-style] .settings .opts button[aria-pressed="true"] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--on-ink);
+}
+html[data-surface="work"][data-style="playful"] .settings .opts button[aria-pressed="true"] {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+}
+html[data-surface="work"][data-style="playful"] .presets button {
+  border-radius: 999px;
+}
+html[data-surface="work"][data-style="playful"] .ticket .go {
+  min-height: 52px;
+  font-size: 15px;
+}
+/* room for both counts and their bar; and for "at least" on the first share */
+html[data-surface="work"][data-style] .coin-row .figs {
+  grid-template-columns: minmax(0, 96px) minmax(0, 104px) minmax(0, 1fr);
+}
+html[data-surface="work"][data-style] .coin-row .risk {
+  grid-template-columns: minmax(0, 88px) repeat(4, minmax(0, 68px));
+}
+html[data-surface="work"][data-style] .coin-row :is(.figs, .risk) {
+  grid-column: 2 / -1;
+}
+html[data-surface="work"][data-style] .coin-row > .quick {
+  grid-row: 1 / span 1;
+  align-self: center;
+}
+
+/* the figures at the head of a coin's page are in the round face, whatever each is made of; smaller on a phone */
+html[data-surface="work"][data-style] .figures .v :is(span, button, b) {
+  font-family: inherit;
+  font-weight: inherit;
+  letter-spacing: inherit;
+}
+@media (max-width: 600px) {
+  html[data-surface="work"][data-style] .figures .v {
+    font-size: 16px;
+    font-weight: 400;
+  }
+}

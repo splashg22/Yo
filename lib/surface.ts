@@ -12,6 +12,10 @@ export const THEME_COOKIE = "ring-theme";
 export const DENSITY_COOKIE = "ring-density";
 /** While the theme is being looked at before it replaces the current one: it applies only where this cookie is set. */
 export const PREVIEW_COOKIE = "ring-work-theme";
+/** Two friendlier versions of the working theme, being looked at side by side. Neither is the default. */
+export type Style = "soft" | "playful";
+export const STYLE_COOKIE = "ring-style";
+export const styleOf = (value: string | undefined): Style | undefined => (value === "soft" || value === "playful" ? value : undefined);
 export const themeOf = (value: string | undefined): Theme => (value === "light" ? "light" : "dark");
 export const densityOf = (value: string | undefined): Density => (value === "comfortable" ? "comfortable" : "compact");
 /** The header the server hands the page's path in (server/app.ts sets it; whatever a caller sent is replaced). */
