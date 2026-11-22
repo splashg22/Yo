@@ -53,6 +53,10 @@ create table if not exists markets (
   trades int not null default 0
 );
 create index if not exists markets_by_pool on markets (pool);
+-- Added on 22 November 2026. seen_from: the slot a coin already trading was first seen at (null: followed from its creation).
+-- quote: what a coin is priced in when that is not SOL (null: SOL).
+alter table markets add column if not exists seen_from bigint;
+alter table markets add column if not exists quote text;
 -- One row per trade. The key is the transaction and the trade's place inside it, so a trade can never be counted twice.
 create table if not exists trades (
   signature text not null, idx int not null,

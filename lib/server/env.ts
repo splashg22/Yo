@@ -24,6 +24,8 @@ export interface Settings {
   sendUrls: string[];
   /** Where a tip to Jito's block builders is paid. Empty: no tip is ever added. Only exists on mainnet. */
   jitoTipAccount: string;
+  /** How much of the chain the indexer is fed: see FeedScope. */
+  feedScope: FeedScope;
 }
 
 /**
@@ -77,6 +79,18 @@ function rpcUrlFor(network: "local" | "devnet"): string {
   throw new Error("RING_NETWORK is devnet but neither HELIUS_API_KEY nor DEVNET_RPC_URL is set");
 }
 
+/**
+ * How much of the chain the indexer is fed. FEED_SCOPE.
+ * "coins" (the default): new coins, migrations, and the coins being followed. What the cheapest data plan carries.
+ * "all": every pump.fun and pool trade. Coins already trading are then followed from the first trade seen. Needs a full stream.
+ */
+export type FeedScope = "coins" | "all";
+function feedScopeFromEnv(): FeedScope {
+  const scope = process.env.FEED_SCOPE ?? "coins";
+  if (scope !== "coins" && scope !== "all") throw new Error('FEED_SCOPE must be "coins" or "all"');
+  return scope;
+}
+
 export function settings(): Settings {
   const network = process.env.RING_NETWORK ?? "local";
   if (network !== "local" && network !== "devnet") throw new Error('RING_NETWORK must be "local" or "devnet"');
@@ -99,6 +113,7 @@ export function settings(): Settings {
       .map((url) => url.trim())
       .filter(Boolean),
     jitoTipAccount: process.env.JITO_TIP_ACCOUNT ?? "",
+    feedScope: feedScopeFromEnv(),
   };
 }
 

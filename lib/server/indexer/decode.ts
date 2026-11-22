@@ -58,8 +58,10 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
       }
       if (name === "createevent") {
         const event = sdk.PUMP_SDK.decodeCreateEventBc(body);
-        if (!pricedInSol((event as { quoteMint?: { toBase58(): string } }).quoteMint)) return null;
+        // A coin priced in something else is still a new coin: it is passed on, marked, so it can be shown as not supported.
+        const quote = (event as { quoteMint?: { toBase58(): string } }).quoteMint;
         return {
+          ...(pricedInSol(quote) ? {} : { quoteMint: quote!.toBase58() }),
           kind: "create",
           mint: event.mint.toBase58(),
           creator: event.creator.toBase58(),

@@ -10,7 +10,7 @@
  */
 import type { Db, Sql } from "../db";
 import { TIMEFRAMES, bucketOf, extend, priceOf, type Candle, type Market, type Timeframe, type Trade } from "./model";
-import type { ChainBlock, ChainSource, EarlyTx, TradeEvent } from "./types";
+import type { ChainBlock, ChainSource, ChainTx, EarlyTx, TradeEvent } from "./types";
 
 /** How many applied blocks are kept undoable. A confirmed block is practically never dropped; this is far deeper than any seen. */
 export const UNDO_DEPTH = 300;
@@ -60,9 +60,11 @@ interface MarketRow {
   pool: string | null;
   holders: number;
   trades: number;
+  seen_from: number | null;
+  quote: string | null;
 }
 const MARKET_COLUMNS =
-  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades";
+  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades, seen_from, quote";
 const fromRow = (row: MarketRow): Market => ({
   mint: row.mint,
   creator: row.creator,
@@ -83,6 +85,8 @@ const fromRow = (row: MarketRow): Market => ({
   ...(row.pool === null ? {} : { pool: row.pool }),
   holders: row.holders,
   trades: row.trades,
+  ...(row.seen_from === null || row.seen_from === undefined ? {} : { seenFromSlot: Number(row.seen_from) }),
+  ...(row.quote === null || row.quote === undefined ? {} : { quote: row.quote }),
 });
 const toRow = (market: Market): MarketRow => ({
   mint: market.mint,
@@ -104,9 +108,11 @@ const toRow = (market: Market): MarketRow => ({
   pool: market.pool ?? null,
   holders: market.holders,
   trades: market.trades,
+  seen_from: market.seenFromSlot ?? null,
+  quote: market.quote ?? null,
 });
 const MARKET_RECORD =
-  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int";
+  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int, seen_from bigint, quote text";
 const MARKET_NAMES = MARKET_RECORD.split(", ").map((column) => column.split(" ")[0]!);
 
 interface TradeRow {
@@ -159,6 +165,43 @@ const candleFromRow = (row: CandleRow): Candle => ({
   b: row.buys,
 });
 
+/** What every pump.fun coin is made with: a thousand million coins, of which this many are sold on the curve. */
+const WRAPPED_SOL = "So11111111111111111111111111111111111111112";
+const PUMP_SUPPLY = 1_000_000_000_000_000n;
+const PUMP_CURVE_TOKENS = 793_100_000_000_000n;
+/**
+ * A market for a coin first seen through a trade. What the trade says is taken as the coin's state; what it cannot
+ * say (name, ticker, creator, when it was made, anything earlier) is left empty and marked by `seenFromSlot`.
+ * A pool trade does not name its coin: it is the coin whose account, among those the transaction changed, the pool owns.
+ */
+function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number): Market | undefined {
+  const pool = event.venue === "amm" ? event.mint.slice(5) : undefined;
+  // A pool is followed only if it is seen to hold wrapped SOL: a pool priced in something else would be read at a wrong price.
+  if (pool && !tx.balances.some((balance) => balance.owner === pool && balance.mint === WRAPPED_SOL)) return undefined;
+  const mint = pool ? tx.balances.find((balance) => balance.owner === pool && balance.mint !== WRAPPED_SOL)?.mint : event.mint;
+  if (!mint) return undefined;
+  return {
+    mint,
+    creator: "",
+    name: "",
+    symbol: "",
+    uri: "",
+    createdAt: at,
+    createdSlot: slot,
+    supply: PUMP_SUPPLY,
+    initialRealTokens: PUMP_CURVE_TOKENS,
+    virtualSol: event.virtualSol,
+    virtualTokens: event.virtualTokens,
+    realSol: event.realSol,
+    realTokens: event.realTokens,
+    complete: pool !== undefined,
+    ...(pool ? { pool, completedAt: at } : {}),
+    holders: 0,
+    trades: 0,
+    seenFromSlot: slot,
+  };
+}
+
 /** How long the start waits for the indexer to be level with the chain before the server starts without it. */
 const START_WAIT_MS = 5_000;
 
@@ -193,6 +236,11 @@ export class Indexer {
     private readonly log: Log = () => undefined,
     /** How long `start` waits to be level with the chain before it returns anyway. */
     private readonly startWaitMs = START_WAIT_MS,
+    /**
+     * Follow a coin from the first trade of it that is seen, not only from its creation. For a source that carries
+     * every trade (a full stream, a recording). Off by default: a source that carries only chosen coins has no use for it.
+     */
+    private readonly discover = false,
   ) {}
 
   /**
@@ -384,6 +432,7 @@ export class Indexer {
             complete: false,
             holders: 0,
             trades: 0,
+            ...(event.quoteMint ? { quote: event.quoteMint } : {}),
           });
           created.push(event.mint);
         } else if (event.kind === "complete") {
@@ -403,8 +452,19 @@ export class Indexer {
         } else {
           const place = idx++;
           const mint = event.venue === "amm" ? (pools.get(event.mint.slice(5)) ?? this.pools.get(event.mint.slice(5))) : event.mint;
-          const market = touch(mint);
-          if (!market) continue;
+          let market = touch(mint);
+          if (!market && this.discover) {
+            // A coin that was trading before this indexer began to listen. It is followed from here on, and says so:
+            // its name, its creator and everything before this trade are not known until they are read from the chain.
+            const found = discovered(event, tx, block.slot, at);
+            if (found && !this.markets.has(found.mint) && !next.has(found.mint)) {
+              next.set(found.mint, found);
+              created.push(found.mint);
+              if (found.pool) pools.set(found.pool, found.mint);
+              market = found;
+            }
+          }
+          if (!market || market.quote) continue;
           const trade = await this.tradeInto(market, event, { signature: tx.signature, idx: place, slot: block.slot, txIndex: tx.index, at }, candles);
           trades.push(trade);
         }
@@ -707,6 +767,37 @@ export class Indexer {
     }
     for (const tf of TIMEFRAMES) this.candleCache.delete(`${mint}|${tf}`);
     this.recentCache.delete(mint);
+  }
+
+  /**
+   * Stops following coins: everything stored about them is deleted in one step, and they leave memory.
+   * Which coins is not decided here (lib/server/indexer/retention.ts). A coin dropped and later traded again is
+   * simply seen again, as any coin never followed would be.
+   */
+  async drop(mints: string[]): Promise<void> {
+    const known = mints.filter((mint) => this.markets.has(mint));
+    if (known.length === 0) return;
+    const list = JSON.stringify(known);
+    await this.db.tx(async (sql) => {
+      for (const table of ["trades", "candles", "holders", "holder_undo", "market_undo", "markets"])
+        await sql.query(`delete from ${table} where mint in (select jsonb_array_elements_text($1::jsonb))`, [list]);
+    });
+    for (const mint of known) {
+      const market = this.markets.get(mint);
+      if (market?.pool) this.pools.delete(market.pool);
+      this.markets.delete(mint);
+      for (const tf of TIMEFRAMES) this.candleCache.delete(`${mint}|${tf}`);
+      this.recentCache.delete(mint);
+    }
+  }
+  /** Fills in what a coin first seen through a trade could not say of itself, once it has been read from the chain. */
+  async describe(mint: string, read: { name: string; symbol: string; uri: string; creator: string }): Promise<void> {
+    const market = this.markets.get(mint);
+    if (!market) return;
+    await this.db.tx((sql) =>
+      sql.query("update markets set name = $2, symbol = $3, uri = $4, creator = $5 where mint = $1", [mint, read.name, read.symbol, read.uri, read.creator]),
+    );
+    Object.assign(market, read);
   }
 
   /** Records what a followed coin's own creation event said of it, once its past has been read. */

@@ -87,6 +87,7 @@ export function blockFromRaw(slot: number, found: RawBlock): ChainBlock {
 
 /** pump.fun gives every coin an address ending in these four letters. Used only to decide what a recording keeps. */
 const PUMP_MINT_ENDING = "pump";
+const WRAPPED_SOL = "So11111111111111111111111111111111111111112";
 /**
  * Cuts a block down to what the indexer reads: the transactions that went through and either called pump.fun or
  * its pool program or moved a pump.fun coin, each with only the fields `blockFromRaw` uses. A mainnet block is
@@ -102,7 +103,8 @@ export function trimRawBlock(found: RawBlock): RawBlock {
     const ours = (key: string | undefined): boolean => key === PUMP_PROGRAM || key === AMM_PROGRAM;
     const balances = (list: RawBalance[] | null | undefined): RawBalance[] =>
       (list ?? [])
-        .filter((balance) => balance.mint.endsWith(PUMP_MINT_ENDING))
+        // Wrapped SOL is kept too: it is how a pool priced in SOL is told from one priced in something else.
+        .filter((balance) => balance.mint.endsWith(PUMP_MINT_ENDING) || balance.mint === WRAPPED_SOL)
         .map((balance) => ({
           accountIndex: balance.accountIndex,
           mint: balance.mint,
@@ -110,7 +112,7 @@ export function trimRawBlock(found: RawBlock): RawBlock {
           uiTokenAmount: { amount: balance.uiTokenAmount.amount },
         }));
     const [before, after] = [balances(meta.preTokenBalances), balances(meta.postTokenBalances)];
-    if (!keys.some(ours) && before.length + after.length === 0) return;
+    if (!keys.some(ours) && ![...before, ...after].some((balance) => balance.mint.endsWith(PUMP_MINT_ENDING))) return;
     transactions.push({
       index,
       // Only the two programs' own places in the key list are kept: that is all the reader looks up.

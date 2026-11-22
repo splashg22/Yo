@@ -28,6 +28,13 @@ export interface Market {
   pool?: string;
   holders: number;
   trades: number;
+  /**
+   * Set for a coin that was already trading when it was first seen: the slot it was seen at. Its name, creator and
+   * creation time are not known from the stream, and nothing before this slot is held. Absent: followed from its creation.
+   */
+  seenFromSlot?: number;
+  /** Set for a coin priced in something other than SOL: the address of what it is priced in. Its trades are not read. */
+  quote?: string;
 }
 export interface Trade {
   signature: string;

@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { api, signAndSend } from "@/lib/client/api";
 import { CoinStore } from "@/lib/client/coin-store";
 import type { CoinView } from "@/lib/contract";
-import { formatChange, formatCompact, formatShare, formatSol } from "@/lib/format";
+import { formatChange, formatCompact, formatShare, formatSol, shortAddress } from "@/lib/format";
 import { site } from "@/site.config";
 import type { ChartView, Mark } from "../chart/CandleChart";
 import { useTx } from "../tx/Tx";
@@ -118,7 +118,7 @@ export function CoinScreen({ mint }: { mint: string }) {
     .filter((trade) => !trade.early && (trade.w === me || trade.w === coin.creator))
     .map((trade) => ({ at: Math.floor(trade.t / 1000), side: trade.b ? "buy" : "sell", who: trade.w === me ? "me" : "creator", price: trade.p }));
   const view: ChartView = { measure, unit, supplyCoins: Number(BigInt(coin.privacy.supply)) / 1e6, solUsd: solPrice?.usd ?? null };
-  const tradeable = !coin.complete || coin.hasPool;
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
 
   return (
     <>
@@ -128,7 +128,7 @@ export function CoinScreen({ mint }: { mint: string }) {
             <CoinPicture image={coin.image} symbol={coin.symbol} size={40} />
             <div>
               <h1 style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
-                <b>{coin.symbol}</b>
+                <b>{coin.symbol || shortAddress(coin.mint)}</b>
                 <span className="quiet wrap-anywhere">{coin.name}</span>
                 <span className={`tag${coin.complete ? " hot" : ""}`}>
                   {coin.complete ? (coin.hasPool ? "Graduated: trades in its pool" : "Sold out: no pool yet") : "On the curve"}
@@ -205,7 +205,16 @@ export function CoinScreen({ mint }: { mint: string }) {
         </div>
 
         <aside className="trade-side" ref={side} id="trade">
-          {tradeable ? (
+          {coin.unsupported ? (
+            <section className="card" data-unsupported>
+              <h2 className="px">Not supported yet</h2>
+              <p className="body">
+                This coin is priced in something other than SOL (<span className="address">{shortAddress(coin.unsupported.quote)}</span>). This site reads and
+                trades only coins priced in SOL for now, so it shows no price, chart or trades for this one, and cannot trade it. It is listed so that it is not
+                mistaken for a coin with no activity.
+              </p>
+            </section>
+          ) : tradeable ? (
             <WalletGate>{signer && <Ticket coin={coin} store={store} signer={signer} bind={(handle) => (ticket.current = handle)} />}</WalletGate>
           ) : (
             <Graduate coin={coin} />

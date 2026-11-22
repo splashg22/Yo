@@ -17,7 +17,7 @@ import { subscribe } from "@/lib/client/live";
 import { buildTrade, loadSettings, outcomeOf, signAndSubmit } from "@/lib/client/trade";
 import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
 import type { CoinView } from "@/lib/contract";
-import { formatAmount, formatChange, formatCompact, formatSol, parseAmount } from "@/lib/format";
+import { formatAmount, formatChange, formatCompact, formatSol, parseAmount, shortAddress } from "@/lib/format";
 import { useTx } from "../tx/Tx";
 import { CoinPicture } from "../ui/CoinPicture";
 import { Segments, Tick } from "../ui/controls";
@@ -113,6 +113,9 @@ export function Board() {
                 const [, mint, patch] = event as [string, string, Partial<CoinView>];
                 const known = next.get(mint);
                 if (known) next.set(mint, { ...known, ...patch });
+              } else if (event[0] === "x") {
+                // The server has stopped following this coin: nobody was trading it.
+                next.delete(event[1] as string);
               }
             }
             return next;
@@ -435,21 +438,37 @@ function Row({
   canQuick: boolean;
   onQuick: (coin: CoinView) => void;
 }) {
-  const tradeable = !coin.complete || coin.hasPool;
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
   const change = coin.change.m5 ?? coin.change.h1 ?? coin.change.h24;
   return (
     <div className={`coin-row${marked ? " cursor" : ""}`} style={style} data-coin={coin.mint}>
-      <Link href={`/coin/${coin.mint}`} aria-label={`${coin.symbol}, ${coin.name}`} style={{ display: "contents" }}>
+      <Link
+        href={`/coin/${coin.mint}`}
+        aria-label={`${coin.symbol || shortAddress(coin.mint)}, ${coin.name || "name not read yet"}`}
+        style={{ display: "contents" }}
+      >
         <CoinPicture image={coin.image} symbol={coin.symbol} size={40} />
         <span className="name">
           <span className="line1">
-            <b>{coin.symbol}</b>
-            <span className="full" title={coin.name}>
-              {coin.name}
+            <b>{coin.symbol || shortAddress(coin.mint)}</b>
+            <span className="full" title={coin.name || "This coin's name has not been read from the chain yet"}>
+              {coin.name || "Name not read yet"}
             </span>
           </span>
           <span className="sub">
-            <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"}
+            {coin.unsupported ? (
+              <span className="tag" title="This coin is priced in something other than SOL. This site cannot chart or trade those yet.">
+                Not priced in SOL: not supported yet
+              </span>
+            ) : (
+              <>
+                {/* A coin that was already trading when it was first seen has no known age: what is known is since when it has been followed. */}
+                {coin.followedSince !== undefined && (
+                  <span title="It was already trading when this site first saw it. Nothing earlier is held.">followed </span>
+                )}
+                <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"}
+              </>
+            )}
             <span className="roomy">
               {" "}
               · {formatCompact(coin.trades)} trade{coin.trades === 1 ? "" : "s"}

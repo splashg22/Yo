@@ -10,6 +10,7 @@ import { marketCapOf, priceOf, progressOf, type Candle, type Market, type Trade 
 import { RpcSource } from "./indexer/rpc-source";
 import type { ChainSource } from "./indexer/types";
 import type { CoinView, TradeView } from "../contract";
+import { coinsToDrop } from "./indexer/retention";
 import { ringAvailable, settings } from "./env";
 import { ring } from "./ring";
 import { forgetBalances } from "./balances";
@@ -18,6 +19,10 @@ import { database, onForget, state } from "./store";
 
 const BOARD_SHOWN = 400;
 const PATCH_MS = 200;
+/** How often coins nobody trades are looked for and dropped. */
+const TIDY_EVERY_MS = 60_000;
+/** A coin somebody opened is kept this long after, whatever its trading. */
+const KEEP_ASKED_MS = 24 * 3_600_000;
 
 export const tradeView = (trade: Trade, early = false): TradeView => ({
   s: trade.signature,
@@ -81,7 +86,42 @@ export class MarketService {
         },
       },
       (level, message, fields) => log(level, message, fields),
+      undefined,
+      settings().feedScope === "all",
     );
+    this.tidying = setInterval(
+      () => void this.tidy().catch((error: unknown) => log("error", "dropping dead coins failed", { error: String(error) })),
+      TIDY_EVERY_MS,
+    );
+  }
+
+  /** When each coin was last asked for by name, so one somebody has open or opened lately is not dropped. */
+  private readonly asked = new Map<string, number>();
+  private readonly tidying: ReturnType<typeof setInterval>;
+  /** Notes that somebody asked for this coin. */
+  wanted(mint: string): void {
+    this.asked.set(mint, Date.now());
+  }
+  /** True for a coin that must stay followed whatever its trading: see lib/server/indexer/retention.ts. */
+  private needed(mint: string, now: number): boolean {
+    if (state().coins.some((coin) => coin.mint === mint)) return true;
+    if (this.hub.hasListeners(`coin:${mint}`)) return true;
+    if (now - (this.asked.get(mint) ?? 0) < KEEP_ASKED_MS) return true;
+    return ringAvailable() && ring.coinStats(mint).inRing > 0n;
+  }
+  /** Stops following coins nobody trades or needs, and tells the board they are gone. Returns how many. */
+  async tidy(now = Date.now()): Promise<number> {
+    const gone = coinsToDrop(this.indexer.markets.values(), now, (mint) => this.needed(mint, now));
+    if (gone.length === 0) return 0;
+    await this.indexer.drop(gone);
+    for (const mint of gone) {
+      this.sent.delete(mint);
+      this.dirty.delete(mint);
+      this.asked.delete(mint);
+      this.hub.publish("board", ["x", mint]);
+    }
+    log("info", "stopped following quiet coins", { dropped: gone.length, followed: this.indexer.markets.size });
+    return gone.length;
   }
 
   private applied(block: Applied): void {
@@ -171,6 +211,8 @@ export class MarketService {
       signature: listed?.signature ?? "",
       ...(listed?.image ? { image: listed.image } : {}),
       launchedHere: listed !== undefined,
+      ...(market.seenFromSlot === undefined ? {} : { followedSince: market.createdAt }),
+      ...(market.quote ? { unsupported: { reason: "quote" as const, quote: market.quote } } : {}),
       marketCapLamports: marketCapOf(market).toString(),
       microLamportsPerCoin: priceOf(market.virtualSol, market.virtualTokens).toString(),
       changeBasisPoints: stats.change.h24 ?? 0,
@@ -212,6 +254,7 @@ export class MarketService {
 
   async stop(): Promise<void> {
     clearTimeout(this.patchTimer);
+    clearInterval(this.tidying);
     await this.indexer.stop();
   }
 }

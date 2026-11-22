@@ -41,11 +41,13 @@ async function tradeRequest(input: Input): Promise<Omit<TradeRequest, "side" | "
   if (slippage !== undefined && (typeof slippage !== "number" || !Number.isInteger(slippage)))
     throw new Error("slippage must be a whole number of hundredths of a percent");
   const mint = addressOf(input.mint, "coin address");
+  const known = (await market()).indexer.markets.get(mint);
+  if (known?.quote) throw new Error("this coin is priced in something other than SOL. This site cannot trade those yet. Nothing was built.");
   return {
     wallet: addressOf(input.wallet, "wallet address"),
     mint,
     // What the indexer already knows saves the trade a read of the curve.
-    graduated: (await market()).indexer.markets.get(mint)?.complete === true,
+    graduated: known?.complete === true,
     ...(slippage === undefined ? {} : { slippageBps: slippage }),
     priorityLamports: lamports(input.priorityLamports, "priority fee"),
     tipLamports: lamports(input.tipLamports, "tip"),
@@ -94,6 +96,8 @@ export const marketOperations: Handlers<
 
   coin: async (input) => {
     const { mint, service } = await followed(input.mint);
+    // Asked for by name: kept followed for a day from now, however quiet it is.
+    service.wanted(mint);
     const seq = service.hub.seq(`coin:${mint}`);
     return { ...(await service.view(mint))!, seq };
   },

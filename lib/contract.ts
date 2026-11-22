@@ -32,6 +32,13 @@ export interface CoinView {
   signature: string;
   /** Where the coin's picture can be fetched. Absent for a coin launched without one. */
   image?: string;
+  /**
+   * Set for a coin that was already trading when this server first saw it: when that was, in milliseconds.
+   * Nothing earlier is held, and its name and creator are empty until they have been read from the chain.
+   */
+  followedSince?: number;
+  /** Set for a coin this site cannot trade or chart yet, with the reason. "quote": it is priced in something other than SOL. */
+  unsupported?: { reason: "quote"; quote: string };
   /** False for a pump.fun coin that was made somewhere else and is only traded here. */
   launchedHere: boolean;
   marketCapLamports: string;

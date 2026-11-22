@@ -14,6 +14,8 @@ export interface CreateEvent {
   virtualSol: bigint;
   virtualTokens: bigint;
   realTokens: bigint;
+  /** Present when the coin is priced in something other than SOL: what it is priced in. Such a coin is listed and not traded here. */
+  quoteMint?: string;
 }
 export interface TradeEvent {
   kind: "trade";
