@@ -77,7 +77,7 @@ describe("what works without the stand-in Ring", () => {
     await expect(creator.deposit(NATIVE, SOL)).rejects.toThrow(/not connected on this network/);
     await expect(creator.transfer(buyer.address, NATIVE, 1n)).rejects.toThrow(/not connected on this network/);
     await expect(creator.withdraw(NATIVE, 1n)).rejects.toThrow(/not connected on this network/);
-    await expect(creator.offer({ mint: NATIVE, amount: 1n, priceLamports: 1n, buyer: buyer.address })).rejects.toThrow(/not connected on this network/);
+    await expect(creator.offer({ mint: NATIVE, amount: 1n, priceLamports: 1n, buyer: buyer.address })).rejects.toThrow(/OTC is not part of this build/);
     await expect(call("faucet", { wallet: creator.address })).rejects.toThrow(/local-validator mock/);
     await expect(creator.launch({ name: "To Ring", symbol: "RING", firstBuyLamports: SOL / 50n, toRing: true })).rejects.toThrow(
       /not connected on this network/,

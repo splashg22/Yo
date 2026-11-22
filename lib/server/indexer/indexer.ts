@@ -312,6 +312,13 @@ export class Indexer {
     private readonly discover = false,
   ) {}
 
+  /**
+   * On a public chain: how many slots behind is too many to read back through. Beyond it the indexer starts again from
+   * the present. 0 (the default, and what a local chain and every test use): never skip.
+   */
+  skipWhenBehind = 0;
+  /** The last stretch of slots skipped, if any, for /health and the status page. */
+  skipped: { from: number; to: number; at: number } | undefined;
   /** Whether Meteora's DAMM v2 pools are read. Off unless the settings ask for it (FEED_VENUES). */
   readMeteora = false;
   /** Pools of other programs whose coins are known: read from the chain once each (lib/server/pools.ts). */
@@ -428,6 +435,8 @@ export class Indexer {
   /** Applies every confirmed block after the cursor, in order. */
   private async catchUp(): Promise<void> {
     for (;;) {
+      // Asked to stop: it stops between blocks, however much there is still to catch up on.
+      if (!this.running) return;
       this.head = Math.max(this.head, await this.source.head());
       this.failure = undefined;
       if (this.cursor < 0) {
@@ -436,6 +445,20 @@ export class Indexer {
         await this.db.tx((sql) =>
           sql.query("insert into meta (key, value) values ('cursor', $1) on conflict (key) do update set value = excluded.value", [String(this.cursor)]),
         );
+      }
+      if (this.skipWhenBehind > 0 && this.head - this.cursor > this.skipWhenBehind) {
+        // Too far behind to read its way back (a long stop, or a database from another day): on a public chain that would
+        // take hours of block reads, and nothing else the server asks the chain would get through meanwhile. It starts
+        // again from the present and says, loudly and on /health, which stretch it did not read.
+        this.skipped = { from: this.cursor + 1, to: this.head, at: Date.now() };
+        this.log("error", "the indexer was too far behind and has skipped ahead; trades in the gap were not read", { ...this.skipped });
+        this.cursor = this.head;
+        this.tip = undefined;
+        await this.db.tx(async (sql) => {
+          await sql.query("delete from blocks");
+          await sql.query("insert into meta (key, value) values ('cursor', $1) on conflict (key) do update set value = excluded.value", [String(this.cursor)]);
+        });
+        break;
       }
       if (this.cursor >= this.head) break;
       // A stream's slots are real slot numbers with long empty stretches between its blocks, and asking it for a range is free.

@@ -1222,3 +1222,33 @@ html[data-surface="work"][data-surface] table.plain td::before {
 html[data-surface="work"] [data-too-much] {
   color: var(--sell);
 }
+
+/* ---- a phone: everything that is pressed is at least 40px tall, and nothing is set smaller than 11px ---- */
+@media (max-width: 760px) {
+  html[data-surface="work"][data-surface]
+    :is(.seg button, .ticket .sides button, .feed-tabs > button, .toolbar .btn, .toolbar .field-row, .toolbar input, .field-row, .btn, .coin-row .quick) {
+    min-height: 40px;
+  }
+  html[data-surface="work"][data-surface] .toolbar :is(.btn, .field-row, input) {
+    height: 40px;
+  }
+  html[data-surface="work"][data-surface] .coin-row .risk {
+    font-size: 11px;
+    gap: 0 var(--s2);
+  }
+  html[data-surface="work"][data-surface] .coin-row .k {
+    font-size: 11px;
+  }
+}
+/* the board is its own heading to the eye; to a screen reader and a search engine it still has one */
+html[data-surface="work"] .app:has(.board3) > .app-head {
+  display: block;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

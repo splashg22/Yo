@@ -91,7 +91,9 @@ export function Ticket({ coin, store, signer, bind }: { coin: CoinView; store: C
   const held = BigInt(balances?.[coin.mint] ?? "0");
   const priority = BigInt(settings?.priorityLamports ?? "0");
   const known = balances !== null;
-  const affords = useCallback((lamports: bigint): boolean => known && sol >= lamports + BUY_RESERVE_LAMPORTS + priority, [known, sol, priority]);
+  // Until the balance has been read nobody can say the wallet is short: a buy pressed in that first moment goes ahead, and
+  // the chain, which checks every transaction before taking it, is the judge. Saying "too little SOL" then would be a guess.
+  const affords = useCallback((lamports: bigint): boolean => !known || sol >= lamports + BUY_RESERVE_LAMPORTS + priority, [known, sol, priority]);
   const buyAmounts = useMemo(
     () =>
       (settings?.buys ?? []).map((text) => {

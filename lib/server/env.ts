@@ -75,6 +75,13 @@ function feesFromEnv(): Fees {
 export interface Features {
   /** The sealed launch window: buyers commit before a coin exists and all buy in its first transaction. Holds buyers' funds. Off unless FEATURE_SEALED_WINDOW=on. */
   sealedWindow: boolean;
+  /**
+   * OTC blocks and pay links. Both are built on the stand-in Ring only: neither has been run on the real program.
+   * So each is on where the Ring is the stand-in on a local test chain, and off everywhere else unless its flag
+   * (FEATURE_OTC, FEATURE_PAY_LINKS) is set to "on". Off: not in the menu, its page says so, the server refuses it.
+   */
+  otc: boolean;
+  payLinks: boolean;
 }
 
 const flag = (name: string): boolean => {
@@ -144,7 +151,11 @@ export function settings(): Settings {
     siteUrl: (process.env.SITE_URL ?? "http://localhost:4710").replace(/\/$/, ""),
     pinataJwt: process.env.PINATA_JWT ?? "",
     rpcTimeoutMs,
-    features: { sealedWindow: flag("FEATURE_SEALED_WINDOW") },
+    features: {
+      sealedWindow: flag("FEATURE_SEALED_WINDOW"),
+      otc: process.env.FEATURE_OTC === undefined ? network === "local" : flag("FEATURE_OTC"),
+      payLinks: process.env.FEATURE_PAY_LINKS === undefined ? network === "local" : flag("FEATURE_PAY_LINKS"),
+    },
     fees: feesFromEnv(),
     sendUrls: (process.env.SEND_RPC_URLS ?? "")
       .split(",")

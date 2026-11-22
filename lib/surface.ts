@@ -10,8 +10,8 @@ export type Theme = "dark" | "light";
 export type Density = "compact" | "comfortable";
 export const THEME_COOKIE = "ring-theme";
 export const DENSITY_COOKIE = "ring-density";
-/** While the theme is being looked at before it replaces the current one: it applies only where this cookie is set. */
-export const PREVIEW_COOKIE = "ring-work-theme";
+/** The working screens' look. The other two were drawn for comparison and can still be seen by setting the style cookie. */
+export const DEFAULT_STYLE = "warm" as const;
 /** Two friendlier versions of the working theme, being looked at side by side. Neither is the default. */
 export type Style = "soft" | "playful" | "warm";
 export const STYLE_COOKIE = "ring-style";

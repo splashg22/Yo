@@ -44,7 +44,11 @@ function BuildNotice() {
 
 export function Header() {
   const pathname = usePathname();
-  const links = nav.map((item) => (
+  const { config } = useWallet();
+  // What is switched off in this build is not in the menu. Until the build's settings are known, neither is anything that may be.
+  const features = config !== null && config !== "offline" ? config.features : null;
+  const shown = nav.filter((item) => (item.href === "/otc" ? features?.otc === true : item.href === "/pay" ? features?.payLinks === true : true));
+  const links = shown.map((item) => (
     <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} aria-label={item.label}>
       <span className="only-wide">{item.label}</span>
       <span className="only-narrow">{item.label === "Ring wallet" ? "Wallet" : item.label}</span>
@@ -89,6 +93,8 @@ export function Footer() {
               {item.label}
             </Link>
           ))}
+          {/* A way to reach a person, on every page, once the operator has given one. Until then nothing is shown: no made-up address. */}
+          {/^[^\s@[\]]+@[^\s@[\]]+\.[^\s@[\]]+$/.test(site.operator.contact) && <a href={`mailto:${site.operator.contact}`}>Help: {site.operator.contact}</a>}
         </nav>
         <p>
           {site.name} is an independent project. It is not affiliated with, endorsed by or operated by Helius, pump.fun, or any other site built on Privacy

@@ -183,6 +183,8 @@ export class MarketService {
       problem: (error) => log("warn", "coins could not be read from the chain", failure(error)),
     });
     this.indexer.readMeteora = settings().feedVenues.includes("meteora-damm2");
+    // About twenty minutes of a public chain. A restart for a deploy is well inside it; a day's stop is not.
+    if (settings().network !== "local" && !(source instanceof StreamSource)) this.indexer.skipWhenBehind = 3_000;
     this.poolReader = new PoolReader({
       waiting: (most, skip) => this.indexer.poolsToRead(most, skip),
       accounts: (keys) => connection().getMultipleAccountsInfo(keys, "confirmed"),
@@ -245,6 +247,7 @@ export class MarketService {
       followedLive: this.live?.size ?? this.indexer.markets.size,
       followed: this.indexer.markets.size,
       venues: settings().feedVenues,
+      ...(this.indexer.skipped ? { skippedSlots: this.indexer.skipped } : {}),
       poolReadCalls: this.poolReader.calls,
       pictures: { ...pictureStats, waiting: this.toPicture.length },
       describeCalls: this.describer.calls,

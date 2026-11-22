@@ -43,7 +43,7 @@ export function parseHandedConfig(text: string | null | undefined): Config | nul
       network: value.network,
       ...(played ? { recording: { from: recording.from, to: recording.to, now: recording.now } } : {}),
       ring: value.ring,
-      features: { sealedWindow: value.features.sealedWindow },
+      features: { sealedWindow: value.features.sealedWindow, otc: value.features.otc === true, payLinks: value.features.payLinks === true },
       fees: { wallet: fees.wallet.slice(0, 44), tradeBps: fees.tradeBps, launchLamports: fees.launchLamports, otcBps: fees.otcBps },
     };
   } catch {

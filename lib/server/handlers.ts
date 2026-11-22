@@ -94,5 +94,7 @@ export const run = <Name extends OpName>(name: Name, input: Input = {}): Promise
     // On mainnet this server reads and does nothing else. Only the operations named as reads are answered; anything
     // else, and anything added later and not put on that list, is refused here, before it starts.
     if (settings().readOnly && !READS_ALLOWED_ON_MAINNET.has(name)) return Promise.reject(new Error(READ_ONLY_REFUSAL));
+    // A feature that is switched off is refused here, whatever a page or a caller asks for.
+    if (name.startsWith("otc/") && !settings().features.otc) return Promise.reject(new Error("OTC is not part of this build."));
     return operations[name](input);
   });

@@ -62,6 +62,27 @@ describe("feature flags", () => {
     expect(settings().features.sealedWindow).toBe(true);
     process.env.FEATURE_SEALED_WINDOW = "off";
     expect(settings().features.sealedWindow).toBe(false);
+    // OTC and pay links exist only on the stand-in Ring: on where that is all there is, off anywhere public unless asked for.
+    const kept = { network: process.env.RING_NETWORK, key: process.env.HELIUS_API_KEY, otc: process.env.FEATURE_OTC };
+    try {
+      delete process.env.FEATURE_OTC;
+      process.env.RING_NETWORK = "local";
+      expect([settings().features.otc, settings().features.payLinks]).toEqual([true, true]);
+      process.env.RING_NETWORK = "devnet";
+      process.env.HELIUS_API_KEY = "a-key-for-this-test";
+      expect([settings().features.otc, settings().features.payLinks]).toEqual([false, false]);
+      process.env.FEATURE_OTC = "on";
+      expect(settings().features.otc).toBe(true);
+    } finally {
+      for (const [name, value] of [
+        ["RING_NETWORK", kept.network],
+        ["HELIUS_API_KEY", kept.key],
+        ["FEATURE_OTC", kept.otc],
+      ] as const) {
+        if (value === undefined) delete process.env[name];
+        else process.env[name] = value;
+      }
+    }
     for (const wrong of ["true", "1", "yes", "ON", ""]) {
       process.env.FEATURE_SEALED_WINDOW = wrong;
       expect(() => settings()).toThrow(/must be "on" or "off"/);

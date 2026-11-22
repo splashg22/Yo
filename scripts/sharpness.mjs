@@ -24,7 +24,6 @@ const check = (name, passed, detail = "") => {
   console.log(`${passed ? "pass" : "FAIL"}  ${name}${detail ? `  (${detail})` : ""}`);
 };
 const cookies = [
-  ["ring-work-theme", "preview"],
   ["ring-theme", process.env.THEME ?? "dark"],
   ["ring-style", style],
 ].map(([name, value]) => ({ name, value, url: base }));

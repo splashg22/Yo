@@ -165,6 +165,12 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 159 | The working screens' theme is built and not applied: it shows only where the cookie `ring-work-theme=preview` is set | Asked to be shown first. Removing the gate is one line in `app/layout.tsx` and one in `components/Surface.tsx` |
 | 160 | The brand's colours became variables whose default is the brand's own value | So the working theme is a second set of values, not a second stylesheet. The brand's pages render exactly as before |
 | 161 | In the light theme the accent as text is a darker shade; as a fill it is the brand's | The brand amber on white is about 2 to 1. Every text colour is held to 4.5 to 1 on every surface by a test |
+| 162 | Version C of the working theme is applied by default | Asked for on 22 November as part of the path to launch |
+| 163 | OTC and pay links are on only where the Ring is a stand-in on a local chain; off on devnet and mainnet unless their flag is set | Neither has been run on the real program. Nothing simulated is shown as live |
+| 164 | Two launches are two deployments of one image | The terminal reads mainnet; the launchpad runs on devnet. One process follows one network |
+| 165 | On a public chain the indexer starts again from the present when more than 3,000 slots behind, and reports the gap | Found on devnet: reading back a day's blocks took hours and starved the sender, so a launch was never confirmed |
+| 166 | The launchpad ships before the terminal | Its whole path has run on the real network and needs no paid plan. The terminal's live stream has never been run |
+| 167 | A figure not yet read is three dots marked as pending, not the word "Reading" | The word sixteen times on one table was the weakest loading state in the audit. The browser tests now wait on the mark |
 
 ## Only you
 

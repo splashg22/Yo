@@ -4,7 +4,7 @@
  * rent minimum), and a lookup table of the accounts every launch shares exists (a launch
  * with a first buy only fits in one transaction through one).
  */
-import { AddressLookupTableProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, sendAndConfirmTransaction } from "@solana/web3.js";
+import { AddressLookupTableProgram, Keypair, LAMPORTS_PER_SOL, PublicKey, Transaction, type Connection } from "@solana/web3.js";
 import { assertLocalOnly, settings } from "./env";
 import { depositInstructions, escrow, localKey } from "./escrow";
 import { feeWallets, launchInstructions } from "./pump";
@@ -93,6 +93,26 @@ async function setUp(): Promise<void> {
 }
 
 /**
+ * Sends a transaction and waits for the chain to confirm it by asking for its status, not by listening on a
+ * websocket: a host that cannot open one (a locked-down network, a proxy) can still set itself up.
+ */
+async function sendAndSettle(chain: Connection, transaction: Transaction, payer: Keypair): Promise<string> {
+  const latest = await chain.getLatestBlockhash("confirmed");
+  transaction.feePayer = payer.publicKey;
+  transaction.recentBlockhash = latest.blockhash;
+  transaction.sign(payer);
+  const signature = await chain.sendRawTransaction(transaction.serialize());
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const status = (await chain.getSignatureStatuses([signature])).value[0];
+    if (status?.err) throw new Error(`a set-up transaction failed on the chain: ${JSON.stringify(status.err)}`);
+    if (status?.confirmationStatus === "confirmed" || status?.confirmationStatus === "finalized") return signature;
+    if ((await chain.getBlockHeight("confirmed")) > latest.lastValidBlockHeight) break;
+    await new Promise((resolve) => setTimeout(resolve, 750));
+  }
+  throw new Error("a set-up transaction was not confirmed before it expired. Run the set-up again.");
+}
+
+/**
  * Makes the table of accounts every launch shares, paid for by `payer`, and records its address.
  * A launch with a first buy only fits in one transaction through it. On a network without the
  * stand-in Ring the escrow's accounts are left out.
@@ -115,7 +135,7 @@ export async function makeLookupTable(payer: Keypair, withEscrow: boolean): Prom
     payer: payer.publicKey,
     recentSlot: await chain.getSlot("finalized"),
   });
-  await sendAndConfirmTransaction(chain, new Transaction().add(create), [payer]);
+  await sendAndSettle(chain, new Transaction().add(create), payer);
   for (let start = 0; start < shared.length; start += 20) {
     const extend = AddressLookupTableProgram.extendLookupTable({
       lookupTable: table,
@@ -123,7 +143,7 @@ export async function makeLookupTable(payer: Keypair, withEscrow: boolean): Prom
       payer: payer.publicKey,
       addresses: shared.slice(start, start + 20),
     });
-    await sendAndConfirmTransaction(chain, new Transaction().add(extend), [payer]);
+    await sendAndSettle(chain, new Transaction().add(extend), payer);
   }
   // A lookup table can be used one slot after it was last extended.
   for (let attempt = 0; attempt < 40; attempt++) {

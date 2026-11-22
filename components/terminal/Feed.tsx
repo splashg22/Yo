@@ -111,8 +111,9 @@ function Trades({ trades, coin, me }: { trades: TradeView[]; coin: CoinView; me:
     );
   }
   return (
-    <div className="feed-body" ref={list.scroller} role="table" aria-label="Trades, newest first" aria-rowcount={trades.length}>
-      <div style={{ height: list.total + ROW, position: "relative" }}>
+    // Six columns of figures do not fit a phone without squeezing them into each other: the table keeps its width and scrolls sideways.
+    <div className="feed-body scroll-x" ref={list.scroller} role="table" aria-label="Trades, newest first" aria-rowcount={trades.length}>
+      <div style={{ height: list.total + ROW, position: "relative", minWidth: 560 }}>
         <div className="vhead" role="row" style={{ gridTemplateColumns: TRADE_COLUMNS }}>
           <span role="columnheader">Age</span>
           <span role="columnheader">Side</span>
@@ -192,8 +193,8 @@ function Holders({ holders, supply, me }: { holders: HolderView[]; supply: bigin
     );
   }
   return (
-    <div className="feed-body" ref={list.scroller} role="table" aria-label="Holders, largest first" aria-rowcount={holders.length}>
-      <div style={{ height: list.total + ROW + 34, position: "relative" }}>
+    <div className="feed-body scroll-x" ref={list.scroller} role="table" aria-label="Holders, largest first" aria-rowcount={holders.length}>
+      <div style={{ height: list.total + ROW + 34, position: "relative", minWidth: 540 }}>
         <p className="note-line" style={{ height: 34, display: "flex", alignItems: "center", gap: 18 }} data-holder-summary>
           <span>
             Ten largest wallets hold <b className="num">{share(topTen)}</b>

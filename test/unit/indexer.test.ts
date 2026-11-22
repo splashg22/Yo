@@ -334,3 +334,42 @@ describe("the indexer", () => {
     await indexer.stop();
   });
 });
+
+describe("an indexer that has fallen far behind a public chain", () => {
+  it("starts again from the present and says which stretch it did not read, when told how far is too far", async () => {
+    const { SimChain } = await import("../../lib/server/indexer/sim-source");
+    const { openDb } = await import("../../lib/server/db");
+    const { mkdtempSync } = await import("node:fs");
+    const { tmpdir } = await import("node:os");
+    const { join } = await import("node:path");
+    const db = await openDb({ databaseUrl: "", databaseSchema: "ringpad", dataDir: mkdtempSync(join(tmpdir(), "ring-skip-")) });
+    const sim = new SimChain();
+    sim.produce();
+    const first = new Indexer(db, sim, {}, undefined, 200);
+    await first.start();
+    await first.reached(await sim.head());
+    await first.stop();
+    const stoppedAt = first.cursor;
+    // The server is down while the chain makes fifty blocks.
+    for (let block = 0; block < 50; block++) sim.produce();
+    const second = new Indexer(db, sim, {}, undefined, 200);
+    second.skipWhenBehind = 20;
+    await second.start();
+    await second.reached(await sim.head());
+    expect(second.skipped).toMatchObject({ from: stoppedAt + 1, to: await sim.head() });
+    expect(second.cursor).toBe(await sim.head());
+    // It carries on from there as usual.
+    sim.produce();
+    await second.reached(await sim.head());
+    expect(second.failure).toBeUndefined();
+    await second.stop();
+    // Left at the default, it never skips: it reads every block, as a local chain and every other test rely on.
+    for (let block = 0; block < 50; block++) sim.produce();
+    const third = new Indexer(db, sim, {}, undefined, 200);
+    await third.start();
+    await third.reached(await sim.head());
+    expect(third.skipped).toBeUndefined();
+    await third.stop();
+    await db.close();
+  });
+});

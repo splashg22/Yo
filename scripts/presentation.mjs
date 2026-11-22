@@ -20,7 +20,7 @@ mkdirSync(out, { recursive: true });
 const cookies =
   style === "current"
     ? []
-    : [["ring-work-theme", "preview"], ["ring-theme", theme], ...(style === "plain" ? [] : [["ring-style", style]])].map(([name, value]) => ({
+    : [["ring-theme", theme], ...(style === "plain" ? [] : [["ring-style", style]])].map(([name, value]) => ({
         name,
         value,
         url: base,

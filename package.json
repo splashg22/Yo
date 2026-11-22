@@ -40,6 +40,7 @@
     "load": "tsx scripts/load.ts",
     "perf": "node scripts/perf.mjs",
     "scan": "node scripts/scan-secrets.mjs",
+    "deploy": "bash scripts/deploy.sh",
     "doctor": "tsx scripts/doctor.ts",
     "devnet:setup": "tsx scripts/devnet-setup.ts",
     "postgres:start": "bash scripts/local-postgres.sh start",
@@ -48,6 +49,7 @@
     "ring:prove": "tsx --env-file=.env scripts/ring-prove.ts",
     "ring:otc": "tsx --env-file=.env scripts/ring-otc-prove.ts",
     "ring:register": "tsx --env-file=.env scripts/ring-register-prove.ts",
+    "devnet:launch": "NODE_USE_ENV_PROXY=1 node scripts/devnet-launch-prove.mjs",
     "ring:browser": "NODE_USE_ENV_PROXY=1 node scripts/ring-browser-prove.mjs"
   },
   "dependencies": {

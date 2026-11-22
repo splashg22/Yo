@@ -29,7 +29,12 @@ describe("the price the server hands to the page", () => {
 });
 
 describe("the build's settings the server hands to the page", () => {
-  const config = { network: "devnet", ring: "real", features: { sealedWindow: false }, fees: { wallet: "", tradeBps: 0, launchLamports: "0", otcBps: 0 } };
+  const config = {
+    network: "devnet",
+    ring: "real",
+    features: { sealedWindow: false, otc: false, payLinks: false },
+    fees: { wallet: "", tradeBps: 0, launchLamports: "0", otcBps: 0 },
+  };
   it("are read back as they were written", async () => {
     const { parseHandedConfig } = await import("../../lib/price-header");
     expect(parseHandedConfig(JSON.stringify(config))).toEqual(config);

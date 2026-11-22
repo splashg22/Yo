@@ -26,7 +26,22 @@ say(major >= 22 ? "ok" : "FAIL", `Node ${process.versions.node} (22.12 or newer 
 let config: ReturnType<typeof settings> | undefined;
 try {
   config = settings();
-  say("ok", `Network: ${config.network}. Ring balances: the stand-in (the real Ring is not wired up).`);
+  const ringNow =
+    config.network === "local"
+      ? "a stand-in, on this machine only"
+      : config.network === "devnet"
+        ? "the real Privacy Rings program (alpha software), through its SDK in the browser"
+        : "not offered: mainnet is read only";
+  say("ok", `Network: ${config.network}. Ring balances: ${ringNow}.`);
+  say(
+    "ok",
+    `Switched on: ${
+      Object.entries(config.features)
+        .filter(([, on]) => on)
+        .map(([name]) => name)
+        .join(", ") || "none of OTC, pay links, sealed window"
+    }.`,
+  );
 } catch (error) {
   say("FAIL", `Settings: ${error instanceof Error ? error.message : String(error)}`);
 }

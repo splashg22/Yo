@@ -31,6 +31,8 @@ async function stop(signal: string): Promise<void> {
   if (stopping) return;
   stopping = true;
   log("info", "stopping", { signal });
+  // A stop is a promise to the host as well: if anything is slow to let go, the process still ends, and the next one starts clean.
+  setTimeout(() => process.exit(0), 8_000).unref();
   await app.stop();
   await (await runningMarket()?.catch(() => undefined))?.stop().catch(() => undefined);
   await database()
