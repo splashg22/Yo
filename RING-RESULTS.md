@@ -63,6 +63,10 @@ Found on the way, and fixed: on devnet the indexer stopped at every block that h
 is used in. Blocks and receipts are now read as plain JSON with the newest transaction version allowed
 (`lib/server/solana.ts: rawCall`). The local test chain never produced such a block, which is why no test caught it.
 
+After that fix, the same server in devnet mode on 22 November: started in 6 seconds, followed devnet's
+blocks with no read error (`/health`: cursor 524,924,744 against a head of 524,924,751), and the wallet,
+OTC, status and pay pages each said what is and is not connected to the real program.
+
 ## The three unknowns
 
 | Question | Answer | Evidence |

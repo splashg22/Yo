@@ -1032,8 +1032,19 @@ pre.code {
   }
   .mobile-nav {
     padding-bottom: 0;
-    flex-wrap: wrap; /* six links do not fit on one line below about 300px */
-    gap: 0 10px;
+    /* One row, scrolled sideways: eight links wrapped onto two rows took a ninth of a phone's screen on every page. */
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    gap: 0 20px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    white-space: nowrap;
+  }
+  .mobile-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .mobile-nav a {
+    flex: none;
   }
   .tabs button {
     min-height: 44px;

@@ -100,15 +100,20 @@ async function settlesNoteKey(wallet) {
   }
   throw new Error("the wallet extension never published a note key");
 }
-const ringCell = async (page, symbol) =>
-  (
-    await page
-      .locator("table.plain tbody tr")
-      .filter({ has: page.locator(`td:first-child:text-is("${symbol}")`) })
-      .locator("td")
-      .nth(2)
-      .innerText()
-  ).trim();
+/** The Ring balance the wallet page shows for a coin, once it has been read: never the "Reading" that stands in before then. */
+const ringCell = async (page, symbol) => {
+  const cell = page
+    .locator("table.plain tbody tr")
+    .filter({ has: page.locator(`td:first-child:text-is("${symbol}")`) })
+    .locator("td")
+    .nth(2);
+  for (let attempt = 0; attempt < 100; attempt++) {
+    const text = (await cell.innerText()).trim();
+    if (!/reading/i.test(text)) return text;
+    await page.waitForTimeout(100);
+  }
+  throw new Error(`the wallet page never showed a Ring balance for ${symbol}`);
+};
 const escrow = (await app("status")).escrowAddress;
 const [coin] = (await app("explore")).coins;
 if (!coin) throw new Error("Launch a coin first (npm run e2e).");

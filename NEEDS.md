@@ -1,6 +1,6 @@
 # What I need from you
 
-21 November 2026. One list, ordered by how much work each item unblocks.
+22 November 2026. One list, ordered by how much work each item unblocks.
 
 **Updated after the last round of building.** Most of what these items unlock is now built
 against stand-ins and switched by one setting each, so providing an item is mostly a
@@ -102,6 +102,12 @@ and held by you and entered by you into the hosting provider's own secrets scree
    wallet, make one on the site's Ring wallet page and fund its address the same way.
 5. **Where:** sent to those addresses. You handle no key.
 6. **Then:** `npm run devnet:setup` makes the lookup table and says so.
+7. **Also, and first in line (22 November):** the proof of the real Privacy Rings program is waiting on
+   this and nothing else. Send 1 to 2 devnet SOL to `5bay9nphMrjypM3UQumPEhPdSQFxxLQ8FhfPxwXXehT5`,
+   a throwaway test wallet made by the proof script, then tell me. I run `npm run ring:prove`
+   (register, deposit, transfer, withdraw) and write what happened in `RING-RESULTS.md`. Both
+   public faucets refuse requests from the machine this work runs on, which is why I cannot do it
+   myself.
 
 ## 4. Decisions
 

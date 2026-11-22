@@ -442,15 +442,18 @@ function Row({
       <Link href={`/coin/${coin.mint}`} aria-label={`${coin.symbol}, ${coin.name}`} style={{ display: "contents" }}>
         <CoinPicture image={coin.image} symbol={coin.symbol} size={40} />
         <span className="name">
-          <span className="top">
+          <span className="line1">
             <b>{coin.symbol}</b>
             <span className="full" title={coin.name}>
               {coin.name}
             </span>
           </span>
           <span className="sub">
-            <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"} · {formatCompact(coin.trades)} trade
-            {coin.trades === 1 ? "" : "s"}
+            <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"}
+            <span className="roomy">
+              {" "}
+              · {formatCompact(coin.trades)} trade{coin.trades === 1 ? "" : "s"}
+            </span>
           </span>
           {!coin.complete && (
             <span className="meter" title={`${(coin.progressBps / 100).toFixed(1)}% of the curve sold`}>

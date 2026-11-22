@@ -41,6 +41,20 @@ export function decodePrice(data: Buffer): { usd: number; at: number } | null {
 }
 
 let kept: { url: string; readAt: number; value: Promise<SolPrice | null> } | undefined;
+let latest: SolPrice | null = null;
+/**
+ * The price as last read, without waiting for anything: what a page is rendered with, so its dollar figures are in
+ * the first paint and nothing moves when they would otherwise arrive. Null until the first read has come back.
+ */
+export function knownSolPrice(now = Date.now()): SolPrice | null {
+  // Asking keeps the price fresh for the next page; the answer is not waited for.
+  void solPrice(now).then((price) => (latest = price));
+  if (settings().network === "local") {
+    const fixed = Number(process.env.LOCAL_SOL_USD ?? "");
+    return Number.isFinite(fixed) && fixed > 0 ? { usd: fixed, at: now, source: "fixed for local testing (LOCAL_SOL_USD)" } : null;
+  }
+  return latest && now - latest.at <= STALE_AFTER_MS ? latest : null;
+}
 /** The current price, or null if there is none worth showing. Asks the chain at most every twenty seconds. */
 export function solPrice(now = Date.now()): Promise<SolPrice | null> {
   const { network } = settings();

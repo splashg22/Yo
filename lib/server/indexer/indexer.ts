@@ -159,6 +159,9 @@ const candleFromRow = (row: CandleRow): Candle => ({
   b: row.buys,
 });
 
+/** How long the start waits for the indexer to be level with the chain before the server starts without it. */
+const START_WAIT_MS = 5_000;
+
 export class Indexer {
   readonly markets = new Map<string, Market>();
   private readonly pools = new Map<string, string>();
@@ -181,16 +184,21 @@ export class Indexer {
   private readonly early = new Map<string, number>();
   failure: string | undefined;
 
+  /** Called when the first pass over the chain has ended, level or failed. */
+  private firstPassDone: (() => void) | undefined;
   constructor(
     private readonly db: Db,
     private readonly source: ChainSource,
     private readonly events: IndexerEvents = {},
     private readonly log: Log = () => undefined,
+    /** How long `start` waits to be level with the chain before it returns anyway. */
+    private readonly startWaitMs = START_WAIT_MS,
   ) {}
 
   /**
    * Reads what is stored, then follows the chain until `stop`. Resolves once it has caught up for the first time,
-   * or at once if the chain cannot be reached: the server still starts, says so, and keeps trying.
+   * or at once if the chain cannot be reached, or after a few seconds if there is a lot to catch up on: the server
+   * still starts, says on /health how far behind it is, and the pages say their figures are old until it is level.
    */
   async start(): Promise<void> {
     await this.load();
@@ -199,13 +207,15 @@ export class Indexer {
       () => this.wake?.(),
       (tx) => this.heard(tx),
     );
-    try {
-      await this.catchUp();
-    } catch (error) {
-      this.failure = error instanceof Error ? error.message : String(error);
-      this.log("error", "the indexer could not read the chain at the start; it will keep trying", { error: this.failure });
-    }
+    const firstPass = new Promise<void>((resolve) => (this.firstPassDone = resolve));
+    // One loop does all the catching up, from the first block to the last: nothing else applies blocks.
     this.loop = this.follow();
+    let waiting: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([firstPass, new Promise<void>((resolve) => (waiting = setTimeout(resolve, this.startWaitMs)))]);
+    clearTimeout(waiting);
+    if (this.failure !== undefined) this.log("error", "the indexer could not read the chain at the start; it will keep trying", { error: this.failure });
+    else if (this.head - this.cursor > 5)
+      this.log("warn", "the indexer is still catching up; the server starts without waiting for it", { behindSlots: this.head - this.cursor });
   }
   async stop(): Promise<void> {
     this.running = false;
@@ -235,8 +245,10 @@ export class Indexer {
       try {
         await this.catchUp();
         this.failure = undefined;
+        this.firstPassDone?.();
       } catch (error) {
         this.failure = error instanceof Error ? error.message : String(error);
+        this.firstPassDone?.();
         this.log("error", "the indexer could not read the chain", { error: this.failure });
         await new Promise((resolve) => setTimeout(resolve, 1000));
         continue;

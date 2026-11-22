@@ -11,6 +11,7 @@ import type { RingClient } from "../../lib/sdk";
 import { PER_MINUTE, forgetLimits } from "../../lib/server/limit";
 import { openSession } from "../../lib/server/sessions";
 import { rpcCallTotal, rpcCalls } from "../../lib/server/solana";
+import { recentBlockhash } from "../../lib/server/warm";
 import { signTransaction } from "../../lib/sign";
 import { createApp, type App } from "../../server/app";
 import { SOL, call, freshServer, fundedClient, onChain } from "./helpers";
@@ -210,6 +211,20 @@ describe("reads never ask the chain about a coin", () => {
     rpcCalls.clear();
     await call("wallet/public", { wallet: creator.address });
     expect(rpcCallTotal()).toBeLessThanOrEqual(3);
+  });
+});
+
+describe("what is kept warm", () => {
+  it("hands out a blockhash without asking the chain while the server runs, so a build never waits for one", async () => {
+    // The server started in this file keeps one fresh (server/app.ts starts the keeper). Wait for its first read.
+    for (let attempt = 0; attempt < 50 && recentBlockhash() instanceof Promise; attempt++) await new Promise((resolve) => setTimeout(resolve, 100));
+    for (let look = 0; look < 12; look++) {
+      // Over three seconds, longer than a blockhash is called fresh: it is there every time, with no wait.
+      const handed = recentBlockhash();
+      expect(handed instanceof Promise, "a build would have had to read a blockhash").toBe(false);
+      expect((handed as { blockhash: string }).blockhash.length).toBeGreaterThan(30);
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
   });
 });
 

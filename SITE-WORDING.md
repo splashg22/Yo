@@ -1,6 +1,6 @@
 # Where the site says something is simulated, not connected, or not final
 
-21 November 2026. Every place a visitor is told that a feature is a stand-in, for you to
+22 November 2026. Every place a visitor is told that a feature is a stand-in, for you to
 check the wording. Text is quoted as it appears (the site shows it in capitals).
 
 A test (`test/unit/site.test.ts`) fails if the homepage's own copy calls anything the
@@ -13,6 +13,7 @@ stand-in does "encrypted", or if the site says "anonymous", "untraceable",
 | --- | --- | --- |
 | The line under the header, local chain | "Pre-release. Runs on a local test chain. Ring balances are simulated here. Coins have no value. Status" | `components/Chrome.tsx` |
 | The same line, devnet | "Pre-release. Runs on Solana devnet. Ring balances are not connected yet. Coins have no value. Status" | `components/Chrome.tsx` |
+| The same line, devnet with the real Ring connected | "Pre-release. Runs on Solana devnet, with the real Privacy Rings program, which is alpha software. Coins have no value. Status" | `components/Chrome.tsx` |
 | The same line, server down | "Pre-release. This site's server is not answering." | `components/Chrome.tsx` |
 | Footer | "This is a pre-release build and is unaudited. Privacy Rings and their SDK are alpha software. Nothing here is financial advice. Coins launched on a bonding curve are speculative and can go to zero." | `components/Chrome.tsx` |
 | Footer | "RINGPAD is an independent project. It is not affiliated with, endorsed by or operated by Helius, pump.fun, or any other site built on Privacy Rings." | `components/Chrome.tsx` |
@@ -30,10 +31,17 @@ stand-in does "encrypted", or if the site says "anonymous", "untraceable",
 
 | Where | Wording | Source |
 | --- | --- | --- |
-| Ring wallet, introduction | "In this build Ring balances are simulated: the site's own server keeps them and can read every move." | `components/pages/WalletPage.tsx` |
-| OTC, introduction | "In this build Ring balances are simulated, and the site's own server can read every offer." | `components/pages/OtcPage.tsx` |
-| Pay links, introduction | "In this build Ring balances are simulated." | `components/pages/PayPage.tsx` |
-| Coin page, under the Ring figures | "How that total is split between holders is not published, so the number of holders inside the Ring cannot be known. In this build Ring balances are simulated." | `components/pages/CoinPage.tsx` |
+| Ring wallet, under the title | "Deposits and withdrawals are public. A transfer between Ring balances shows both wallets, not the coin or the amount. Ring balances are simulated in this build." The last sentence is left out where the real Ring is connected | `components/pages/WalletPage.tsx` |
+| OTC, under the title | "Sell a block to one named buyer: coin and payment change hands together, or nothing moves. Simulated in this build." With the real Ring: "... Not connected to the real Privacy Rings program yet." | `components/pages/OtcPage.tsx` |
+| Pay links, under the title | Ends "In this build Ring balances are simulated." Left out where the real Ring is connected | `components/pages/PayPage.tsx` |
+| OTC with the real Ring connected | "This build runs on the real Privacy Rings program here, and the OTC desk is not connected to it yet. A block must change hands for its payment in one step or not at all, and whether the real program can do that is not yet proven (RING-RESULTS.md). Deposits, transfers and withdrawals are on the wallet page." | `components/ui/NeedsRing.tsx`, `components/pages/OtcPage.tsx` |
+| Ring wallet with the real Ring, before a wallet has registered | "Before this wallet can receive into a Ring balance it publishes its Ring keys in the Ring's registry. It is one public transaction from this wallet, once, and costs the registry record's rent and a network fee." | `components/pages/WalletPage.tsx` |
+| Withdraw, split into parts | "The parts are public withdrawals like any other, and they add up. Splitting makes matching by amount and time harder; it does not hide the wallet, the destination or the coin. The plan is kept in this browser only." | `components/wallet/WithdrawPlans.tsx` |
+| Withdraw, a fresh address | "An address that has never appeared on the chain gives an observer nothing but itself. ... That file and the password you choose here are the only way to use what you withdraw there" | `components/pages/WalletPage.tsx` |
+| The strip at the foot of the trading screens, when the server is behind the chain | "Live data paused. The server last read the chain N seconds ago. Prices here are that old; a trade is still checked against the chain when it is built." | `components/terminal/LiveStrip.tsx` |
+| The trade panel | "Public: your wallet, the coin, the amount and the price. A Ring cannot hide a trade on the curve." | `components/terminal/Ticket.tsx` |
+| A coin's screen, holders list | The stand-in's escrow wallet is labelled "Ring stand-in" among the holders | `components/terminal/Feed.tsx` |
+| Before every signature, the privacy panel, new line | "This site's server sees:" followed by what it learns for that action. For the stand-in's transfer: "Everything: both wallets, the coin and the amount." Each action done through the real Ring ends "Not yet run by us end to end (RING-RESULTS.md)." | `components/PrivacyPanel.tsx`, from `lib/visibility.ts` |
 | Before every signature, the privacy panel | A column headed "Encrypted by a Ring", then a line beginning "In this build:" that says what does the work today, for example "A request signed by your wallet to the stand-in, which can read the coin and the amount." | `components/PrivacyPanel.tsx`, `lib/visibility.ts` |
 | Ring wallet history | "Not published:" before a transfer's coin and amount (not "Encrypted") | `components/ui/RingEventRow.tsx` |
 | Ring wallet, OTC and Pay on devnet | "Ring balances are not connected on this network in this build. Launching, buying and selling coins work here. Holding and moving coins in a Ring does not yet." | `components/ui/NeedsRing.tsx` |
@@ -44,6 +52,7 @@ stand-in does "encrypted", or if the site says "anonymous", "untraceable",
 | Where | Wording | Source |
 | --- | --- | --- |
 | Ring balances row | "Simulated by a local stand-in. The Privacy Rings program does not hold them in this build." | `components/pages/StatusPage.tsx` |
+| Ring balances row, with the real Ring connected | "Held by the real Privacy Rings program on devnet, reached through its SDK in your browser. It is alpha software, and this build has not yet run a deposit, transfer or withdrawal through it." | same |
 | Escrow row | "Stand-in escrow wallet" | same |
 | Table heading | "What the stand-in holds against what it owes" | same |
 

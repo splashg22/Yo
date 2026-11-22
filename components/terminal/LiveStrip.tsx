@@ -35,7 +35,7 @@ export function LiveStrip({ onHelp }: { onHelp?: () => void }) {
         <span>No dollar price here: figures are in SOL</span>
       )}
       {onHelp && (
-        <button className="link" type="button" onClick={onHelp} style={{ marginLeft: "auto" }}>
+        <button className="link desk-only" type="button" onClick={onHelp} style={{ marginLeft: "auto" }}>
           Keys <kbd>?</kbd>
         </button>
       )}

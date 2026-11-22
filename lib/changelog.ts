@@ -4,7 +4,7 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
     date: "2026-11-22",
     changes: [
       "A trading screen for every coin: candles from one second to one day with volume and your own trades marked, a live list of trades, holders, a buy and sell panel with amount buttons, slippage and priority fee, and your position.",
-      "A live board in three columns (new, sold over half, graduated) with search and filters, a portfolio page, and keyboard shortcuts on both.",
+      "A live board in three columns (new, about to graduate, graduated) with search and filters, a portfolio page, and keyboard shortcuts on both.",
       "Coins that have left the curve trade through pump.fun's pool. Any pump.fun coin can be opened by its address.",
       "A trade is sent without waiting for the chain: the signature comes back at once, the server resends until the chain takes it or its time runs out, and the result is pushed to the page.",
       "A site fee on trades, launches and OTC can be configured. It is off, and where one applies it is stated before you sign.",

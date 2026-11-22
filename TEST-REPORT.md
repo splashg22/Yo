@@ -1,6 +1,6 @@
 # Test report
 
-21 November 2026. Everything below was run on this date, from a fresh clone, a fresh local
+21 and 22 November 2026. Section 0 is the latest round. Everything from section 1 down was run on 21 November, from a fresh clone, a fresh local
 validator and an empty data folder unless it says otherwise.
 
 **Read this first.** The site runs on a local test chain only. pump.fun and the Privacy
@@ -8,6 +8,55 @@ Rings program are the real programs, copied from devnet. Ring balances are a moc
 on the site's server with an escrow wallet. Nothing here has run on devnet or mainnet, and
 nothing has been audited by anyone but me. "Holds real money" is the standard the code was
 checked against, not something it does or is ready to do.
+
+## 0. The round of 22 November 2026
+
+Run on 22 November on the code as pushed, from a fresh local validator and an empty data folder.
+Sections 1 to 7 below are the report of 21 November and describe the build as it was then; where
+this section and they disagree, this section is the later one.
+
+| Check | Command | Result |
+| --- | --- | --- |
+| Typecheck, lint (zero warnings, no rule switched off), format | `npm run check` | Clean |
+| Unit tests, no chain | `npm run test:site` | 156 of 156, 1 skipped (it needs a real Postgres) |
+| Flow tests on the local validator | `npm run test:flows` | 110 of 110, 5 skipped (they need a real Postgres) |
+| Every flow in a browser, as two people | `npm run e2e` | 19 of 19 steps, 0 browser errors. Press to "sent": 13 to 27 ms |
+| Every page, every control | `npm run crawl` | 16 pages and 5 error pages, two widths, with and without a wallet: 194 controls, 0 findings |
+| Breaking it on purpose | `npm run break` | 14 of 14 |
+| Scroll sequence and background | `npm run motion` | 11 of 11 |
+| The sealed window in a browser, flag on | `npm run window` | 3 of 3 |
+| Secrets in served files and git history | `npm run scan` | Nothing found |
+| Load: 60 trades a second on one coin, 1,000 live connections | `npm run load` | Every budget held |
+| Speed in a browser, under 50 trades a second | `npm run perf` | Every budget held |
+| High or critical advisories | `npm audit --audit-level=high` | None. The moderate ones are assessed in `ADVISORIES.md` |
+
+Numbers for the last two rows, and what they do not show: `PERFORMANCE.md`.
+
+**Not rerun this round:** the flow tests and the browser run with the state in a real Postgres
+(`npm run test:flows:pg`), the crawl in devnet mode, the screenshots (`npm run shots`), the SDK example
+(`npm run example`) and `npm run measure`. They passed on 21 November; the database layer and many pages
+have changed since, so those passes are not evidence about today's code.
+
+**New tests this round**, by what they prove: the indexer's order, restarts and reorganisations on a
+made-up chain; the live hub's replay and resets; the store's database constraints; the server over
+HTTP and websocket (zero chain calls for reads, at most two to build a trade, the fast trade path,
+sessions, per-caller limits, security headers); graduation and pool trading; fees; the door to the
+real Ring's services and what it refuses; blocks holding version 1 transactions; the withdrawal
+planner and its queue; what each privacy panel says the server sees.
+
+**What the checks found this round, and what was done:**
+
+| Found by | Finding | Fix |
+| --- | --- | --- |
+| A browser on devnet | The indexer stopped at every block holding a version 1 transaction, which is every block the Ring program is used in | Blocks and receipts are read as plain JSON; `test/unit/rpc-source.test.ts` |
+| `npm run perf` | Layout shift of 0.217 on a coin's page on a phone | The price of SOL and the build's settings are in the first HTML; fixed rows for the chart toolbar |
+| `npm run perf`, by eye | The chart toolbar ran off a phone's screen, hiding a control; the header took a quarter of the screen | One column that cannot outgrow the screen; one row of navigation |
+| `npm run perf` | 41 to 46 frames a second on a slowed phone under a fast stream | Words and figures redraw at most ten times a second; the chart every frame. 57 |
+| `npm run e2e` | A pointer resting where a dropdown opened took over from the keyboard | The list follows pointer movement, not presence |
+| `npm run crawl` | Controls under 40px tall on a phone; a clipped line on the board; 10px tags | Fixed in the styles |
+| `npm run break` | The trade button was dead for a bad amount and said nothing | It is always live and says what is wrong |
+| `npm run check` | A chain-call budget test depended on how fast the machine was | It names the calls it saw and leaves out the blockhash, which the running server keeps warm; that is proven by its own test |
+| Reading the code | With the real Ring on, the OTC desk and two shortcuts offered forms that would have failed | They say they are not connected yet, and why |
 
 ## 1. What was tested
 

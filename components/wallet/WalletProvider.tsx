@@ -143,16 +143,17 @@ async function extensionSigner(wallet: StandardWallet, onEnded: (ended: boolean)
   };
 }
 
-export function WalletProvider({ children }: { children: ReactNode }) {
+export function WalletProvider({ children, initialConfig = null }: { children: ReactNode; initialConfig?: Config | null }) {
   const [signer, setSigner] = useState<Signer | null>(null);
-  const [config, setConfig] = useState<Config | "offline" | null>(null);
+  // `initialConfig` is what the server rendered the page with; without it the page asks.
+  const [config, setConfig] = useState<Config | "offline" | null>(initialConfig);
   const [hasBackup, setHasBackup] = useState(false);
   const [extensions, setExtensions] = useState<StandardWallet[]>([]);
   const [lockedBecause, setLockedBecause] = useState<"idle" | null>(null);
   const [sessionEnded, setSessionEnded] = useState(false);
 
   // Asked once; the wallet's registration waits for the answer, so it is not attempted where there is no Ring to register with.
-  const settings = useRef<Promise<Config | "offline">>(undefined);
+  const settings = useRef<Promise<Config | "offline"> | undefined>(initialConfig ? Promise.resolve(initialConfig) : undefined);
   const settingsOnce = useCallback(() => (settings.current ??= api("config").catch(() => "offline" as const)), []);
 
   const open = useCallback(

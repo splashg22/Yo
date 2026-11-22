@@ -1,6 +1,13 @@
 # Ring plan: from the stand-in to the real Privacy Rings program
 
-21 November 2026.
+21 November 2026, with a note added on 22 November.
+
+**22 November: what has happened since this plan was written.** A Helius key arrived. Step 0
+(reaching devnet's RPC, the Ring's indexer and its attested prover) is proven. The app is wired to
+the real program behind the same wallet page, and in a browser it loads the SDK, reads an empty
+wallet and offers registration. Registering, depositing, transferring and withdrawing are written
+and **have not been run**: they need devnet SOL. Evidence, and the three open questions, are in
+`RING-RESULTS.md`. The rest of this file is the plan as written, and still the order of work.
 
 **Where this comes from.** The SDK that is already installed in this project,
 `@heliuslabs/spr` 0.9.0-alpha: its README and its type definitions, read on this date.

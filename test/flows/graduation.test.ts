@@ -5,7 +5,7 @@
 import { beforeAll, describe, expect, it } from "vitest";
 import { NATIVE } from "../../lib/constants";
 import type { RingClient } from "../../lib/sdk";
-import { rpcCallTotal } from "../../lib/server/solana";
+import { rpcCallTotal, rpcCalls } from "../../lib/server/solana";
 import { SOL, call, chain, freshServer, fundedClient, onChain } from "./helpers";
 import { PublicKey } from "@solana/web3.js";
 
@@ -68,9 +68,15 @@ describe("graduation", () => {
 
   it("builds a pool trade with at most two calls to the chain once the pool's settings are warm", async () => {
     await call("trade/build", { wallet: trader.address, mint, side: "buy", amount: "1000000" });
-    const before = rpcCallTotal();
+    const before = new Map(rpcCalls);
     await call("trade/build", { wallet: trader.address, mint, side: "buy", amount: "2000000" });
-    expect(rpcCallTotal() - before).toBeLessThanOrEqual(2);
+    // Which calls, not only how many: a failure here should name them. The blockhash is left out: the running server
+    // keeps one fresh in the background (lib/server/warm.ts, proven in server.test.ts), and this test starts no server,
+    // so whether a build here has to read one depends only on how long the machine took over the build before it.
+    const made = [...rpcCalls]
+      .flatMap(([method, count]) => Array.from({ length: count - (before.get(method) ?? 0) }, () => method))
+      .filter((method) => method !== "getLatestBlockhash");
+    expect(made.length, `calls made: ${made.join(", ")}`).toBeLessThanOrEqual(2);
   });
 });
 

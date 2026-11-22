@@ -16,8 +16,9 @@ interface SolPrice {
 const PriceContext = createContext<SolPrice | null>(null);
 
 /** Reads the price of SOL when the site opens and every half minute. With no price, dollar figures are simply left out. */
-export function PriceProvider({ children }: { children: ReactNode }) {
-  const [price, setPrice] = useState<SolPrice | null>(null);
+export function PriceProvider({ children, initial = null }: { children: ReactNode; initial?: SolPrice | null }) {
+  // `initial` is the price the server rendered the page with: the same figures are there before and after the page wakes up.
+  const [price, setPrice] = useState<SolPrice | null>(initial);
   useEffect(() => {
     let stopped = false;
     const read = () =>

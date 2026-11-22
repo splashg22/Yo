@@ -115,6 +115,13 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 109 | "Make a fresh address" makes a second wallet in the worker and hands back only its address and an encrypted backup file | The destination's key never reaches the page or the server. The person chooses its password; without the file and password the funds sent there are lost, and the page says so before making it. |
 | 110 | A long coin name is cut short in board rows, with the full name in the row's title and on the coin's page | Rows are a fixed height so the list can be virtualised; the facts (age, holders, trades) are never cut. |
 | 111 | The trade button is never disabled for a bad amount; pressing it says what is wrong | A dead button explains nothing. |
+| 112 | The server hands the price of SOL and the build's settings to each page as it renders it | Dollar figures and the notice under the header are in the first HTML, so nothing moves when they would otherwise arrive (layout shift on a coin's page fell from 0.217 to 0.008). The two headers are set by the server on every page request, replacing anything a caller sent. |
+| 113 | On a coin's screen, words and figures redraw at most ten times a second; the chart draws every frame | Nobody reads faster, and on a slowed phone a redraw per frame of a busy coin cost a quarter of the frame rate. A change after a quiet moment still shows at once. |
+| 114 | The server starts within five seconds even when the indexer is far behind, and says so | Before, a restart after an hour's stop did not listen until every missed block was read. Now `/health` reports the lag and the trading screens say "Live data paused" until it is level. |
+| 115 | On a phone the main links are one row scrolled sideways | Eight links on two rows took a ninth of the screen on every page. The current page is brought into view. |
+| 116 | Playwright is a development dependency, pinned to the version already on this machine | The browser checks and the CI speed job can then run anywhere. No browser is downloaded on install here. |
+| 117 | The speed budgets for a phone are enforced on an emulated phone, and the frame rate on a slowed phone is reported, not enforced | An emulated processor on a shared CI runner is too noisy to fail a build on. The desktop frame rate, first load, page changes, the chart and layout shift are enforced. |
+| 118 | With the real Ring connected, the OTC desk, fee claims straight into a Ring balance, a first buy straight into a Ring balance and notes on pay links are switched off, each with a sentence saying why | They exist only on the stand-in. Offering a form that fails is worse than saying a thing is not connected. |
 
 ## Only you
 

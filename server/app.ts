@@ -23,6 +23,9 @@ import { reconcile } from "../lib/server/settle";
 import { explain, rpcCalls } from "../lib/server/solana";
 import { database, durable, ready } from "../lib/server/store";
 import type { Input } from "../lib/server/validate";
+import { CONFIG_HEADER, PRICE_HEADER } from "../lib/price-header";
+import { buildConfig } from "../lib/server/operations/system";
+import { knownSolPrice } from "../lib/server/usd";
 import { keepWarm } from "../lib/server/warm";
 
 export interface AppOptions {
@@ -251,6 +254,11 @@ export async function createApp(options: AppOptions): Promise<App> {
       request.headers["content-security-policy"] = policy;
       response.setHeader("content-security-policy", policy);
       for (const [name, value] of Object.entries(fixed)) response.setHeader(name, value);
+      // The page is rendered with the price of SOL already in it. The header is this server's own: whatever a caller sent under that name is replaced.
+      const price = knownSolPrice();
+      if (price) request.headers[PRICE_HEADER] = JSON.stringify(price);
+      else delete request.headers[PRICE_HEADER];
+      request.headers[CONFIG_HEADER] = JSON.stringify(buildConfig());
       await page(request, response);
     })().catch((error: unknown) => {
       log("error", "request failed", failure(error));

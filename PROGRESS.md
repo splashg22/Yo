@@ -1,6 +1,6 @@
 # Progress
 
-Last updated 21 November 2026.
+Last updated 22 November 2026.
 
 ## Summary
 
@@ -14,52 +14,73 @@ Evidence: `OTC-CHECK.md`.
 
 ### 2. Where the code lives
 
-`/home/user/ringpad`, its own git repository, **not pushed anywhere**: creating a private
-repository is refused for this session. A full copy with history is in `ringpad.bundle`,
-sent after each round. An early copy (research and homepage only) is still on the public
-`Yo` branch `claude/exciting-gates-vdquz4`; nothing new has gone there.
+`/home/user/ringpad`, its own git repository. On 22 November you asked for it to be pushed to
+the branch `ringpad` of `splashg22/Yo`, and it is, after every major piece. **That
+repository is public**, so the code is public; no key or secret is in it (`npm run scan`
+checks what is served and the whole git history). A private repository is still the right
+home for it (`NEEDS.md`, item 1).
 
 ### 3. What works end to end, and the test count
 
-On a local validator, in a browser, each flow run twice and once after a reload with
-balances read back from the chain: no-wallet mode and backup, launch (create + register +
-first buy, one signature, with an optional picture), buy and sell, deposit, Ring transfer
-with a sealed note, withdraw, OTC, pay links, privacy score, creator fees into the Ring,
-receipts, public history, the price record, status.
+On a local validator holding copies of the real pump.fun and Privacy Rings programs, in a
+browser, each flow run three times and once after a reload, with balances read back from
+the chain: no-wallet mode and backup; launch (create, register and first buy in one
+signature, with an optional picture); buying and selling on the curve from a trading
+screen with live candles, trades and holders; one-click trading from the keyboard and the
+board; graduating a sold-out coin and trading it through its pool; opening any pump.fun
+coin by address; deposit, Ring transfer with a sealed note, withdraw; a withdrawal split
+into uneven parts to an address made for it; OTC; pay links; creator fees into the Ring;
+receipts; portfolio; status.
 
-Built this round and switched by one setting each: state in Postgres, devnet mode, coin
-pictures on IPFS, a private-preview password, and the sealed launch window (off).
+The server is one process: an indexer that follows the chain block by block, a database
+of real tables, a websocket that pushes changes, a sender that returns at once and
+resends until the chain takes a trade. `BACKEND.md` is the audit of what was there and
+what replaced it. `PERFORMANCE.md` is every speed budget with its measured number.
 
-165 tests (85 unit, 80 flow), 9 more that run only with Postgres. Browser checks: 17 flow
-steps, crawler over 14 pages at two widths with 0 findings, 14 break-it checks, 11 motion
-checks, 3 sealed-window checks, secrets scan clean. The flow suite and the browser run
-also pass with the state in a real local Postgres. Detail: `TEST-REPORT.md`.
+266 tests (156 unit, 110 flow), 6 more that run only with a real Postgres. Browser checks:
+19 flow steps, crawler over 16 pages and 5 error pages at two widths with 0 findings, 14
+break-it checks, 11 motion checks, 3 sealed-window checks, secrets scan clean. A load test
+(60 trades a second on one coin, 1,000 live connections) and a browser performance test,
+both failing the build on a missed budget, both passing. Detail: `TEST-REPORT.md`.
 
 ### 4. Still a mock or stand-in; not verified
 
-Mock: Ring balances, Ring transfers, OTC settlement, pay-link payment, and the sealed
-window's custody: a ledger and an escrow wallet on the server, local validator only.
-Stand-in: all ring images and video; coin pictures kept on the server's disk.
-Placeholder: who runs the site. Drafts: Terms, Privacy Policy.
+Mock, on the local chain: Ring balances, Ring transfers, OTC settlement, pay-link payment
+and the sealed window's custody are a ledger and an escrow wallet on the server.
+Stand-in: all ring images and video. Placeholder: who runs the site. Drafts: Terms,
+Privacy Policy.
 
-Not verified, plainly: anything on real devnet or with Helius; the real Ring; the Pinata
-upload; a hosted Postgres; the container image (never built); the CI workflow (never
-run); any browser but Chromium; a real phone; a real wallet extension; a screen reader;
-load; the `npm audit` advisories inside the Solana and pump.fun SDKs; any review by
-someone outside the project.
+**The real Privacy Rings program** is wired in for devnet behind the same wallet page, and
+is the part most in need of proof. Proven, with the Helius key, on devnet: its RPC,
+indexer and attested prover are reachable; in a browser the SDK loads in the wallet's
+worker, reads an empty wallet through this server's own door, and offers registration.
+**Not run at all: registering, depositing, transferring and withdrawing.** They need 1 to
+2 devnet SOL and both faucets refuse this machine. The three open questions (can OTC
+settle atomically, does registering a coin need Helius's permission on mainnet, can wallet
+extensions sign version 1 transactions) are therefore still unanswered. `RING-RESULTS.md`.
+
+Not verified, plainly: anything with real money or on mainnet; the real Ring beyond the
+above; a real RPC provider under load; a real phone; any browser but Chromium; a real
+wallet extension; a screen reader; the Pinata upload; a hosted Postgres; the container
+image (never built); the CI workflow (never run); reorganisations on a real network; any
+review by someone outside the project. `PERFORMANCE.md` ends with its own list.
 
 Privacy today (`PRIVACY-AUDIT.md`): no wallet address is hidden from anyone at any step.
-We can read every Ring transfer's wallets, coin and amount. Hidden from us: the note on a
-transfer, and what a pay link asks for until it is paid. No zero-knowledge proof is
-generated or verified by this code.
+On the stand-in, this server can read every Ring transfer's wallets, coin and amount;
+hidden from it are the note on a transfer and what a pay link asks for until it is paid.
+Every privacy panel now says what this site's own server sees. No zero-knowledge proof is
+generated or verified by this code; on the real Ring the proof is made by Helius's prover.
 
 ### 5. Decisions made for you
 
-All 80 are in `DECISIONS.md` with the reason and how to reverse each. Yours, from 21
-November, are row 63. The ones made since that you would most want to know: Postgres
-keeps the state as one document with one writer; devnet mode has no Ring balances; a
-withdrawal now charges the wallet its network fee and any account rent; new backups use a
-stronger password setting; the note-key message names the site.
+All 118 are in `DECISIONS.md` with the reason and how to reverse each. The ones from this
+round you would most want to know: the site's fee is built and **off**, with proposed
+rates of 0.5% on trades, nothing on launches and 0.25% on OTC (row 100) for you to accept
+or change; limit orders, stop-loss and "trade for me" are not built because each needs the
+server to hold a key that trades for the user, which is custody (row 99); a split
+withdrawal is a plan kept in the browser and sent by the page, so nothing is in anyone's
+custody and the page has to be open when a part is due (row 107); with the real Ring the
+browser reaches Helius only through this server, which adds the key (row 104).
 
 ### 6. Blocked, and what to provide
 
@@ -88,38 +109,47 @@ check tooling. The privacy itself is not ours and is not running yet.
 
 ### 8. What still looks unfinished
 
-Most visible first: the ring images are stand-ins; Ring features do not exist on devnet;
-the price chart is a record of this site's readings, not a full trade history; the sealed
-window cannot be tried end to end in a browser without waiting an hour for it to close;
-empty space under "How it works" on phones; market cap in SOL only; Explore pages on
-screen but the server sends the whole list; Terms and Privacy read as drafts with a
-placeholder operator.
+Most visible first: the ring images are stand-ins; the real Ring's money steps have never
+run; on the real Ring the OTC desk, fee claims straight into a Ring balance and the sealed
+window say "not connected yet" instead of working; the launch, OTC, pay and status pages
+are plainer than the trading screens; a coin's worth in dollars is on the portfolio page
+and not in the wallet's table; no limit orders; the sealed window cannot be tried end to
+end in a browser without waiting an hour for it to close; Terms and Privacy read as drafts
+with a placeholder operator.
 
 ### 9. The next three things
 
-1. With the Helius key: the real Default Ring in place of the stand-in, proofs made in the
-   browser, then the whole test report repeated on devnet.
-2. With the repository: push, and let the CI workflow run for the first time.
-3. A relational schema and an indexer, replacing the single state document and the
-   recorded price readings.
+1. **Devnet SOL** (the one thing blocking the most): 1 to 2 devnet SOL to
+   `5bay9nphMrjypM3UQumPEhPdSQFxxLQ8FhfPxwXXehT5`. Then `npm run ring:prove` runs register,
+   deposit, transfer and withdraw on the real program and answers the three open questions.
+2. A private repository, so the CI workflow (checks, flow tests, load and performance) runs
+   for the first time.
+3. Rotate the Helius key that was pasted into the chat, and put the new one in `.env`.
 
 ## Done
 
 Research and plan; homepage, scroll sequence and background; local chain with the real
 programs; launch, wallet, explore, coin pages; privacy score, pay links, no-wallet mode;
 OTC; creator fees to the Ring; docs, technical page, terms, privacy, status, changelog;
-audit passes; own ports; OTC check; proof beside every claim; price record; request
-ceiling; privacy stage 1 (sealed notes, pay-link requests kept from the server); link
-warnings; feature flags; operator placeholders; private preview; health check; Postgres
-store; coin pictures; sealed launch window; devnet mode and set-up script; CI workflow,
-container file, go-live guide; an independent review of the money and key code and its
-fixes.
+audit passes; proof beside every claim; request ceiling; sealed notes; feature flags;
+private preview; health check; Postgres store; coin pictures; sealed launch window (off);
+devnet mode; CI workflow, container file, go-live guide; an independent review of the
+money and key code and its fixes.
+
+Since 21 November: the backend rebuilt (indexer, real tables, websocket, non-blocking
+sender, sessions, per-caller limits, structured logs, health); the key vault in a worker
+with auto-lock and strict security headers; trading screen, board, portfolio, shortcuts,
+phone layout; pool trading and any coin by address; the site fee (off); new type, custom
+controls, dollar figures, one transaction tray; split withdrawals, fresh destinations and
+the server's view in every privacy panel; the real Ring wired in behind one interface;
+load and performance tests; the study of rings.run and the trading terminals
+(`REFERENCE.md`).
 
 ## Doing
 
-Nothing in flight. Stopped on 21 November at your request, waiting for the items in
-`NEEDS.md`. `RING-PLAN.md` is the plan for the real Ring; `SITE-WORDING.md` lists every
-place the site says a feature is simulated or not connected.
+Waiting for devnet SOL to prove the real Ring. Everything else asked for on 22 November
+is built and green; what could not be closed is listed in `REFERENCE.md` ("Not closed, and
+why") and `BACKEND.md` ("Open").
 
 ## Next
 

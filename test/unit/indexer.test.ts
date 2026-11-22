@@ -133,6 +133,40 @@ describe("the indexer", () => {
     await indexer.stop();
   });
 
+  it("starts without waiting when it has a lot to catch up on, says how far behind it is, and still ends level and exact", async () => {
+    const { chain, db, indexer } = await started();
+    await indexer.stop();
+    // While it is down the chain moves a long way on.
+    for (let block = 0; block < 60; block++) {
+      chain.trade(coin, block % 2 ? ben : cal, "buy", 10_000_000n + BigInt(block));
+      chain.produce();
+    }
+    // A chain that takes its time over every block, as a real RPC does.
+    const slow = new Proxy(chain, {
+      get(target, property, receiver) {
+        if (property !== "block") return Reflect.get(target, property, receiver) as unknown;
+        return async (slot: number) => {
+          await new Promise((resolve) => setTimeout(resolve, 15));
+          return target.block(slot);
+        };
+      },
+    });
+    const again = new Indexer(db, slow, {}, undefined, 150);
+    const began = Date.now();
+    await again.start();
+    // It came back long before sixty slow blocks could have been read, and knows it is behind.
+    expect(Date.now() - began).toBeLessThan(700);
+    expect(again.head - again.cursor).toBeGreaterThan(5);
+    expect(again.failure).toBeUndefined();
+    await again.reached(await chain.head());
+    expect(again.markets.get(coin)!.trades).toBe(60);
+    expect((await db.query<{ n: number }>("select count(*)::int as n from trades"))[0]!.n).toBe(60);
+    // What it ends with is the chain's own state of the coin, to the last unit.
+    const curve = chain.curve(coin);
+    expect(again.markets.get(coin)).toMatchObject({ virtualSol: curve.virtualSol, virtualTokens: curve.virtualTokens, realTokens: curve.realTokens });
+    await again.stop();
+  });
+
   it("carries on from where it stopped after a restart, picks up what happened meanwhile, and counts nothing twice", async () => {
     const { chain, db, indexer } = await started();
     chain.trade(coin, ben, "buy", 1_000_000_000n);

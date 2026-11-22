@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useRef } from "react";
 import { footerLinks, nav, site } from "@/site.config";
 import { Logo } from "./Logo";
 import { useWallet } from "./wallet/WalletProvider";
@@ -47,6 +48,13 @@ export function Header() {
       <span className="only-narrow">{item.label.replace("Ring ", "")}</span>
     </Link>
   ));
+  // On a phone the links are one row scrolled sideways: the page being read is brought into view in it.
+  const narrow = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const row = narrow.current;
+    const here = row?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (row && here) row.scrollLeft = Math.max(0, here.offsetLeft - (row.clientWidth - here.offsetWidth) / 2);
+  }, [pathname]);
   return (
     <>
       <a className="skip" href="#main">
@@ -60,7 +68,7 @@ export function Header() {
           </Link>
           <nav aria-label="Main">{links}</nav>
         </header>
-        <nav className="mobile-nav" aria-label="Main, small screens">
+        <nav className="mobile-nav scroll-x" aria-label="Main, small screens" ref={narrow}>
           {links}
         </nav>
         <BuildNotice />

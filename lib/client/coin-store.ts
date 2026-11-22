@@ -83,6 +83,9 @@ export class Series {
   }
 }
 
+/** The least time between two redraws of a coin screen's words and figures. */
+const REDRAW_EVERY_MS = 100;
+
 export class CoinStore {
   coin: CoinView | null = null;
   problem = "";
@@ -102,6 +105,7 @@ export class CoinStore {
   private readonly series = new Map<number, Series>();
   private stop: (() => void) | undefined;
   private notifying = false;
+  private toldAt = 0;
   closed = false;
 
   constructor(readonly mint: string) {}
@@ -161,12 +165,18 @@ export class CoinStore {
   private changed(): void {
     this.version += 1;
     if (this.notifying) return;
-    // Several events in one frame cause one re-render.
+    // The screen's words and figures are redrawn at most ten times a second: nobody reads faster, and on a slow phone
+    // a redraw for every frame of a busy coin starves the chart. The first change after a quiet moment goes at once.
+    // (The chart does not wait for this: it draws from the candles themselves, every frame.)
     this.notifying = true;
-    queueMicrotask(() => {
+    const tell = (): void => {
       this.notifying = false;
+      this.toldAt = performance.now();
       for (const listener of this.listeners) listener();
-    });
+    };
+    const wait = REDRAW_EVERY_MS - (performance.now() - this.toldAt);
+    if (wait <= 0) queueMicrotask(tell);
+    else setTimeout(tell, wait);
   }
 
   /** The candles for a timeframe, started on first use and kept while the screen is open. */

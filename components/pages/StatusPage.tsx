@@ -6,12 +6,15 @@ import type { Status } from "@/lib/contract";
 import { formatCoin, formatTime } from "@/lib/format";
 import { Address } from "../ui/Address";
 import { useCoins } from "../ui/useCoins";
+import { useWallet } from "../wallet/WalletProvider";
 import { AppPage } from "./shell";
 
 const yesNo = (ok: boolean, yes: string, no: string) => <span className={ok ? "state-ok" : "state-bad"}>{ok ? yes : no}</span>;
 
 export function StatusPage() {
   const { symbol } = useCoins(30_000);
+  const { config } = useWallet();
+  const ring = config !== null && config !== "offline" ? config.ring : "mock";
   const [status, setStatus] = useState<Status | null>(null);
   const [problem, setProblem] = useState("");
   const refresh = useCallback(async () => {
@@ -58,12 +61,25 @@ export function StatusPage() {
             </dd>
             <dt>Ring balances</dt>
             <dd>
-              <span className="state-bad">Simulated by a local stand-in. The Privacy Rings program does not hold them in this build.</span>
+              {ring === "real" ? (
+                <span className="state-ok">
+                  Held by the real Privacy Rings program on devnet, reached through its SDK in your browser. It is alpha software, and this build has not yet
+                  run a deposit, transfer or withdrawal through it.
+                </span>
+              ) : ring === "unavailable" ? (
+                <span className="state-bad">Not connected on this network in this build.</span>
+              ) : (
+                <span className="state-bad">Simulated by a local stand-in. The Privacy Rings program does not hold them in this build.</span>
+              )}
             </dd>
-            <dt>Stand-in escrow wallet</dt>
-            <dd>
-              <Address value={status.escrowAddress} />
-            </dd>
+            {status.escrowAddress && (
+              <>
+                <dt>Stand-in escrow wallet</dt>
+                <dd>
+                  <Address value={status.escrowAddress} />
+                </dd>
+              </>
+            )}
             <dt>Launch lookup table</dt>
             <dd>{yesNo(status.launchTable, "Present", "Not created yet. It is made before the first launch.")}</dd>
             <dt>Coins launched here</dt>

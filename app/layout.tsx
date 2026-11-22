@@ -1,9 +1,11 @@
 import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Background } from "@/components/Background";
 import { Footer, Header } from "@/components/Chrome";
 import { TxProvider } from "@/components/tx/Tx";
 import { PriceProvider } from "@/components/ui/Money";
 import { WalletProvider } from "@/components/wallet/WalletProvider";
+import { CONFIG_HEADER, PRICE_HEADER, parseHandedConfig, parseHandedPrice } from "@/lib/price-header";
 import { site } from "@/site.config";
 import "./globals.css";
 import "./app.css";
@@ -23,17 +25,23 @@ export const viewport: Viewport = { width: "device-width", initialScale: 1, them
 // Every page is rendered for its request, so each carries that request's script nonce (see lib/server/headers.ts).
 export const dynamic = "force-dynamic";
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // The server puts the price of SOL on the request it hands over, so dollar figures are in the first paint.
+  // So is what this build runs on, so the notice under the header is right from the start.
+  const handed = await headers();
+  const price = parseHandedPrice(handed.get(PRICE_HEADER));
+  const config = parseHandedConfig(handed.get(CONFIG_HEADER));
   return (
     <html lang="en">
       <head>
         <link rel="preload" href="/fonts/doto.woff2" as="font" type="font/woff2" crossOrigin="" />
         <link rel="preload" href="/fonts/atkinson-hyperlegible-next.woff2" as="font" type="font/woff2" crossOrigin="" />
+        <link rel="preload" href="/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossOrigin="" />
       </head>
       <body>
         <Background />
-        <WalletProvider>
-          <PriceProvider>
+        <WalletProvider initialConfig={config}>
+          <PriceProvider initial={price}>
             <TxProvider>
               <div className="shell">
                 <Header />

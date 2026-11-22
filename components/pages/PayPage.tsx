@@ -35,9 +35,12 @@ function QrCode({ text }: { text: string }) {
 }
 
 const INTRO =
-  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. The request travels in the part of the link that browsers do not send to servers. The payment is a transfer between the two wallets: they are public, the coin and the amount are not published. In this build Ring balances are simulated.";
+  "A pay link names a recipient, a coin and an amount, and opens a Ring transfer with them filled in. Anyone who holds the link can read what it asks for. The request travels in the part of the link that browsers do not send to servers. The payment is a transfer between the two wallets: they are public, the coin and the amount are not published.";
 
 export function PayPage() {
+  const { config } = useWallet();
+  // Said only where it is true: on the real Privacy Rings program the balances are the program's own.
+  const intro = config !== null && config !== "offline" && config.ring === "real" ? INTRO : `${INTRO} In this build Ring balances are simulated.`;
   // The link is read in the browser: until then nothing is known, which is its own state.
   const [request, setRequest] = useState<PayRequest | "none" | "invalid" | null>(null);
   useEffect(() => {
@@ -56,7 +59,7 @@ export function PayPage() {
   }, []);
   const asked = request !== null && request !== "none" && request !== "invalid";
   return (
-    <AppPage label="Pay links" title={asked ? "You have been asked to pay" : "Ask for a payment into your Ring balance"} intro={INTRO}>
+    <AppPage label="Pay links" title={asked ? "You have been asked to pay" : "Ask for a payment into your Ring balance"} intro={intro}>
       {request === null && <p className="body">Reading the link.</p>}
       {request === "invalid" && (
         <p className="notice" role="alert">
@@ -126,7 +129,9 @@ function PayRequestView({ request }: { request: PayRequest }) {
 }
 
 function MakeLink() {
-  const { signer } = useWallet();
+  const { signer, config } = useWallet();
+  // A note travels with a transfer only on the stand-in; a transfer on the real program carries none, so none is offered.
+  const notes = ringBackend(config)?.notes !== false;
   const { coins, symbol } = useCoins();
   const [form, setForm] = useState({ mint: NATIVE, amount: "", memo: "" });
   const [copyState, setCopyState] = useState<"idle" | "copied" | "failed">("idle");
@@ -181,12 +186,14 @@ function MakeLink() {
           />
         </div>
       </div>
-      <div className="field">
-        <label className="label" htmlFor="p-memo">
-          Note, optional
-        </label>
-        <input id="p-memo" maxLength={140} value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
-      </div>
+      {notes && (
+        <div className="field">
+          <label className="label" htmlFor="p-memo">
+            Note, optional
+          </label>
+          <input id="p-memo" maxLength={140} value={form.memo} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+        </div>
+      )}
       {problem && (
         <p className="status-line bad" role="alert">
           {problem}

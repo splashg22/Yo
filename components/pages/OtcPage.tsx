@@ -16,11 +16,13 @@ import { NeedsRing } from "../ui/NeedsRing";
 import { AppPage } from "./shell";
 
 export function OtcPage() {
+  const { config } = useWallet();
+  const onRealRing = config !== null && config !== "offline" && config.ring === "real";
   return (
     <AppPage
       label="OTC"
       title="Sell a block to a named buyer"
-      intro="Sell a block to one named buyer: coin and payment change hands together, or nothing moves. Simulated in this build."
+      intro={`Sell a block to one named buyer: coin and payment change hands together, or nothing moves. ${onRealRing ? "Not connected to the real Privacy Rings program yet." : "Simulated in this build."}`}
     >
       <NeedsRing
         standinOnly={{

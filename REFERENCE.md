@@ -151,22 +151,22 @@ own. These are listed under "not closed" below, not forgotten.
 | # | Gap | Before | Now |
 | --- | --- | --- | --- |
 | 1 | Live data | Pages polled every 3 seconds; each poll cost RPC calls per coin | **Closed.** Indexer, websocket, changes only. See BACKEND.md |
-| 2 | A real chart | A line drawn from readings taken when somebody looked | In progress: candles 1s to 1d are stored and served; the chart itself is next |
-| 3 | Trades feed with side, size, price, wallet | A list of signatures | Stored and pushed live; the table is next |
-| 4 | Holders view | None | Stored and pushed live, with the curve, creator and Ring stand-in labelled; the table is next |
-| 5 | Position and profit per coin, portfolio | None | Served from stored trades; the pages are next |
-| 6 | Three-column board with filters and search | One list, sorted two ways | Next |
-| 7 | Buy presets, sell by share, slippage, priority fee | One amount field, slippage fixed at 2%, no priority fee | Server side done (slippage, priority fee, tip, presets built ahead of the click); the panel is next |
-| 8 | One-click trading and instant feedback | Two requests, then a wait for confirmation with no word meanwhile | Server side done: click to sent measured under 100 ms locally; the panel is next |
-| 9 | Transaction feedback: pending, confirmed, failed, with a receipt | One status line after the fact | Server pushes each stage; the interface is next |
-| 10 | Keyboard shortcuts | None | Next |
-| 11 | A designed phone layout: tabs and a sticky trade bar | Stacked sections | Next |
-| 12 | Price source and age on every figure; USD beside SOL | SOL only, no age | Next |
-| 13 | Counters, forced upper case and all errors at once on forms | Partly | Next |
-| 14 | What your own server sees, in the panel | In the docs only | Next |
-| 15 | Worked examples of timing and amount inference; warnings at the moment | Warnings on withdrawal only | Next (priority item 9: split withdrawals, delays, fresh destinations) |
+| 2 | A real chart | A line drawn from readings taken when somebody looked | **Closed.** Candles from 1 second to 1 day with volume, a crosshair read-out, your own trades marked, drawn on a canvas that scrolls back and zooms |
+| 3 | Trades feed with side, size, price, wallet | A list of signatures | **Closed.** A live, virtualised table: time, side, SOL, dollars, coins, wallet, with filters for your own and the creator's trades |
+| 4 | Holders view | None | **Closed.** The largest hundred, with the curve, pool, creator and Ring stand-in labelled, and the share held by the ten largest and by the creator |
+| 5 | Position and profit per coin, portfolio | None | **Closed.** Position and profit on the coin's screen; a portfolio page for any wallet |
+| 6 | Three-column board with filters and search | One list, sorted two ways | **Closed.** New, about to graduate, graduated; search, filters, pause while the pointer is over a column, quick buy |
+| 7 | Buy presets, sell by share, slippage, priority fee | One amount field, slippage fixed at 2%, no priority fee | **Closed.** Four amounts each way, sell by share of what is held, slippage and priority fee, kept per browser |
+| 8 | One-click trading and instant feedback | Two requests, then a wait for confirmation with no word meanwhile | **Closed.** With one-click on, the press signs and sends over the open connection: 13 to 27 ms to "sent" in a browser on the local chain; the result is pushed back |
+| 9 | Transaction feedback: pending, confirmed, failed, with a receipt | One status line after the fact | **Closed.** One tray, bottom right, on every page: signing, sent, confirmed with the time it took, or failed with the reason; each with its receipt |
+| 10 | Keyboard shortcuts | None | **Closed.** On the coin's screen (B, S, 1 to 4, /, ?) and the board (/, arrows or H J K L, Enter, Q, ?) |
+| 11 | A designed phone layout: tabs and a sticky trade bar | Stacked sections | **Closed.** Tabs for the board's columns, a buy and sell bar fixed to the foot of a coin's screen, one row of navigation |
+| 12 | Price source and age on every figure; USD beside SOL | SOL only, no age | **Closed.** Dollars beside SOL wherever SOL is shown, with the price's source and age in the strip at the foot. Where there is no price, figures are in SOL and the strip says so |
+| 13 | Counters, forced upper case and all errors at once on forms | Partly | Launch form: counters, upper-case ticker, every problem said at once. **Not done** on the OTC and pay forms |
+| 14 | What your own server sees, in the panel | In the docs only | **Closed.** Every privacy panel has a line "This site's server sees", and the docs table a column for it; each action done through the real Ring has its own account |
+| 15 | Worked examples of timing and amount inference; warnings at the moment | Warnings on withdrawal only | **Closed.** Warnings for equal amounts, short gaps, round trips, a destination with a history and emptying the balance; split withdrawals over time; an address made for the withdrawal. Worked examples are in the docs and PRIVACY-AUDIT.md |
 | 16 | A wallet session instead of a signature per refresh | Every refresh of a Ring balance was signed | **Closed.** One signature opens a session; nothing on a timer prompts a wallet |
-| 17 | Trading graduated coins, and any pump.fun coin by address | Coins launched here, on the curve only | Indexer reads pool trades; building pool trades and adding a coin by address are next |
+| 17 | Trading graduated coins, and any pump.fun coin by address | Coins launched here, on the curve only | **Closed** on the local chain: a coin is graduated and traded through its pool; any pump.fun coin is followed from its address with its past trades. Unverified on devnet |
 
 Where RINGPAD was already ahead, and stays so: a wallet-less way in; no custody of trades or launches (the
 person's own wallet signs everything on the curve); sealed notes, pay links and receipts; a real status
