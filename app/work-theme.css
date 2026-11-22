@@ -34,9 +34,16 @@ html[data-surface="work"] {
   --tint-3: var(--hover);
   --scrim: rgba(6, 7, 9, 0.72);
   --display: var(--text); /* the pixel face is kept for the logo and large headings: see below */
+  /* One scale for every space in this theme: inside a control, between parts of a row, round a panel. */
+  --s1: 2px;
+  --s2: 4px;
+  --s3: 8px;
+  --s4: 12px;
+  --s5: 16px;
+  --s6: 24px;
   --ui: 13px; /* a row's text */
   --ui-small: 12px;
-  --row-pad: 4px;
+  --row-pad: var(--s2);
   color-scheme: dark;
 }
 /* ---- light: the same steps, turned over ---- */
@@ -63,7 +70,7 @@ html[data-surface="work"][data-theme="light"] {
 html[data-surface="work"][data-density="comfortable"] {
   --ui: 14px;
   --ui-small: 13px;
-  --row-pad: 8px;
+  --row-pad: var(--s3);
 }
 
 /* ---- surfaces ---- */
@@ -192,7 +199,7 @@ html[data-surface="work"] :is(.btn, .quick) {
   border-color: var(--rule);
   background: var(--row);
   color: var(--ink);
-  padding: 8px 14px;
+  padding: var(--s3) var(--s5);
 }
 html[data-surface="work"] :is(.btn:hover:not(:disabled), .quick:hover:not(:disabled)) {
   border-color: var(--accent-text);
@@ -213,7 +220,7 @@ html[data-surface="work"] .link {
 html[data-surface="work"] .tag {
   border-color: var(--edge);
   background: var(--row);
-  padding: 0 5px;
+  padding: 0 var(--s2);
   white-space: nowrap;
   flex: none;
 }
@@ -243,7 +250,7 @@ html[data-surface="work"] .dot.off {
 
 /* ---- chrome: quieter, shorter, out of the way of the work ---- */
 html[data-surface="work"] .top {
-  padding: 10px 16px;
+  padding: var(--s4) var(--s5);
   border-bottom: 1px solid var(--faint);
 }
 html[data-surface="work"] .top nav a {
@@ -254,8 +261,8 @@ html[data-surface="work"] .top nav a[aria-current="page"] {
   border-bottom: 2px solid var(--accent-text);
 }
 html[data-surface="work"] .strip {
-  padding-top: 6px;
-  padding-bottom: 6px;
+  padding-top: var(--s3);
+  padding-bottom: var(--s3);
 }
 html[data-surface="work"] .app-head {
   display: none;
@@ -271,9 +278,9 @@ html[data-surface="work"] .board-col > header {
 }
 html[data-surface="work"] .coin-row {
   grid-template-columns: 36px minmax(0, 1fr) auto auto;
-  gap: 0 10px;
-  row-gap: 1px;
-  padding: 0 10px;
+  gap: 0 var(--s4);
+  row-gap: var(--s1);
+  padding: 0 var(--s4);
   font-size: var(--ui);
   line-height: 1.3;
 }
@@ -292,13 +299,13 @@ html[data-surface="work"] .coin-row .nums {
 html[data-surface="work"] .coin-row .figs {
   display: grid;
   grid-template-columns: minmax(0, 104px) minmax(0, 112px) minmax(0, 1fr);
-  gap: 0 8px;
+  gap: 0 var(--s3);
   font-size: var(--ui-small);
 }
 html[data-surface="work"] .coin-row .risk {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 76px));
-  gap: 0 8px;
+  gap: 0 var(--s3);
   font-size: 11px;
 }
 html[data-surface="work"] .coin-row :is(.figs, .risk) > span {
@@ -308,14 +315,14 @@ html[data-surface="work"] .coin-row :is(.figs, .risk) > span {
 html[data-surface="work"] .coin-row .quick {
   min-height: 30px;
   min-width: 52px;
-  padding: 0 8px;
+  padding: 0 var(--s3);
 }
 html[data-surface="work"] .vrow,
 html[data-surface="work"] .vhead {
   font-size: var(--ui-small);
 }
 html[data-surface="work"] .toolbar {
-  gap: 8px;
+  gap: var(--s3);
 }
 html[data-surface="work"] .toolbar :is(.btn, .field-row, input) {
   min-height: 34px;
@@ -323,7 +330,7 @@ html[data-surface="work"] .toolbar :is(.btn, .field-row, input) {
 }
 html[data-surface="work"] .display-settings {
   display: inline-flex;
-  gap: 8px;
+  gap: var(--s3);
   margin-left: auto;
 }
 @media (max-width: 1100px) {
@@ -338,18 +345,18 @@ html[data-surface="work"] .display-settings {
   }
   html[data-surface="work"] .coin-row .figs {
     grid-template-columns: auto auto minmax(0, 1fr);
-    gap: 0 12px;
+    gap: 0 var(--s4);
   }
   html[data-surface="work"] .coin-row .risk {
     grid-template-columns: repeat(5, auto);
     justify-content: start;
-    gap: 0 8px;
+    gap: 0 var(--s3);
     font-size: 10.5px;
   }
   html[data-surface="work"] .coin-row > .quick {
     grid-row: 1 / span 1;
     align-self: start;
-    margin-top: 6px;
+    margin-top: var(--s3);
   }
   html[data-surface="work"] .display-settings {
     margin-left: 0;
@@ -410,8 +417,8 @@ html[data-surface="work"][data-style] {
   --r-panel: 10px;
   --r-control: 8px;
   --r-row: 6px;
-  --gap: 10px;
-  --pad: 12px;
+  --gap: var(--s4);
+  --pad: var(--s4);
 }
 html[data-surface="work"][data-style][data-theme="light"] {
   --page: #eef0f2;
@@ -436,8 +443,8 @@ html[data-surface="work"][data-style="playful"] {
   --r-panel: 18px;
   --r-control: 12px;
   --r-row: 10px;
-  --gap: 14px;
-  --pad: 16px;
+  --gap: var(--s5);
+  --pad: var(--s5);
 }
 
 /* corners, and room round the panels (not inside the rows) */
@@ -484,8 +491,8 @@ html[data-surface="work"][data-style] :is(.seg, .ticket .sides) {
   border: 0;
   background: var(--row);
   border-radius: 999px;
-  padding: 3px;
-  gap: 2px;
+  padding: var(--s2);
+  gap: var(--s1);
 }
 html[data-surface="work"][data-style] :is(.seg button, .ticket .sides button) {
   border: 0;
@@ -493,7 +500,7 @@ html[data-surface="work"][data-style] :is(.seg button, .ticket .sides button) {
   background: transparent;
   color: var(--mute);
   min-height: 28px;
-  padding: 0 12px;
+  padding: 0 var(--s4);
 }
 html[data-surface="work"][data-style] .seg button[aria-pressed="true"] {
   background: var(--ink);
@@ -502,9 +509,9 @@ html[data-surface="work"][data-style] .seg button[aria-pressed="true"] {
 html[data-surface="work"][data-style] .feed-tabs > button {
   border: 0;
   border-radius: 999px;
-  margin: 6px 0 6px 6px;
+  margin: var(--s3) 0 var(--s3) var(--s3);
   min-height: 30px;
-  padding: 0 14px;
+  padding: 0 var(--s5);
   background: transparent;
   color: var(--mute);
 }
@@ -531,7 +538,7 @@ html[data-surface="work"][data-style] .tag {
   border: 0;
   border-radius: 999px;
   background: var(--row);
-  padding: 1px 8px;
+  padding: var(--s1) var(--s3);
   color: var(--mute);
 }
 html[data-surface="work"][data-style] .tag.hot {
@@ -540,7 +547,7 @@ html[data-surface="work"][data-style] .tag.hot {
 }
 html[data-surface="work"][data-style] .coin-row .nums :is(.up, .down) {
   border-radius: 999px;
-  padding: 0 7px;
+  padding: 0 var(--s3);
   justify-self: end;
 }
 html[data-surface="work"][data-style] .coin-row .nums .up {
@@ -571,7 +578,7 @@ html[data-surface="work"][data-style] .coin-row .ratio {
   background: var(--sell-fill);
   overflow: hidden;
   vertical-align: middle;
-  margin-left: 6px;
+  margin-left: var(--s3);
 }
 html[data-surface="work"][data-style] .coin-row .ratio i {
   display: block;
@@ -611,13 +618,13 @@ html[data-surface="work"][data-style] .top {
 html[data-surface="work"][data-style] .board-col h2 .quiet {
   background: var(--row);
   border-radius: 999px;
-  padding: 1px 8px;
-  margin-left: 4px;
+  padding: var(--s1) var(--s3);
+  margin-left: var(--s2);
 }
 
 /* clearly playful: the same parts, turned up */
 html[data-surface="work"][data-style="playful"] .board3 {
-  padding: 0 20px;
+  padding: 0 var(--s6);
 }
 html[data-surface="work"][data-style="playful"] .seg button[aria-pressed="true"] {
   background: var(--accent-fill);
@@ -632,7 +639,7 @@ html[data-surface="work"][data-style="playful"] .coin-row {
   border-radius: var(--r-row);
 }
 html[data-surface="work"][data-style="playful"] .board-col .list {
-  padding: 0 6px;
+  padding: 0 var(--s3);
 }
 html[data-surface="work"][data-style="playful"] .coin-row .nums .up {
   background: var(--buy-fill);
@@ -649,7 +656,7 @@ html[data-surface="work"][data-style="playful"] .coin-row .quick {
 }
 html[data-surface="work"][data-style="playful"] .board-col > header {
   min-height: 44px;
-  padding: 0 14px;
+  padding: 0 var(--s5);
 }
 html[data-surface="work"][data-style="playful"] .board-col h2 {
   font-size: 15px;
@@ -716,4 +723,31 @@ html[data-surface="work"][data-style] .figures .v :is(span, button, b) {
     font-size: 16px;
     font-weight: 400;
   }
+}
+
+/*
+ * ---- to the pixel ----
+ * A line of text is a whole number of pixels tall, whatever its size: otherwise every box that holds text ends
+ * between two pixels, and so does everything below it. And the board's three columns are each a whole number of
+ * pixels wide, with what is left over (at most two pixels) at the right edge.
+ */
+html[data-surface="work"][data-surface][data-surface] body * {
+  line-height: round(up, 1.38em, 1px);
+}
+html[data-surface="work"][data-surface][data-surface] :is(p, li, dd, .body, .note-line) {
+  line-height: round(up, 1.5em, 1px);
+}
+@media (min-width: 1101px) {
+  html[data-surface="work"] .board3:not(.one) {
+    grid-template-columns: repeat(3, round(down, calc((100% - 2 * var(--gap, 12px)) / 3), 1px));
+  }
+}
+/* A row's button is placed from the top of its line, by the spacing scale: centred, it lands on a half pixel in rows of odd height. */
+html[data-surface="work"][data-surface] .coin-row > .quick {
+  align-self: start;
+  margin-top: var(--s3);
+}
+html[data-surface="work"][data-surface] .coin-row > a > .coin-picture {
+  align-self: start;
+  margin-top: var(--s3);
 }

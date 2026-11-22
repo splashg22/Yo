@@ -25,13 +25,21 @@ export function CoinPicture({ image, symbol, size = 48 }: { image?: string; symb
     return () => clearTimeout(timer);
   }, [waiting, tries]);
   const box = { width: size, height: size };
+  const ours = image?.startsWith("/coin-image/") === true;
+  const address = (width: number): string => {
+    if (!image) return "";
+    const asked = [ours ? `w=${width}` : "", tries > 0 ? `try=${tries}` : ""].filter(Boolean).join("&");
+    return asked ? `${image}${image.includes("?") ? "&" : "?"}${asked}` : image;
+  };
   return (
     <span className="coin-picture" style={box} aria-hidden="true">
       {symbol.slice(0, 1)}
       {image && !waiting && (
         // A plain <img>: it is already the size it is shown at, and may be this server's copy of a picture kept elsewhere.
         <img
-          src={tries === 0 ? image : `${image}${image.includes("?") ? "&" : "?"}try=${tries}`}
+          src={address(96)}
+          // This server's own copies come at one, two and three device pixels to the pixel: sharp on every screen, never enlarged.
+          {...(ours ? { srcSet: `${address(48)} 1x, ${address(96)} 2x, ${address(144)} 3x` } : {})}
           alt=""
           width={size}
           height={size}

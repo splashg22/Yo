@@ -44,8 +44,14 @@ describe("a coin's picture", () => {
     const made = await coinImage(mint(0), "https://example-host.com/coin.json");
     expect(Buffer.isBuffer(made)).toBe(true);
     const read = await sharp(made as Buffer).metadata();
-    expect([read.format, read.width, read.height]).toEqual(["webp", 96, 96]);
+    expect([read.format, read.width, read.height]).toEqual(["webp", 144, 144]);
     expect(calls).toEqual(["https://example-host.com/coin.json", "https://pictures.example-host.com/p.png"]);
+    // The smaller sizes, for screens with one or two device pixels to the pixel, are made from the kept copy: nothing more is fetched.
+    for (const width of [48, 96] as const) {
+      const smaller = await sharp((await coinImage(mint(0), "https://example-host.com/coin.json", width)) as Buffer).metadata();
+      expect([smaller.format, smaller.width, smaller.height]).toEqual(["webp", width, width]);
+    }
+    expect(calls).toHaveLength(2);
     // Asked again: from disk, with nothing fetched.
     expect(Buffer.isBuffer(await coinImage(mint(0), "https://example-host.com/coin.json"))).toBe(true);
     expect(calls).toHaveLength(2);

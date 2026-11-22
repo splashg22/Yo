@@ -35,6 +35,8 @@
     "measure": "NODE_USE_ENV_PROXY=1 tsx --env-file=.env scripts/measure-venues.ts",
     "replay": "NODE_USE_ENV_PROXY=1 tsx scripts/replay-server.ts",
     "check:board": "node scripts/board-check.mjs",
+    "check:sharp": "node scripts/sharpness.mjs",
+    "shots": "node scripts/presentation.mjs",
     "load": "tsx scripts/load.ts",
     "perf": "node scripts/perf.mjs",
     "scan": "node scripts/scan-secrets.mjs",

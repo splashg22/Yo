@@ -18,3 +18,4 @@ shots/motion-*
 .data-devnet/
 dist/
 .data-recorded/
+.data-shots/

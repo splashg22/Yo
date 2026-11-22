@@ -14,7 +14,12 @@ import sharp from "sharp";
 import { settings } from "./env";
 import { fetchOutside } from "./outside";
 
-const SIDE = 96;
+/** The copy kept: three times the largest size a coin picture is shown at, so it is sharp on the densest screens. */
+const SIDE = 144;
+/** The sizes served: what a 48px picture needs at one, two and three device pixels to the pixel. Nothing is ever enlarged. */
+export const PICTURE_WIDTHS = [48, 96, 144] as const;
+export type PictureWidth = (typeof PICTURE_WIDTHS)[number];
+export const pictureWidthOf = (value: string | null | undefined): PictureWidth => (value === "48" ? 48 : value === "96" ? 96 : 144);
 const DESCRIPTION_MAX_BYTES = 100_000;
 const PICTURE_MAX_BYTES = 3_000_000;
 const MAX_PIXELS = 16_000_000;
@@ -124,7 +129,7 @@ async function make(uri: string): Promise<Buffer | null> {
   const format = (await sharp(original.bytes, { limitInputPixels: MAX_PIXELS }).metadata()).format;
   if (!format || !ALLOWED.has(format)) return null;
   // Drawn again: a still square, with nothing of the original file left but its pixels.
-  return sharp(original.bytes, { limitInputPixels: MAX_PIXELS }).rotate().resize(SIDE, SIDE, { fit: "cover" }).webp({ quality: 80 }).toBuffer();
+  return sharp(original.bytes, { limitInputPixels: MAX_PIXELS }).rotate().resize(SIDE, SIDE, { fit: "cover" }).webp({ quality: 88 }).toBuffer();
 }
 
 const askedLately = new Map<string, number>();
@@ -132,7 +137,17 @@ const askedLately = new Map<string, number>();
  * A coin's picture as a small WebP; null if it has none that can be had; "later" if it could not be tried or the
  * host said not now. `uri` is what the coin points to on the chain.
  */
-export function coinImage(mint: string, uri: string): Promise<Buffer | null | "later"> {
+export async function coinImage(mint: string, uri: string, width: PictureWidth = SIDE): Promise<Buffer | null | "later"> {
+  const full = await fullPicture(mint, uri);
+  if (!Buffer.isBuffer(full) || width === SIDE) return full;
+  // A smaller copy is made from the kept one the first time it is asked for, and kept beside it.
+  const smaller = join(folder(), `${mint}-${width}.webp`);
+  if (existsSync(smaller)) return readFileSync(smaller);
+  const made = await sharp(full).resize(width, width, { fit: "cover", kernel: "lanczos3" }).webp({ quality: 86 }).toBuffer();
+  writeFileSync(smaller, made);
+  return made;
+}
+function fullPicture(mint: string, uri: string): Promise<Buffer | null | "later"> {
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return Promise.resolve(null);
   const kept = join(folder(), `${mint}.webp`);
   const none = join(folder(), `${mint}.none`);
