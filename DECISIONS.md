@@ -171,6 +171,8 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 165 | On a public chain the indexer starts again from the present when more than 3,000 slots behind, and reports the gap | Found on devnet: reading back a day's blocks took hours and starved the sender, so a launch was never confirmed |
 | 166 | The launchpad ships before the terminal | Its whole path has run on the real network and needs no paid plan. The terminal's live stream has never been run |
 | 167 | A figure not yet read is three dots marked as pending, not the word "Reading" | The word sixteen times on one table was the weakest loading state in the audit. The browser tests now wait on the mark |
+| 168 | On a phone the figures under a coin's name have fixed places: price, market cap and volume a row each, the rest three to a row | Wrapping by width let a price that lost a digit move everything below it |
+| 169 | The coin page's largest paint on the slowed phone stays over budget (about 1.6 s against 1.5 s) for the first public test | The fix is rendering the coin on the server, which is a change to how the page loads, not a launch step. The budget is not loosened |
 
 ## Only you
 

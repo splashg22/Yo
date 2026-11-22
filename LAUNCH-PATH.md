@@ -67,6 +67,22 @@ requests. On a public network nothing runs on the stand-in Ring.
 - A buy pressed before the wallet's balance had loaded was refused as "too little SOL". Fixed.
 - A help address appears in every page's footer once `site.config.ts` has a real one.
 
+## Checks on this build
+
+| Check | Result |
+| --- | --- |
+| Types, lint (zero warnings), formatting | Pass |
+| Unit tests | 301 pass |
+| Flow tests on a local chain | 115 pass |
+| Browser: end to end, break, crawl, motion | 19 of 19, 14 of 14, 0 findings over 16 pages at two widths, 11 of 11 |
+| Load: 50 trades a second, 2,000 connections | Every budget held. Trade to screen: 44 ms median, 91 ms at the 95th |
+| Speed, emulated phone on 4G | Home 0.5 s, terminal 0.5 s to largest paint. Layout shift 0.000 to 0.009 |
+| **Speed, a coin's page, emulated phone slowed four times** | **Misses its budget: 1.6 to 1.7 s to largest paint against 1.5 s.** First paint is 0.35 s. The largest thing on the screen is the chart's read-out, which waits for the candles. Not fixed in the freeze: the fix is to send the coin with the page instead of fetching it after |
+
+Found by the re-measure and fixed: on a phone, the figures under a coin's name wrapped by width, so a price
+that lost a digit pulled everything below it up a row (layout shift 0.13 in about half the loads). They now
+have fixed places.
+
 ## From you: five small steps
 
 Prices are from each provider's pricing page as I last read it (Helius: confirmed 22 November). Check on the day.

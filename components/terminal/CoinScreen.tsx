@@ -92,7 +92,8 @@ export function CoinScreen({ mint }: { mint: string }) {
 
   if (!coin) {
     return (
-      <div className="app">
+      // As tall as the screen, so the footer does not sit high and then jump down when the coin arrives.
+      <div className="app" style={{ minHeight: "100vh" }}>
         <header className="app-head">
           <h1 className="h3">Coin</h1>
         </header>

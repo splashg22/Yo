@@ -74,11 +74,26 @@ async function open(viewport, { phone = false } = {}) {
   await page.addInitScript(() => {
     window.__lcp = 0;
     window.__cls = 0;
+    window.__moved = [];
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) window.__lcp = Math.max(window.__lcp, entry.startTime);
     }).observe({ type: "largest-contentful-paint", buffered: true });
     new PerformanceObserver((list) => {
-      for (const entry of list.getEntries()) if (!entry.hadRecentInput) window.__cls += entry.value;
+      for (const entry of list.getEntries()) {
+        if (entry.hadRecentInput) continue;
+        window.__cls += entry.value;
+        // What moved, so a missed budget names its cause.
+        if (entry.value > 0.02)
+          window.__moved.push(
+            `${Math.round(entry.startTime)} ms, ${entry.value.toFixed(3)}: ` +
+              entry.sources
+                .map((source) => {
+                  const node = source.node?.nodeType === 1 ? source.node : source.node?.parentElement;
+                  return `${node?.tagName.toLowerCase()}.${String(node?.className).slice(0, 30)} "${(node?.textContent ?? "").trim().slice(0, 24)}" y ${source.previousRect.y} to ${source.currentRect.y}, height ${source.previousRect.height} to ${source.currentRect.height}`;
+                })
+                .join(" | "),
+          );
+      }
     }).observe({ type: "layout-shift", buffered: true });
   });
   return { context, page, script: () => scriptBytes };
@@ -101,6 +116,7 @@ try {
       const seen = await page.evaluate(() => ({
         lcp: window.__lcp,
         cls: window.__cls,
+        moved: window.__moved,
         fcp: performance.getEntriesByName("first-contentful-paint")[0]?.startTime ?? 0,
       }));
       runs.push(seen);
@@ -115,6 +131,7 @@ try {
       lcp < BUDGET.firstLoadMs,
     );
     record(`  layout shift`, shift.toFixed(3), shift < BUDGET.layoutShift);
+    for (const line of runs.flatMap((run) => run.moved)) console.log(`       moved at ${line}`);
     record(`  script sent, compressed`, `${Math.round(script / 1000)} kB (budget ${BUDGET.scriptKb[name]} kB)`, script / 1000 < BUDGET.scriptKb[name]);
   }
 

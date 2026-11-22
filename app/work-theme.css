@@ -751,6 +751,18 @@ html[data-surface="work"][data-style] .figures .v :is(span, button, b) {
     font-size: 16px;
     font-weight: 400;
   }
+  /* Fixed places on a phone: price, market cap and volume a row each, the short figures three to a row.
+     Left to wrap by width, a price that lost a digit pulled everything below it up a row. */
+  html[data-surface="work"] .figures > div:nth-child(-n + 3) {
+    flex: 0 0 100%;
+  }
+  html[data-surface="work"] .figures > div:nth-child(n + 4) {
+    flex: 0 0 calc((100% - 36px) / 3);
+    min-width: 0;
+  }
+  html[data-surface="work"] .figures > div:nth-child(10) {
+    flex-basis: 100%;
+  }
 }
 
 /*
