@@ -821,7 +821,7 @@ function Row({
         ) : (
           <span className="nums">
             <span title="Market cap">
-              MC <UsdOfSol lamports={coin.marketCapLamports} />
+              <span className="k">MC</span> <UsdOfSol lamports={coin.marketCapLamports} />
             </span>
             {coin.notLiveSince !== undefined ? (
               // Not passed off as live: this coin's trades are not being received, and its figures are as old as this says.
@@ -839,10 +839,10 @@ function Row({
         {!coin.unsupported && (
           <span className="figs" data-figs>
             <span title={`Volume traded in the last ${WINDOWS.find((entry) => entry.value === window)!.label}`}>
-              V <UsdOfSol lamports={coin.volumeLamports[window]} />
+              <span className="k">V</span> <UsdOfSol lamports={coin.volumeLamports[window]} />
             </span>
             <span title={coin.complete ? "SOL in the coin's pool" : "SOL in the coin's curve"}>
-              Liq <UsdOfSol lamports={coin.liquidityLamports} />
+              <span className="k">Liq</span> <UsdOfSol lamports={coin.liquidityLamports} />
             </span>
             <span title="Buys and sells in the last 24 hours">
               {/* Buys and sells are told apart by their letter as well as their colour. */}
@@ -859,16 +859,26 @@ function Row({
         {coin.risk && !coin.unsupported && (
           <span className="risk" data-risk>
             {coin.followedSince === undefined ? (
-              <span title="Share of supply held by the ten largest holders">T10 {share(coin.risk.top10Bps)}</span>
+              <span title="Share of supply held by the ten largest holders">
+                <span className="k">T10</span> {share(coin.risk.top10Bps)}
+              </span>
             ) : (
               <span title="At least this share is held by ten wallets. Only wallets seen since this coin was first followed are counted, so the real figure may be higher.">
-                T10 {coin.risk.top10Bps === undefined ? "?" : `≥${share(coin.risk.top10Bps)}`}
+                <span className="k">T10</span> {coin.risk.top10Bps === undefined ? "?" : `≥${share(coin.risk.top10Bps)}`}
               </span>
             )}
-            <span title="Share held by the wallet that created the coin">Dev {coin.followedSince === undefined ? share(coin.risk.devBps) : "?"}</span>
-            <span title="Share still held by wallets that bought in the coin's first three slots">Snp {share(coin.risk.snipers?.heldBps)}</span>
-            <span title="Share still held by early buyers who bought three or more to a slot">Bnd {share(coin.risk.bundles?.heldBps)}</span>
-            <span title="Share held by wallets that hold the coin and never bought it">Ins {share(coin.risk.insiders?.heldBps)}</span>
+            <span title="Share held by the wallet that created the coin">
+              <span className="k">Dev</span> {coin.followedSince === undefined ? share(coin.risk.devBps) : "?"}
+            </span>
+            <span title="Share still held by wallets that bought in the coin's first three slots">
+              <span className="k">Snp</span> {share(coin.risk.snipers?.heldBps)}
+            </span>
+            <span title="Share still held by early buyers who bought three or more to a slot">
+              <span className="k">Bnd</span> {share(coin.risk.bundles?.heldBps)}
+            </span>
+            <span title="Share held by wallets that hold the coin and never bought it">
+              <span className="k">Ins</span> {share(coin.risk.insiders?.heldBps)}
+            </span>
           </span>
         )}
       </Link>

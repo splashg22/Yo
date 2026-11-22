@@ -710,7 +710,8 @@ html[data-surface="work"][data-style] .coin-row :is(.figs, .risk) {
 }
 html[data-surface="work"][data-style] .coin-row > .quick {
   grid-row: 1 / span 1;
-  align-self: center;
+  align-self: start;
+  margin-top: var(--s3);
 }
 
 /* the figures at the head of a coin's page are in the round face, whatever each is made of; smaller on a phone */
@@ -755,85 +756,212 @@ html[data-surface="work"][data-surface] .coin-row > a > .coin-picture {
 
 /*
  * ---- a third version: warm and quiet ----
- * data-style="warm". The same parts again in a warmer, calmer key: a warm near-black, off-white ink, warm greys,
- * hairlines round the panels, corners barely rounded, and colour kept for what it means. The brand's own text face.
+ * data-style="warm". What makes a screen read as calm, taken apart and put together with this site's own accent and faces:
+ *   - three near-black steps so close they read as one surface, and one hairline that does all the structure:
+ *     panels are outlined, not filled; only what you type into is a step lighter;
+ *   - bone-white ink and two warm greys; figures in regular weight, never bold; their little labels in the quietest grey;
+ *   - colour only where it carries meaning, and then mostly as a tint behind coloured words, not as a solid block;
+ *   - a chosen option is a shade lighter, not turned inside out;
+ *   - corners of two to four pixels, no shadows, whole-pixel lines of text.
  */
 html[data-surface="work"][data-style="warm"] {
-  --page: #0f0e0d;
-  --panel: #171614;
-  --row: #201e1b;
-  --hover: #2a2824;
+  --page: #0e0e0d;
+  --panel: #0e0e0d; /* a panel is the page, outlined */
+  --row: #1b1b19; /* what you type into, and a small chip */
+  --hover: #252523;
   --ink: #f2efe9;
-  --mute: #aca79e;
-  --quiet: #969085;
-  --rule: #7a756c;
-  --edge: #2b2926; /* a hairline: a panel is drawn round, quietly */
-  --faint: #232120;
+  --mute: #aaa69e;
+  --quiet: #8f8b83;
+  --rule: #777269;
+  --edge: #2a2a27; /* the hairline */
+  --faint: #1f1f1d;
   --buy: #5ed6a2;
   --sell: #ff8a76;
   --buy-fill: #5ed6a2;
   --sell-fill: #f0705a;
-  --buy-wash: #1a2a22;
-  --sell-wash: #30201c;
+  --buy-wash: #17271f;
+  --sell-wash: #2e1e1a;
+  --accent-wash: #2b2212; /* the accent as a tint, behind accent-coloured words */
   --on-fill: #171614;
   --on-accent: #171614;
-  --on-ink: #0f0e0d;
+  --on-ink: #0e0e0d;
   --text: "Atkinson Hyperlegible Next", system-ui, -apple-system, "Segoe UI", sans-serif;
-  --r-pill: 3px;
+  --r-pill: 2px;
   --r-panel: 4px;
-  --r-control: 3px;
+  --r-control: 2px;
   --r-row: 0px;
   --gap: var(--s4);
   --pad: var(--s4);
 }
 html[data-surface="work"][data-style="warm"][data-theme="light"] {
-  --page: #f1eee8;
-  --panel: #fbfaf7;
-  --row: #f5f3ee;
-  --hover: #e8e4dc;
+  --page: #f4f2ec;
+  --panel: #f4f2ec;
+  --row: #fbfaf7;
+  --hover: #e9e6de;
   --ink: #171614;
   --mute: #4b4842;
   --quiet: #635e55;
   --rule: #7d776d;
-  --edge: #dcd7cd;
-  --faint: #e8e4dc;
+  --edge: #d6d1c6;
+  --faint: #e6e2d9;
   --buy: #075c3a;
   --sell: #b5371c;
   --buy-fill: #8fe3bd;
   --sell-fill: #ee8873;
-  --buy-wash: #e2f3ea;
-  --sell-wash: #fbe6e0;
+  --buy-wash: #dff0e6;
+  --sell-wash: #f9e2db;
+  --accent-wash: #f3e6c9;
   --accent-text: #855000;
   --on-ink: #fbfaf7;
 }
-/* tags stay small pills; everything else is nearly square */
-html[data-surface="work"][data-style="warm"] :is(.tag, .board-col h2 .quiet, .coin-row .nums :is(.up, .down), .meter, .meter i, .coin-row .ratio) {
-  border-radius: 10px;
+/* structure is one hairline */
+html[data-surface="work"][data-style="warm"] :is(.board-col, .card, .panel, .filters, .feed, .chart-box, .ticket, .notice, table.plain, .tray > div) {
+  background: var(--page);
+  border: 1px solid var(--edge);
 }
-html[data-surface="work"][data-style="warm"] :is(.board-col, .card, .panel, .filters, .feed, .chart-box, .ticket, .notice, table.plain) {
+html[data-surface="work"][data-style="warm"] :is(.vhead, .board-col > header, .feed-tabs, .chart-bar) {
+  background: var(--page);
   border-color: var(--edge);
 }
-html[data-surface="work"][data-style="warm"] :is(.seg, .ticket .sides) {
-  padding: var(--s1);
-  border: 1px solid var(--edge);
-  background: var(--panel);
+html[data-surface="work"][data-style="warm"] :is(.coin-row, .vrow) {
+  border-color: var(--edge);
 }
-/* column heads in small spaced capitals: the one place the interface raises its voice */
+html[data-surface="work"][data-style="warm"] :is(.top, .statusbar, .recording-bar) {
+  background: var(--page);
+  border-color: var(--edge);
+}
+html[data-surface="work"][data-style="warm"] :is(.field-row, .field input, .field select, input, select, textarea, .btn, .quick, .presets button, .chip, kbd) {
+  background: var(--row);
+  border-color: var(--edge);
+}
+html[data-surface="work"][data-style="warm"] .field-row :is(input, select) {
+  background: transparent;
+}
+/* a chosen option is a shade lighter and in full ink; the others recede */
+html[data-surface="work"][data-style="warm"] :is(.seg, .ticket .sides) {
+  padding: 0;
+  gap: 0;
+  border: 1px solid var(--edge);
+  background: var(--page);
+  overflow: hidden;
+}
+html[data-surface="work"][data-style="warm"] :is(.seg button, .ticket .sides button) {
+  border-radius: 0;
+  color: var(--quiet);
+  font-weight: 500;
+}
+html[data-surface="work"][data-style="warm"]
+  :is(.seg button[aria-pressed="true"], .feed-tabs > button[aria-selected="true"], .settings .opts button[aria-pressed="true"]) {
+  background: var(--hover);
+  border-color: var(--hover);
+  color: var(--ink);
+  font-weight: 600;
+}
+html[data-surface="work"][data-style="warm"] .feed-tabs > button {
+  border-radius: 0;
+  margin: 0;
+  min-height: 36px;
+}
+html[data-surface="work"][data-style="warm"] .feed-tabs > button[aria-selected="true"] {
+  background: var(--page);
+  box-shadow: inset 0 -2px 0 var(--accent-text);
+}
+/* buying and selling: a tint and coloured words, not a block of colour */
+html[data-surface="work"][data-style="warm"] .ticket .sides button[aria-pressed="true"] {
+  background: var(--buy-wash);
+  color: var(--buy);
+  font-weight: 700;
+}
+html[data-surface="work"][data-style="warm"] .ticket .sides button.sell[aria-pressed="true"] {
+  background: var(--sell-wash);
+  color: var(--sell);
+}
+html[data-surface="work"][data-style="warm"] :is(.ticket .go, .btn.primary) {
+  border-radius: var(--r-control);
+}
+/* figures: regular weight, in the middle grey; the one that matters most in ink; their labels quietest and smallest */
+html[data-surface="work"][data-style="warm"] .coin-row :is(.nums, .figs, .risk) {
+  font-weight: 400;
+  color: var(--mute);
+}
+html[data-surface="work"][data-style="warm"] .coin-row .nums > span:first-child {
+  color: var(--ink);
+}
+html[data-surface="work"][data-style="warm"] .coin-row .k {
+  color: var(--quiet);
+  font-size: 11px;
+}
+html[data-surface="work"][data-style="warm"] .coin-row .nums :is(.up, .down) {
+  background: transparent;
+  padding: 0;
+}
+html[data-surface="work"][data-style="warm"] .coin-row .name b {
+  font-weight: 600;
+}
+/* small chips: square, inset, in the mono */
+html[data-surface="work"][data-style="warm"] :is(.tag, .board-col h2 .quiet) {
+  border-radius: 2px;
+  background: var(--row);
+  color: var(--mute);
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 0 var(--s2);
+}
+html[data-surface="work"][data-style="warm"] .tag.hot {
+  background: var(--accent-wash);
+  color: var(--accent-text);
+}
+html[data-surface="work"][data-style="warm"] :is(.meter, .meter i, .coin-row .ratio) {
+  border-radius: 0;
+  height: 2px;
+}
+html[data-surface="work"][data-style="warm"] .meter i {
+  background: var(--buy-fill);
+}
+/* column heads in spaced capitals, light: the one place the interface raises its voice, and it does so quietly */
 html[data-surface="work"][data-style="warm"] .board-col h2 {
   text-transform: uppercase;
-  letter-spacing: 0.12em;
-  font-size: 12px;
-  color: var(--mute);
+  letter-spacing: 0.1em;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink);
 }
 html[data-surface="work"][data-style="warm"] .figures .v {
+  font-family: var(--mono);
   font-weight: 400;
-  font-size: 18px;
+  font-size: 15px;
+  letter-spacing: 0;
+}
+html[data-surface="work"][data-style="warm"] .figures > div:nth-child(2) .v {
+  font-size: 22px;
 }
 html[data-surface="work"][data-style="warm"] .coin-row .quick {
-  border-color: var(--edge);
-  background: var(--panel);
   color: var(--mute);
+  font-family: var(--mono);
+  font-weight: 400;
+  font-size: 12px;
 }
 html[data-surface="work"][data-style="warm"] .coin-picture {
   border-radius: 4px;
+  border-color: var(--edge);
+}
+html[data-surface="work"][data-style="warm"] .coin-row.cursor {
+  background: var(--faint);
+}
+/* the same outer height as the other versions' choices (34px), so nothing centred beside them lands on a half pixel */
+html[data-surface="work"][data-style="warm"] :is(.seg button, .ticket .sides button) {
+  min-height: 32px;
+}
+/* placed from the top, not centred: a centred box in a line of odd height sits on a half pixel */
+html[data-surface="work"] .trade-head .who {
+  align-items: start;
+}
+/* a row's lines start from its top by the spacing scale: centred as a block, a row with fewer lines lands on a half pixel */
+html[data-surface="work"][data-surface] .coin-row {
+  align-content: start;
+  padding-top: var(--s2);
+}
+html[data-surface="work"][data-surface] .coin-row > .quick,
+html[data-surface="work"][data-surface] .coin-row > a > .coin-picture {
+  margin-top: var(--s2);
 }

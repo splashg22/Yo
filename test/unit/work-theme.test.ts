@@ -62,7 +62,8 @@ describe.each([
 ])("the working theme, %s", (name, theme) => {
   it("has four steps of surface, each distinct, and none of them pure black or pure white as the page", () => {
     const steps = SURFACES.map((name) => colour(theme, name));
-    expect(new Set(steps).size).toBe(4);
+    // The warm version outlines its panels on the page's own tone: three steps and a hairline.
+    expect(new Set(steps).size).toBe(name.includes("warm") ? 3 : 4);
     expect(["#000000", "#ffffff"]).not.toContain(steps[0]!.toLowerCase());
   });
 
@@ -100,6 +101,11 @@ describe.each([
     expect(contrast(colour(theme, "on-fill"), colour(theme, "sell-fill"))).toBeGreaterThanOrEqual(4.5);
     // The two ends of the buys-to-sells bar can be told apart without their hue.
     expect(Math.abs(luminance(colour(theme, "buy-fill")) - luminance(colour(theme, "sell-fill")))).toBeGreaterThan(0.2);
+  });
+
+  it("keeps accent-coloured words readable on the accent's own tint", () => {
+    if (!name.includes("warm")) return;
+    expect(contrast(colour(theme, "accent-text"), colour(theme, "accent-wash"))).toBeGreaterThanOrEqual(4.5);
   });
 
   it("tells green from red by more than hue, for eyes that cannot: they differ in lightness too", () => {
