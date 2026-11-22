@@ -4,6 +4,8 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 BIN="${SOLANA_BIN:-/opt/solana/bin}"
+# Wherever the validator was installed: the folder named above, or anywhere on the PATH.
+[ -x "$BIN/solana-test-validator" ] || BIN="$(dirname "$(command -v solana-test-validator)")"
 [ -d local/accounts ] || { echo "Run: npm run local:fetch"; exit 1; }
 ARGS=()
 for f in local/accounts/*.json; do ARGS+=(--account "$(basename "$f" .json)" "$f"); done

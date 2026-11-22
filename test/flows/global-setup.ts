@@ -1,6 +1,6 @@
 /** Makes sure a local validator with pump.fun and the Rings programs is running before the flow tests. */
 import { spawn } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, openSync } from "node:fs";
 
 const URL_ = process.env.LOCAL_RPC_URL ?? "http://127.0.0.1:8799";
 async function healthy(): Promise<boolean> {
@@ -19,7 +19,8 @@ async function healthy(): Promise<boolean> {
 export default async function setup() {
   if (await healthy()) return;
   if (!existsSync("local/accounts")) throw new Error("No local validator, and no copied programs. Run: npm run local:fetch, then npm run local");
-  const child = spawn("bash", ["scripts/local-validator.sh"], { stdio: "ignore", detached: true });
+  const log = openSync("local/validator.log", "w");
+  const child = spawn("bash", ["scripts/local-validator.sh"], { stdio: ["ignore", log, log], detached: true });
   child.unref();
   for (let i = 0; i < 90; i++) {
     if (await healthy())

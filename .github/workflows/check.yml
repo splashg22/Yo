@@ -1,6 +1,9 @@
-# Runs on every push and pull request: everything that needs no chain.
-# The flow tests and browser checks need a local validator with programs copied from devnet,
-# so they are run by hand (npm run test:flows, npm run e2e); see GO-LIVE.md.
+# Runs on every push and pull request.
+#   check     everything that needs no chain, and the dependency audit
+#   postgres  the database layer against a real Postgres
+#   flows     every flow test on a local validator holding copies of the real programs
+# The validator and the copied programs are cached, so a run normally touches no network for them.
+# The browser checks (npm run e2e, crawl, break) are still run by hand; see GO-LIVE.md.
 name: check
 on:
   push:
@@ -18,6 +21,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      # A new high or critical advisory fails the build. The ones assessed and left are in ADVISORIES.md.
+      - run: npm audit --audit-level=high
       - run: npm run typecheck
       - run: npm run lint
       - run: npm run format:check
@@ -45,3 +50,44 @@ jobs:
       - run: npx vitest run --config vitest.site.config.ts test/unit/database.test.ts
         env:
           DATABASE_URL: postgresql://postgres@127.0.0.1:5432/postgres
+  flows:
+    # Launch, trade, graduate, deposit, transfer, withdraw, OTC, fees, the indexer and the server itself,
+    # against the real pump.fun and Privacy Rings programs on a validator in this job.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      SOLANA_VERSION: v4.4.1
+      SOLANA_BIN: /home/runner/.local/share/solana/install/active_release/bin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Cached validator
+        id: validator
+        uses: actions/cache@v4
+        with:
+          path: /home/runner/.local/share/solana
+          key: solana-${{ runner.os }}-${{ env.SOLANA_VERSION }}
+      - name: Install the validator
+        if: steps.validator.outputs.cache-hit != 'true'
+        run: sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+      - name: Cached programs and accounts
+        id: accounts
+        uses: actions/cache@v4
+        with:
+          path: local/accounts
+          key: local-accounts-${{ hashFiles('local/clone.json') }}
+      - name: Copy the programs and accounts from devnet
+        if: steps.accounts.outputs.cache-hit != 'true'
+        # Reads only. DEVNET_RPC_URL can be set as a repository secret if the public endpoint is refusing.
+        run: npm run local:fetch
+        env:
+          DEVNET_RPC_URL: ${{ secrets.DEVNET_RPC_URL }}
+      # The tests start the validator themselves (test/flows/global-setup.ts) and stop it afterwards.
+      - run: npm run test:flows
+      - name: The validator's log, if anything failed
+        if: failure()
+        run: tail -n 100 local/validator.log || true

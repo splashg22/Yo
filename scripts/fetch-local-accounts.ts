@@ -6,7 +6,7 @@
 import { Connection, PublicKey } from "@solana/web3.js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 
-const connection = new Connection(process.env.DEVNET_RPC_URL ?? "https://api.devnet.solana.com", "confirmed");
+const connection = new Connection(process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com", "confirmed");
 const plan = JSON.parse(readFileSync("local/clone.json", "utf8")) as { programs: string[]; accounts: string[]; extra?: string[] };
 const LOADER = "BPFLoaderUpgradeab1e11111111111111111111111";
 mkdirSync("local/accounts", { recursive: true });

@@ -1,6 +1,7 @@
 /** OTC: a block offered to one named buyer at a size and price only the two of them see. */
 import { NATIVE } from "../../constants";
 import { randomBytes, toHex } from "../../bytes";
+import { settings } from "../env";
 import { ring } from "../ring";
 import { save, state, type Offer } from "../store";
 import { addressOf, amountOf, text } from "../validate";
@@ -77,7 +78,19 @@ export const otc: Handlers<"otc/offer" | "otc/mine" | "otc/cancel" | "otc/accept
     if (offer.buyer !== body.wallet) throw new Error("that offer is not addressed to you");
     requireOpen(offer);
     if (!ring.isRegistered(offer.buyer)) ring.register(offer.buyer);
-    const event = ring.swap(offer.seller, offer.buyer, offer.mint, BigInt(offer.amount), NATIVE, BigInt(offer.priceLamports));
+    // This site's fee, when one is set, is paid by the buyer on top of the price. Checked first, so a buyer who
+    // cannot cover both pays neither.
+    const price = BigInt(offer.priceLamports);
+    const { fees } = settings();
+    const fee = (price * BigInt(fees.otcBps)) / 10_000n;
+    if (fee > 0n && BigInt(ring.balances(offer.buyer)[NATIVE] ?? "0") < price + fee)
+      throw new Error("the buyer's Ring balance does not cover the price and this site's fee");
+    const event = ring.swap(offer.seller, offer.buyer, offer.mint, BigInt(offer.amount), NATIVE, price);
+    if (fee > 0n) {
+      if (!ring.isRegistered(fees.wallet)) ring.register(fees.wallet);
+      ring.moveBetween(offer.buyer, fees.wallet, NATIVE, fee);
+      offer.feeLamports = fee.toString();
+    }
     offer.status = "settled";
     save();
     return { offer, event };

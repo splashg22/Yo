@@ -1,0 +1,7 @@
+{
+  "name": "toml",
+  "version": "3.0.0-ringpad.1",
+  "description": "A stand-in for toml that parses nothing. Nothing in this project parses TOML. See ADVISORIES.md.",
+  "main": "index.js",
+  "license": "MIT"
+}

@@ -110,7 +110,15 @@ const outcomeView = (outcome: TxOutcome): TxOutcomeView => ({
 });
 
 export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/wait" | "tx/status" | "session/open" | "session/close"> = {
-  config: () => ({ network: settings().network, ring: ringAvailable() ? "mock" : "unavailable", features: settings().features }),
+  config: () => {
+    const { network, features, fees } = settings();
+    return {
+      network,
+      ring: ringAvailable() ? ("mock" as const) : ("unavailable" as const),
+      features,
+      fees: { wallet: fees.wallet, tradeBps: fees.tradeBps, launchLamports: fees.launchLamports.toString(), otcBps: fees.otcBps },
+    };
+  },
 
   status,
 

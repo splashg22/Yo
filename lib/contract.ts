@@ -14,6 +14,11 @@ export interface Config {
   ring: "mock" | "unavailable";
   /** Parts of the product that are built but switched off unless the operator turns them on. */
   features: { sealedWindow: boolean };
+  /**
+   * This site's own fee. Rates are hundredths of a percent; all zero means no fee is charged anywhere.
+   * A fee is paid in public, by its own instruction in the same transaction, to `wallet`.
+   */
+  fees: { wallet: string; tradeBps: number; launchLamports: string; otcBps: number };
 }
 export interface CoinView {
   mint: string;

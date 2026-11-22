@@ -5,7 +5,7 @@ import globals from "globals";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: [".next/**", "node_modules/**", "public/**", "shots/**", "local/**", ".data/**", ".data-*/**", "dist/**", "next-env.d.ts"] },
+  { ignores: [".next/**", "node_modules/**", "public/**", "shots/**", "local/**", ".data/**", ".data-*/**", "dist/**", "vendor/**", "next-env.d.ts"] },
   js.configs.recommended,
   {
     files: ["**/*.ts", "**/*.tsx"],

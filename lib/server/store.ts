@@ -83,6 +83,8 @@ export interface Offer {
   createdAt: number;
   expiresAt: number;
   status: "open" | "settled" | "cancelled";
+  /** This site's fee, paid by the buyer on top of the price when the offer settled. Absent when no fee was charged. */
+  feeLamports?: string;
 }
 export interface PricePoint {
   at: number;

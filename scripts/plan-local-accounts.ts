@@ -9,7 +9,7 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { writeFileSync } from "node:fs";
 
 process.env.RING_NETWORK = "devnet";
-process.env.LOCAL_RPC_URL = process.env.DEVNET_RPC_URL ?? "https://api.devnet.solana.com";
+process.env.LOCAL_RPC_URL = process.env.DEVNET_RPC_URL || "https://api.devnet.solana.com";
 const { claimFeesInstructions, launchInstructions } = await import("../lib/server/pump");
 const { connection } = await import("../lib/server/solana");
 
