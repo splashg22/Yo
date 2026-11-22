@@ -218,8 +218,8 @@ function Desk() {
         </p>
       )}
       <ul className="events">
-        {offers === null && !loadProblem && <li className="pub">Reading your offers.</li>}
-        {offers?.length === 0 && <li className="pub">None yet. Offers addressed to you appear here.</li>}
+        {offers === null && !loadProblem && <li className="none">Reading your offers.</li>}
+        {offers?.length === 0 && <li className="none">No offers yet. One addressed to you will appear here.</li>}
         {offers?.map((listed) => (
           <li key={listed.id}>
             <b>

@@ -98,7 +98,7 @@ export function CoinScreen({ mint }: { mint: string }) {
         </header>
         {store.problem ? (
           <p className="notice" role="alert">
-            This coin could not be shown: {store.problem}.{" "}
+            This coin could not be shown: {store.problem.replace(/\.$/, "")}.{" "}
             <button className="link" type="button" onClick={() => void store.start()}>
               Try again
             </button>{" "}
@@ -107,7 +107,7 @@ export function CoinScreen({ mint }: { mint: string }) {
             </Link>
           </p>
         ) : (
-          <p className="body">Reading what the indexer holds for this coin.</p>
+          <p className="body">Reading this coin.</p>
         )}
       </div>
     );

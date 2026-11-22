@@ -264,7 +264,33 @@ html[data-surface="work"] .strip {
   padding-top: var(--s3);
   padding-bottom: var(--s3);
 }
+/* Each screen says what it is, once, quietly: a name and one line. The board and a coin's page are their own heading. */
 html[data-surface="work"] .app-head {
+  display: block;
+  border: 0;
+  margin: 0 0 var(--s5);
+  padding: var(--s4) 0 0;
+}
+html[data-surface="work"] .app-head .label {
+  display: none;
+}
+html[data-surface="work"] .app-head h1 {
+  font-family: var(--text);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink);
+  text-wrap: balance;
+}
+html[data-surface="work"] .app-head p {
+  margin-top: var(--s2);
+  max-width: 68ch;
+  font-size: 14px;
+  color: var(--mute);
+  text-wrap: pretty;
+}
+html[data-surface="work"] .app:has(.board3) > .app-head {
   display: none;
 }
 
@@ -964,4 +990,122 @@ html[data-surface="work"][data-surface] .coin-row {
 html[data-surface="work"][data-surface] .coin-row > .quick,
 html[data-surface="work"][data-surface] .coin-row > a > .coin-picture {
   margin-top: var(--s2);
+}
+
+/*
+ * ---- finish ----
+ * One timing for everything that moves, one look for the action a screen is there for, and every state drawn on purpose.
+ */
+html[data-surface="work"] {
+  --dur: 120ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
+html[data-surface="work"] :is(a, button, input, select, textarea, .coin-row, .vrow, .tag, .seg button) {
+  transition:
+    background-color var(--dur) var(--ease),
+    border-color var(--dur) var(--ease),
+    color var(--dur) var(--ease),
+    transform var(--dur) var(--ease);
+}
+@media (prefers-reduced-motion: reduce) {
+  html[data-surface="work"] :is(a, button, input, select, textarea, .coin-row, .vrow, .tag, .seg button) {
+    transition: none;
+  }
+}
+/* the one action of a form: filled with the accent. Everything else on the screen is quieter than it. */
+html[data-surface="work"][data-surface] :is(button.btn[type="submit"], .btn.primary) {
+  background: var(--accent-fill);
+  border-color: var(--accent-fill);
+  color: var(--on-accent);
+  font-weight: 700;
+  min-height: 40px;
+  padding: 0 var(--s5);
+}
+html[data-surface="work"][data-surface] :is(button.btn[type="submit"], .btn.primary):hover:not(:disabled) {
+  color: var(--on-accent);
+  filter: brightness(1.06);
+}
+html[data-surface="work"][data-surface] :is(button.btn[type="submit"], .btn.primary, .ticket .go):disabled {
+  background: var(--row);
+  border-color: var(--edge);
+  color: var(--quiet);
+  opacity: 1;
+  cursor: not-allowed;
+}
+/* making or unlocking a wallet: one calm card in the middle of the screen, not a form in a corner */
+html[data-surface="work"] .gate {
+  max-width: 440px;
+  /* on the page's own left edge, under its heading: one column, read top to bottom */
+  margin: 0;
+  padding: var(--s6);
+  border: 1px solid var(--edge);
+  border-radius: var(--r-panel, 4px);
+  background: var(--panel);
+  display: grid;
+  gap: var(--s4);
+}
+html[data-surface="work"] .gate .h3 {
+  font-size: 18px;
+  font-weight: 600;
+}
+html[data-surface="work"] .gate .btn[type="submit"] {
+  width: 100%;
+}
+/* a message from the server starts with a capital, whatever case it was written in */
+html[data-surface="work"] :is(.notice, .status-line, .tray .state)::first-letter {
+  text-transform: uppercase;
+}
+html[data-surface="work"] .notice {
+  padding: var(--s4);
+  border-radius: var(--r-control, 2px);
+  max-width: 68ch;
+  color: var(--mute);
+}
+html[data-surface="work"] .notice[role="alert"] {
+  background: var(--sell-wash, var(--row));
+  border-color: transparent;
+  color: var(--ink);
+}
+/* nothing here yet: said plainly, with no marker pretending to be an item */
+html[data-surface="work"] .events li.none {
+  color: var(--quiet);
+  padding: var(--s4) 0;
+}
+/* buying is green and selling is red everywhere, the phone's two big buttons included; the accent is for neither */
+html[data-surface="work"] .trade-dock {
+  background: var(--page);
+  border-color: var(--edge);
+  gap: var(--s3);
+  padding: var(--s3);
+}
+html[data-surface="work"] .trade-dock button {
+  background: var(--buy-wash, var(--row));
+  color: var(--buy);
+  border: 1px solid transparent;
+  border-radius: var(--r-control, 2px);
+  font-weight: 700;
+}
+html[data-surface="work"] .trade-dock button.sell {
+  background: var(--sell-wash, var(--row));
+  color: var(--sell);
+}
+/* a coin's name, then what is known about it on a line of its own: no tag wrapped round a name */
+@media (max-width: 600px) {
+  html[data-surface="work"] .trade-head h1 {
+    gap: var(--s2) var(--s3);
+  }
+  html[data-surface="work"] .trade-head h1 .tag {
+    order: 4;
+  }
+  /* a phone is always compact: the row-size choice is for wider screens */
+  html[data-surface="work"] .display-settings .seg:nth-child(2) {
+    display: none;
+  }
+}
+/* no word left alone on the last line of a heading; no paragraph ending on one */
+html[data-surface="work"] :is(h1, h2, h3) {
+  text-wrap: balance;
+}
+html[data-surface="work"] :is(p, li, dd) {
+  text-wrap: pretty;
 }

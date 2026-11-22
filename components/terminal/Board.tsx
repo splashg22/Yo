@@ -515,7 +515,7 @@ export function Board() {
               <Column
                 key={column.key}
                 title={column.title}
-                empty={loaded ? column.empty : "Reading what the indexer holds."}
+                empty={loaded ? column.empty : "Reading the coins."}
                 coins={columns[column.key]}
                 shown={tab === column.key}
                 cursor={cursor.column === column.key ? cursor.index : -1}

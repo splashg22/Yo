@@ -1368,3 +1368,32 @@ kbd {
 .coin-row .ratio {
   display: none;
 }
+
+/* A receipt on paper: black on white, the page's own words and figures, nothing of the screen around them. */
+@media print {
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+  .masthead,
+  .foot,
+  .statusbar,
+  .recording-bar,
+  .tray,
+  .skip,
+  canvas {
+    display: none !important;
+  }
+  .app,
+  .app * {
+    color: #000 !important;
+    background: transparent !important;
+    border-color: #999 !important;
+  }
+  a[href^="/tx/"]::after,
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 10px;
+  }
+}

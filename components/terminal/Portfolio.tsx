@@ -154,10 +154,10 @@ export function Portfolio() {
             <section className="block" aria-label="Positions">
               <h2 className="label">Positions</h2>
               {positions === null ? (
-                <p className="body">Reading the trades the indexer holds for this wallet.</p>
+                <p className="body">Reading this wallet's trades.</p>
               ) : positions.length === 0 ? (
                 <p className="body">
-                  This wallet has not traded a coin the indexer follows, and holds none.{" "}
+                  This wallet has not traded a coin this site follows, and holds none.{" "}
                   <Link className="link" href="/terminal">
                     Open the board
                   </Link>

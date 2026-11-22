@@ -47,7 +47,7 @@ export function Header() {
   const links = nav.map((item) => (
     <Link key={item.href} href={item.href} aria-current={pathname === item.href ? "page" : undefined} aria-label={item.label}>
       <span className="only-wide">{item.label}</span>
-      <span className="only-narrow">{item.label.replace("Ring ", "")}</span>
+      <span className="only-narrow">{item.label === "Ring wallet" ? "Wallet" : item.label}</span>
     </Link>
   ));
   // On a phone the links are one row scrolled sideways: the page being read is brought into view in it.

@@ -36,7 +36,7 @@ export function ExplorePage() {
     return [...matching].sort(ORDERS[order][1]);
   }, [all, query, order]);
   return (
-    <AppPage label="Explore" title="All coins" intro="Every coin the indexer follows, as a table. Figures are public facts read from the chain.">
+    <AppPage label="Explore" title="All coins" intro="Every coin this site follows, as a table. Figures are public facts read from the chain.">
       {problem && (
         <p className="notice" role="alert">
           The list could not be refreshed: {problem}{" "}
@@ -45,7 +45,7 @@ export function ExplorePage() {
           </button>
         </p>
       )}
-      {coins === null && !problem && <p className="body">Reading what the indexer holds.</p>}
+      {coins === null && !problem && <p className="body">Reading the coins.</p>}
       {all !== null && all.length > 0 && (
         <div className="toolbar" style={{ padding: 0 }}>
           <div className="field-row search">
