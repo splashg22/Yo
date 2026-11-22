@@ -43,6 +43,7 @@ async function tradeRequest(input: Input): Promise<Omit<TradeRequest, "side" | "
     throw new Error("slippage must be a whole number of hundredths of a percent");
   const mint = addressOf(input.mint, "coin address");
   const known = (await market()).indexer.markets.get(mint);
+  if (known?.venue) throw new Error("this coin does not trade on pump.fun. This site cannot trade it yet. Nothing was built.");
   if (known?.quote) throw new Error("this coin is priced in something other than SOL. This site cannot trade those yet. Nothing was built.");
   return {
     wallet: addressOf(input.wallet, "wallet address"),

@@ -119,7 +119,8 @@ export function CoinScreen({ mint }: { mint: string }) {
     .filter((trade) => !trade.early && (trade.w === me || trade.w === coin.creator))
     .map((trade) => ({ at: Math.floor(trade.t / 1000), side: trade.b ? "buy" : "sell", who: trade.w === me ? "me" : "creator", price: trade.p }));
   const view: ChartView = { measure, unit, supplyCoins: Number(BigInt(coin.privacy.supply)) / 1e6, solUsd: solPrice?.usd ?? null };
-  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
+  // Trading is built for pump.fun's curve and pool only. A coin priced from another program's pool is shown, not traded.
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue;
   const readOnly = config !== null && config !== "offline" && config.network === "mainnet";
 
   return (
@@ -133,7 +134,13 @@ export function CoinScreen({ mint }: { mint: string }) {
                 <b>{coin.symbol || shortAddress(coin.mint)}</b>
                 <span className="quiet wrap-anywhere">{coin.name}</span>
                 <span className={`tag${coin.complete ? " hot" : ""}`}>
-                  {coin.complete ? (coin.hasPool ? "Graduated: trades in its pool" : "Sold out: no pool yet") : "On the curve"}
+                  {coin.venue
+                    ? "Trades in a Meteora pool"
+                    : coin.complete
+                      ? coin.hasPool
+                        ? "Graduated: trades in its pool"
+                        : "Sold out: no pool yet"
+                      : "On the curve"}
                 </span>
                 {!coin.launchedHere && <span className="tag">Not launched here</span>}
                 {coin.followedSince !== undefined && (
@@ -231,6 +238,14 @@ export function CoinScreen({ mint }: { mint: string }) {
                 </p>
               )}
             </section>
+          ) : coin.venue && !readOnly ? (
+            <section className="card" data-other-venue>
+              <h2 className="px">Shown, not traded</h2>
+              <p className="body">
+                This coin is not pump.fun&apos;s. Its price here is read from a Meteora pool. This site can trade only on pump.fun&apos;s curve and pool, so it
+                cannot buy or sell this coin.
+              </p>
+            </section>
           ) : readOnly ? (
             <section className="card" data-read-only>
               <h2 className="px">Trading is switched off</h2>
@@ -279,7 +294,7 @@ export function CoinScreen({ mint }: { mint: string }) {
                 <Time at={coin.createdAt} />
               </dd>
               <dt>Trades on</dt>
-              <dd>{coin.hasPool ? "pump.fun pool" : "pump.fun curve"}</dd>
+              <dd>{coin.venue ? "Meteora DAMM v2 pool" : coin.hasPool ? "pump.fun pool" : "pump.fun curve"}</dd>
               {coin.signature && (
                 <>
                   <dt>Launch</dt>

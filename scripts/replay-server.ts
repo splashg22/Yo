@@ -26,7 +26,14 @@ if (!file || !existsSync(file)) throw new Error("say which recording to play: np
 const PORT = Number(process.env.REPLAY_PORT ?? 4730);
 
 const dataDir = process.env.REPLAY_DATA_DIR ?? mkdtempSync(join(tmpdir(), "ring-replay-"));
-Object.assign(process.env, { APP_DATA_DIR: dataDir, RING_NETWORK: "mainnet", FEED_SCOPE: "all", FEED_PROVIDER: "rpc", NODE_ENV: "production" });
+Object.assign(process.env, {
+  APP_DATA_DIR: dataDir,
+  RING_NETWORK: "mainnet",
+  FEED_SCOPE: "all",
+  FEED_VENUES: process.env.FEED_VENUES ?? "pump,meteora-damm2",
+  FEED_PROVIDER: "rpc",
+  NODE_ENV: "production",
+});
 const { RecordedSource } = await import("../lib/server/indexer/recorded-source");
 const { useSource: takeChainFrom, market } = await import("../lib/server/market");
 const { setPlayback } = await import("../lib/server/playback");

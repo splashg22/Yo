@@ -35,6 +35,14 @@ export interface Market {
   seenFromSlot?: number;
   /** Set for a coin priced in something other than SOL: the address of what it is priced in. Its trades are not read. */
   quote?: string;
+  /**
+   * Set for a coin that is not pump.fun's and whose price is taken from a Meteora DAMM v2 pool (`pool`). Such a coin
+   * has no curve, no creation event seen and no graduation; its "virtual" reserves are written so that their ratio is
+   * the pool's price. Absent: a pump.fun coin, priced by its curve and then its pump.fun pool.
+   */
+  venue?: "damm2";
+  /** The coin's own decimals when they are not six. Everything stored about it has been brought to six. */
+  decimals?: number;
 }
 export interface Trade {
   signature: string;

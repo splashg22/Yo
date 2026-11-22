@@ -2,6 +2,7 @@
 import type * as PumpSdk from "@pump-fun/pump-sdk";
 import type BN from "bn.js";
 import { createRequire } from "node:module";
+import { DAMM2_PROGRAM, decodeDamm2 } from "./meteora";
 import type { ChainEvent } from "./types";
 
 const sdk = createRequire(import.meta.url)("@pump-fun/pump-sdk") as typeof PumpSdk;
@@ -68,7 +69,10 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
           name: event.name,
           symbol: event.symbol,
           uri: event.uri,
-          supply: big(event.tokenTotalSupply),
+          // A "Mayhem mode" coin has a second thousand million coins minted to pump.fun's Mayhem vault. pump.fun's own SDK
+          // works out such a coin's market cap on the mint's whole supply, and every other coin's on the thousand million
+          // (getFee and v3Rates in @pump-fun/pump-sdk: `isMayhemMode ? mintSupply : ONE_BILLION_SUPPLY`). So does this.
+          supply: big(event.tokenTotalSupply) * ((event as { isMayhemMode?: boolean }).isMayhemMode === true ? 2n : 1n),
           virtualSol: big(event.virtualSolReserves),
           virtualTokens: big(event.virtualTokenReserves),
           realTokens: big(event.realTokenReserves),
@@ -137,7 +141,13 @@ export function eventsInLogs(logs: string[]): ChainEvent[] {
 export function eventsInCalls(calls: { program: string; data: Buffer }[]): ChainEvent[] {
   const events: ChainEvent[] = [];
   for (const call of calls) {
-    if ((call.program !== PUMP_PROGRAM && call.program !== AMM_PROGRAM) || !call.data.subarray(0, 8).equals(EVENT_CALL)) continue;
+    if (!call.data.subarray(0, 8).equals(EVENT_CALL)) continue;
+    if (call.program === DAMM2_PROGRAM) {
+      const found = decodeDamm2(call.data.subarray(8));
+      if (found) events.push(found);
+      continue;
+    }
+    if (call.program !== PUMP_PROGRAM && call.program !== AMM_PROGRAM) continue;
     const event = decodeEvent(call.program, call.data.subarray(8));
     if (event) events.push(event);
   }

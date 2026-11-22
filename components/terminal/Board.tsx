@@ -703,7 +703,7 @@ function Row({
   readOnly: boolean;
   place: number | undefined;
 }) {
-  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported;
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue;
   const change = coin.change.m5 ?? coin.change.h1 ?? coin.change.h24;
   return (
     <div className={`coin-row${marked ? " cursor" : ""}`} style={style} data-coin={coin.mint}>
@@ -720,6 +720,22 @@ function Row({
             <span className="full" title={coin.name || "This coin's name has not been read from the chain yet"}>
               {coin.name || "Name not read yet"}
             </span>
+            {coin.venue && (
+              <span
+                className="tag"
+                title="Not a pump.fun coin. Its price is read from a Meteora DAMM v2 pool against SOL. It can be looked at here, not traded."
+              >
+                Meteora
+              </span>
+            )}
+            {coin.mayhem && (
+              <span
+                className="tag"
+                title="A pump.fun Mayhem mode coin. Its supply is two thousand million: half was minted to pump.fun's own trading agent. Market cap counts all of it, as pump.fun does; holder shares leave the agent's vault out."
+              >
+                Mayhem
+              </span>
+            )}
           </span>
           <span className="sub">
             {coin.unsupported ? (

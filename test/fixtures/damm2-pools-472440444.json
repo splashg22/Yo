@@ -1,0 +1,234 @@
+[
+  {
+    "pool": "8Rk9J6Nv3PKaX2RHpVE8ti3xRX85eKY9SCYT9yT6Ld8G",
+    "mint": "HMGDyi2BMoX64UAUWdcymwNTkKgA4L1sqfbMHURfd4Yd",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "179854152828",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "2nCgECF5Kv8zJ9tLj21jC1kPvyEUFDFpzEJkfXP3KEJq",
+    "mint": "3GePM9ZfEPxVeeq1LeuGPrkNNwt9z7mH27L4HfR95AVx",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "200301026473",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "5ryecNDQH6pyLaRravD29q7tc5qW3A3RJo1nqTQRnz89",
+    "mint": "EQg6SkrGQngAHZgfLyGL4ppaSEQEHPFJL2LMjVV31v2Z",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "8FS3QhZDU4PwkrcSTkeCweUGoibAAAyeBffW5Fm7ALdk",
+    "mint": "6F2oagTsEiuxWiBBaVkfg7EWwF4ZGaKkamN65d1MeTpj",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "B7wRfh5L5d76dgiJhSv2qjpFV2cmywg5s42riQMC2sPp",
+    "mint": "46u13YuGNWe7bAaHfuEJgyxdYhcoA1wqtjyU8Dbxn1MJ",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "410306881010",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "H6AJdoHfM2qHuwXnkWi1LpWqfp5ZRnMspkrxnnD4WqZJ",
+    "mint": "9NDBCjh1NBaK6J6baLEEDZEgaG6PA8vAyCjSU7FpkNAK",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "6QybNVHvXQpmqwByrAWF8w5bREAbPaB2TY71VzFTVtCL",
+    "mint": "7Ys199EN87zHV5xWSbgfYGKpemE5TFoobKYRpUsSbc9A",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "38008132819824",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "Bv75RJFqaxsA7VX6Saxw92xDKoPTprFEXF6BKhoNtQcR",
+    "mint": "CMWGaKYMA6tkY91yPAtf7P9uz9amZbDYckgP67A6wQ81",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "D8HbYEzaB3VRcCfeKXPxxEuDPvvgeJ5AAEo3iWQGE68V",
+    "mint": "5vtsi6AhfZwBFjnnRCgFKP9xkJpqdfqdF2VDvojeLSAZ",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "J4k7QMgBzQQUQGWEWJSuTC2k25qaLL7WeBSqnMKBevgA",
+    "mint": "HK75HDPnb3wZdAzt2zqrLbYrzSTU9vyVdS7XzhVDnirL",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "71VP2jMvVLrSQW5KcnkVMEaFnfauV1Xq41AdWp1tE9vb",
+    "mint": "CmN2uA6qyTxp4fAGBzursc88CVUi5aaz4sCwVzQDvDN7",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "66JPnihwSSkVVAuLSvYtnGpijA44WExxKpbYqswtwxwK",
+    "mint": "pZMJ4qgjo7tNPKRHnmxWgawefWgPMA3Y7KYiRbiD6EJ",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "999968518098152",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "3UfzRwXgKir6JqW1QVHiAQgMPRUX9LRFz8SCx5tg1EYg",
+    "mint": "imE1nbjWM9QGUzxH2WHYNjcrUqgh9tT8RFYoj9UnMj3",
+    "coinIsA": true,
+    "decimals": 9,
+    "supply": "971818223714392960",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "E7H2HgH9eKxe5fwchYJwbjtuvNeWAKBoMVJX3JVr9PLq",
+    "mint": "imE1nbjWM9QGUzxH2WHYNjcrUqgh9tT8RFYoj9UnMj3",
+    "coinIsA": true,
+    "decimals": 9,
+    "supply": "971818223714392960",
+    "quote": "4CxjZyMNoF1p6eXHXHv1TWpS2X47CuUmLwtGe18spump"
+  },
+  {
+    "pool": "EPL8GkWLF6fsiw5FAnFu4u3LdYJXUbqtocn7q2sSDVc4",
+    "mint": "8KD8Lw1bCFBMD2L2LFeGMXgaJGosLKumdFDwEobfGUi7",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "8M5i1rquscTc1juX5BpfWjZCjBtWjs6VWCZgLaAHnPoD",
+    "mint": "2h2uTywc9dscgNAtGB94wzaXEYoFZ1FbnkDRV2boDDrP",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "Ez8fk2wrR5qdhkGwkBaT5kXp8gDChcHqdbP8X3eAoc1S",
+    "mint": "CaNC8DjrRuY17zrqNyHKYD91pVofPsXchFr1kh2nsfUw",
+    "coinIsA": true,
+    "decimals": 9,
+    "supply": "599147821112064227",
+    "quote": "BsbsB3WLq7vbY5En3MBCAsTrcwaCxNKY2Mp5pGuLpump"
+  },
+  {
+    "pool": "9y4JubaoLWbbUpi8KM7iDVP9dHJQFAMZG7XujFxjEupV",
+    "mint": "CaNC8DjrRuY17zrqNyHKYD91pVofPsXchFr1kh2nsfUw",
+    "coinIsA": true,
+    "decimals": 9,
+    "supply": "599147821112064227",
+    "quote": "7K52aYQW9rWGjwZmQ7o2d1P6E7bji6hSMsqaLy5EcxLh"
+  },
+  {
+    "pool": "A68sMLyH4BWm2V9Q6yjmarnuKoqgmk7Yey2hzDD86zx7",
+    "mint": "6Ai3tHHG9fE89VLvwTfAp1n4ikagRXSjXzejf7iXwEaV",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "5r5zkexe2k6sbuZWTiACZ6HFu9xkpRLYwjSHTnSjifAy",
+    "mint": "6N7aaD1NdJoxXGKVAPdt2Ajbnz862e2dXFt426YPNaKb",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "999645441956848",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "DqzwSNj4LYUrxVVxWB4w94bvi5R43reBD75eFyBL88ez",
+    "mint": "CYetKQA4txXvUtU4ATXWfeZGj4zsXbpBYxDeUsnoPRer",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "999999999589557",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "GN7ZrFbLXm35YdtQ1v6QxB2HwavYZBkwA6dreonVnmQa",
+    "mint": "FKKPR9N3J3wJKY95tMr2uwfrNUuNPqHsQtXwMxSnsw4B",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "6FnNEvymUEM2DHkmMHinHkr2QoRPWAWyBqQePKmAXcjT",
+    "mint": "9g379q2Tx5rWMGWnjbTZjFiScfiUspoVe7mNhzWtxpXq",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "BZaHxY2kNyL6USmBaoyxGThWGV9UPhjC33PhZLed7aFB",
+    "mint": "BnMi5wnVfQNihbf81fS6jhzqNE3wAEnonsktdnUuzZ9S",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000001000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "14KqQbE1kPVZpD8u37YouavKEeqFdDroWo9vTiyDJcei",
+    "mint": "BKjqhLSBfyTBmstc3nThNGWYfQnyZYwtw3FMuQ2cNVBG",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "CzhuWE3jxtEF82WDViCBqBQjV6AR1AUwL9mdf7kDEvMh",
+    "mint": "5zoJaTGX8vKoKnXcxsELsHLKbXKBWcaGxvewfQBD99g6",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "1000000000000000",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "2bMFxa2reT81rKRmjD6HSPApooxcRymzHyGaACQwxpTs",
+    "mint": "5PZbmioMhoyeAjY9g8nKYKTsAjyDzz5kLVq6ozjDc2cr",
+    "coinIsA": false,
+    "decimals": 6,
+    "supply": "999999999978198",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "6utdYAdpwzUpxJpVoPMrHHNqyT4EmJnrXMwH1rti4i8h",
+    "mint": "6fVQAutGBLpyYJRiekVjSjvKidsmgZx14bKV5HSSpump",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "973625970983044",
+    "quote": "So11111111111111111111111111111111111111112"
+  },
+  {
+    "pool": "Eg2T7i1noAukEUqwHuz2NE2xTiqYFbKmhXXTgikPsvq9",
+    "mint": "AnKy45rS25ZsmKrWcZ1xJ2iGh9CqzqzNU7KgF28tC3Xd",
+    "coinIsA": true,
+    "decimals": 6,
+    "supply": "999999999999000",
+    "quote": "So11111111111111111111111111111111111111112"
+  }
+]

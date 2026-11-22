@@ -147,6 +147,13 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 141 | "Pool liquidity locked" is shown as "not checked" | It is not built. An unmade check is not shown as passed |
 | 142 | A recording is played by a script (`npm run replay`), never by a setting of the real server; every page carries a bar that cannot be dismissed, and ages run on the recording's clock | A recording must not be mistakable for live, and must not be one typo in `.env` away |
 | 143 | Opening a coin by address marks it "first seen now" until its creation event is found in its past trades | Before, a coin older than 5,000 trades showed as made the moment it was opened |
+| 144 | The first source added beyond pump.fun is Meteora DAMM v2 | Measured on mainnet (`npm run measure`): about 88 transactions a second, more than every other non-pump program together for coin trading. Other launchpads were near idle |
+| 145 | Meteora's events are decoded by hand from its published layout, not through its SDK | The SDK brings a large dependency tree for two event layouts. The hand decoder is held against real mainnet swaps in tests |
+| 146 | A pool whose coins are not known yet has its swaps left out, not guessed | A swap event does not name its coins. The pool is read from the chain once; guessing from balances is wrong for routed transactions |
+| 147 | Coins with other than six decimals are converted to millionths of a coin where they enter the indexer | Everything downstream assumes six, as pump.fun's coins have. One conversion at the door instead of a decimals field through every page |
+| 148 | A pump.fun coin keeps pump.fun's price when it also trades on Meteora | One price per coin. Two pools' prices in one chart would draw false wicks |
+| 149 | Meteora is off unless `FEED_VENUES` names it, and is not offered on plan A | Its stream alone is about four times plan A's credits |
+| 150 | A Mayhem coin's market cap counts its whole supply | pump.fun's own SDK does (`isMayhemMode ? mintSupply : ONE_BILLION_SUPPLY`). Replaces the unverified half of decision 139 |
 
 ## Only you
 

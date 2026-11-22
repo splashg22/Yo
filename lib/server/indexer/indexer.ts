@@ -10,6 +10,7 @@
  */
 import type { Db, Sql } from "../db";
 import { TIMEFRAMES, bucketOf, extend, priceOf, type Candle, type Market, type Timeframe, type Trade } from "./model";
+import { toMillionths, tradeFrom, type PoolFacts } from "./meteora";
 import type { ChainBlock, ChainSource, ChainTx, EarlyTx, TradeEvent } from "./types";
 
 /** How many applied blocks are kept undoable. A confirmed block is practically never dropped; this is far deeper than any seen. */
@@ -62,9 +63,11 @@ interface MarketRow {
   trades: number;
   seen_from: number | null;
   quote: string | null;
+  venue: string | null;
+  decimals: number | null;
 }
 const MARKET_COLUMNS =
-  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades, seen_from, quote";
+  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades, seen_from, quote, venue, decimals";
 const fromRow = (row: MarketRow): Market => ({
   mint: row.mint,
   creator: row.creator,
@@ -87,6 +90,8 @@ const fromRow = (row: MarketRow): Market => ({
   trades: row.trades,
   ...(row.seen_from === null || row.seen_from === undefined ? {} : { seenFromSlot: Number(row.seen_from) }),
   ...(row.quote === null || row.quote === undefined ? {} : { quote: row.quote }),
+  ...(row.venue === "damm2" ? { venue: "damm2" as const } : {}),
+  ...(row.decimals === null || row.decimals === undefined ? {} : { decimals: row.decimals }),
 });
 const toRow = (market: Market): MarketRow => ({
   mint: market.mint,
@@ -110,9 +115,11 @@ const toRow = (market: Market): MarketRow => ({
   trades: market.trades,
   seen_from: market.seenFromSlot ?? null,
   quote: market.quote ?? null,
+  venue: market.venue ?? null,
+  decimals: market.decimals ?? null,
 });
 const MARKET_RECORD =
-  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int, seen_from bigint, quote text";
+  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int, seen_from bigint, quote text, venue text, decimals int";
 const MARKET_NAMES = MARKET_RECORD.split(", ").map((column) => column.split(" ")[0]!);
 
 interface TradeRow {
@@ -202,6 +209,36 @@ function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number): M
   };
 }
 
+/**
+ * A market for a coin first seen trading in a Meteora pool against SOL. It is not a pump.fun coin: it has no curve
+ * and no graduation, and is written as "complete" so that nothing here waits for one.
+ */
+function fromPool(facts: PoolFacts, trade: TradeEvent, slot: number, at: number): Market {
+  const supply = toMillionths(facts.supply, facts.decimals);
+  return {
+    mint: facts.mint,
+    creator: "",
+    name: "",
+    symbol: "",
+    uri: "",
+    createdAt: at,
+    createdSlot: slot,
+    supply,
+    initialRealTokens: 0n,
+    virtualSol: trade.virtualSol,
+    virtualTokens: trade.virtualTokens,
+    realSol: trade.realSol,
+    realTokens: trade.realTokens,
+    complete: true,
+    pool: facts.pool,
+    holders: 0,
+    trades: 0,
+    seenFromSlot: slot,
+    venue: "damm2",
+    ...(facts.decimals === 6 ? {} : { decimals: facts.decimals }),
+  };
+}
+
 /** How long the start waits for the indexer to be level with the chain before the server starts without it. */
 const START_WAIT_MS = 5_000;
 
@@ -243,6 +280,38 @@ export class Indexer {
     private readonly discover = false,
   ) {}
 
+  /** Whether Meteora's DAMM v2 pools are read. Off unless the settings ask for it (FEED_VENUES). */
+  readMeteora = false;
+  /** Pools of other programs whose coins are known: read from the chain once each (lib/server/pools.ts). */
+  private readonly poolFacts = new Map<string, PoolFacts>();
+  /** Pools seen trading whose coins are not known yet. Their swaps are not read until they are. */
+  private readonly unreadPools = new Set<string>();
+  /** Up to `most` pools waiting to be read. */
+  poolsToRead(most: number, skip: (pool: string) => boolean): string[] {
+    const found: string[] = [];
+    for (const pool of this.unreadPools) {
+      if (found.length >= most) break;
+      if (!skip(pool)) found.push(pool);
+    }
+    return found;
+  }
+  /** Records what a pool trades, once it has been read from the chain. From the next block its swaps are read. */
+  async learnPool(facts: PoolFacts): Promise<void> {
+    await this.db.query(
+      `insert into venue_pools (pool, venue, mint, coin_is_a, decimals, supply, quote) values ($1, 'damm2', $2, $3, $4, $5, $6) on conflict (pool) do nothing`,
+      [facts.pool, facts.mint, facts.coinIsA, facts.decimals, facts.supply.toString(), facts.quote],
+    );
+    this.poolFacts.set(facts.pool, facts);
+    this.unreadPools.delete(facts.pool);
+  }
+  /** A pool that turned out not to be readable: not asked about again. */
+  forgetPool(pool: string): void {
+    this.unreadPools.delete(pool);
+  }
+  factsOfPool(pool: string): PoolFacts | undefined {
+    return this.poolFacts.get(pool);
+  }
+
   /**
    * Reads what is stored, then follows the chain until `stop`. Resolves once it has caught up for the first time,
    * or at once if the chain cannot be reached, or after a few seconds if there is a lot to catch up on: the server
@@ -282,6 +351,18 @@ export class Indexer {
       this.markets.set(market.mint, market);
       if (market.pool) this.pools.set(market.pool, market.mint);
     }
+    this.poolFacts.clear();
+    for (const row of await this.db.query<{ pool: string; mint: string; coin_is_a: boolean; decimals: number; supply: string; quote: string }>(
+      "select pool, mint, coin_is_a, decimals, supply::text, quote from venue_pools",
+    ))
+      this.poolFacts.set(row.pool, {
+        pool: row.pool,
+        mint: row.mint,
+        coinIsA: row.coin_is_a,
+        decimals: row.decimals,
+        supply: BigInt(row.supply),
+        quote: row.quote,
+      });
     const last = (await this.db.query<{ slot: number; hash: string }>("select slot, hash from blocks order by slot desc limit 1"))[0];
     this.tip = last ? { slot: Number(last.slot), hash: last.hash } : undefined;
     const stored = (await this.db.query<{ value: string }>("select value from meta where key = 'cursor'"))[0];
@@ -415,6 +496,56 @@ export class Indexer {
       signatures.push(tx.signature);
       let idx = 0;
       for (const event of tx.events) {
+        // A Meteora pool, new or trading. It is read only where every trade is followed, and only once the chain has
+        // been asked which coin the pool trades: until then the pool waits, and its swaps are not guessed at.
+        let meteora: PoolFacts | undefined;
+        if ((event.kind === "damm2-pool" || event.kind === "damm2-swap") && !this.readMeteora) continue;
+        if (event.kind === "damm2-pool") {
+          if (this.discover && !this.poolFacts.has(event.pool)) this.unreadPools.add(event.pool);
+          continue;
+        }
+        if (event.kind === "damm2-swap") {
+          const place = idx++;
+          meteora = this.poolFacts.get(event.pool);
+          if (!meteora) {
+            if (this.discover && this.unreadPools.size < 20_000) this.unreadPools.add(event.pool);
+            continue;
+          }
+          const trade = tradeFrom(event, meteora);
+          if (!trade) continue;
+          let market = touch(meteora.mint);
+          if (!market && this.discover && !this.markets.has(meteora.mint) && !next.has(meteora.mint)) {
+            market = fromPool(meteora, trade, block.slot, at);
+            next.set(market.mint, market);
+            created.push(market.mint);
+          }
+          if (!market || market.quote) continue;
+          const where = { signature: tx.signature, idx: place, slot: block.slot, txIndex: tx.index, at };
+          // The pool a coin's price is taken from: the one it was first seen in, until another is seen holding more SOL.
+          const prices = market.venue === "damm2" && (market.pool === meteora.pool || trade.realSol > market.realSol);
+          if (prices) {
+            market.pool = meteora.pool;
+            trades.push(await this.tradeInto(market, trade, where, candles));
+          } else {
+            // A second pool of a coin priced elsewhere (a pump.fun coin, or a coin with a deeper pool). The trade counts:
+            // it is listed, it adds to volume, its balances move. It does not move the coin's price or its chart.
+            market.trades += 1;
+            market.lastTradeAt = at;
+            const price = priceOf(trade.virtualSol, trade.virtualTokens);
+            trades.push({
+              ...where,
+              mint: market.mint,
+              wallet: trade.wallet,
+              isBuy: trade.isBuy,
+              venue: "damm2",
+              sol: trade.sol,
+              tokens: trade.tokens,
+              price,
+              priceBefore: price,
+            });
+          }
+          continue;
+        }
         if (event.kind === "create") {
           if (this.markets.has(event.mint) || next.has(event.mint)) continue;
           next.set(event.mint, {
@@ -471,8 +602,15 @@ export class Indexer {
           trades.push(trade);
         }
       }
-      for (const balance of tx.balances)
-        if (this.markets.has(balance.mint) || next.has(balance.mint)) balances.set(`${balance.mint}|${balance.owner}`, balance);
+      for (const balance of tx.balances) {
+        const held = next.get(balance.mint) ?? this.markets.get(balance.mint);
+        if (!held) continue;
+        // A coin with other than six decimals is held here in millionths of a coin, like every other.
+        balances.set(
+          `${balance.mint}|${balance.owner}`,
+          held.decimals === undefined ? balance : { ...balance, amount: toMillionths(balance.amount, held.decimals) },
+        );
+      }
     }
 
     const holders = [...balances.values()];
@@ -800,6 +938,14 @@ export class Indexer {
       sql.query("update markets set name = $2, symbol = $3, uri = $4, creator = $5 where mint = $1", [mint, read.name, read.symbol, read.uri, read.creator]),
     );
     Object.assign(market, read);
+  }
+
+  /** Sets a coin's supply to what its mint on the chain says. */
+  async resupply(mint: string, supply: bigint): Promise<void> {
+    const market = this.markets.get(mint);
+    if (!market) return;
+    await this.db.tx((sql) => sql.query("update markets set supply = $2 where mint = $1", [mint, supply.toString()]));
+    market.supply = supply;
   }
 
   /** Records what a followed coin's own creation event said of it, once its past has been read. */

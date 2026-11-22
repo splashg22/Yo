@@ -49,6 +49,8 @@ export interface CoinFacts {
   freezeAuthority: string | null;
   /** True when pump.fun's program has a curve account for this coin: it is a pump.fun coin. */
   pump: boolean;
+  /** True for a pump.fun "Mayhem mode" coin: its supply includes the coins minted to pump.fun's Mayhem vault. */
+  mayhem?: boolean;
   /** When this was read from the chain, in milliseconds. */
   readAt: number;
 }
@@ -118,6 +120,13 @@ export interface CoinView {
    * "foreign": it trades in a pump.fun pool but is not a pump.fun coin, so the figures this site works out would be wrong for it.
    */
   unsupported?: { reason: "quote"; quote: string } | { reason: "foreign" };
+  /** Set for a pump.fun "Mayhem mode" coin: market cap and shares are of its whole supply, the Mayhem vault's coins included, as pump.fun counts them. */
+  mayhem?: true;
+  /**
+   * Set for a coin that is not pump.fun's, priced from a pool of another program: which one. Such a coin has no curve
+   * and no graduation, and cannot be traded from this site.
+   */
+  venue?: "meteora-damm2";
   /** When the coin graduated, in milliseconds, if this server saw it happen. */
   graduatedAt?: number;
   /** False for a pump.fun coin that was made somewhere else and is only traded here. */
@@ -193,7 +202,7 @@ export interface TradeView {
   sol: number;
   tok: number;
   p: number;
-  v: "c" | "a";
+  v: "c" | "a" | "m";
   slot: number;
   /** Heard of before its block was read. The same trade follows without this mark once its block is applied. */
   early?: 1;

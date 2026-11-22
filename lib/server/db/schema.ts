@@ -57,6 +57,19 @@ create index if not exists markets_by_pool on markets (pool);
 -- quote: what a coin is priced in when that is not SOL (null: SOL).
 alter table markets add column if not exists seen_from bigint;
 alter table markets add column if not exists quote text;
+-- Added on 22 November 2026. venue: where a coin that is not pump.fun's takes its price from (null: pump.fun). decimals: the coin's own, when not six.
+alter table markets add column if not exists venue text;
+alter table markets add column if not exists decimals int;
+-- Pools of other programs, read from the chain once each: which coin a pool trades and against what.
+create table if not exists venue_pools (
+  pool text primary key,
+  venue text not null,
+  mint text not null,
+  coin_is_a boolean not null,
+  decimals int not null,
+  supply numeric not null,
+  quote text not null
+);
 -- Added on 22 November 2026. What a coin's own accounts on the chain say of it (lib/server/describe.ts): the facts the safety checks rest on.
 create table if not exists coin_facts (
   mint text primary key,

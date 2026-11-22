@@ -3,6 +3,7 @@ import { PublicKey, type Connection } from "@solana/web3.js";
 import bs58 from "bs58";
 import { NEWEST_TRANSACTION_VERSION, rawCall } from "../solana";
 import { AMM_PROGRAM, PUMP_PROGRAM, eventsInCalls, eventsInLogs } from "./decode";
+import { DAMM2_PROGRAM } from "./meteora";
 import type { ChainBlock, ChainSource, ChainTx, EarlyTx } from "./types";
 
 /**
@@ -41,7 +42,7 @@ export function txOf(entry: RawTx, index: number): ChainTx | null {
   const meta = entry.meta;
   if (!meta || meta.err) return null;
   const keys: string[] = [...entry.transaction.message.accountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];
-  const involved = keys.some((key) => key === PUMP_PROGRAM || key === AMM_PROGRAM);
+  const involved = keys.some((key) => key === PUMP_PROGRAM || key === AMM_PROGRAM || key === DAMM2_PROGRAM);
   // Events: from the programs' calls to themselves, which a cut-short log cannot lose; from the log lines if there are none.
   let events = involved
     ? eventsInCalls(
@@ -51,6 +52,8 @@ export function txOf(entry: RawTx, index: number): ChainTx | null {
       )
     : [];
   if (involved && events.length === 0) events = eventsInLogs(meta.logMessages ?? []);
+  // A Meteora swap names no trader: it is the wallet that paid for the transaction.
+  for (const event of events) if (event.kind === "damm2-swap") event.wallet = keys[0] ?? "";
   const after = new Map<string, { mint: string; owner: string; amount: bigint }>();
   for (const balance of meta.preTokenBalances ?? [])
     if (balance.owner) after.set(`${balance.accountIndex}`, { mint: balance.mint, owner: balance.owner, amount: 0n });
@@ -100,11 +103,13 @@ export function trimRawBlock(found: RawBlock): RawBlock {
     const meta = entry.meta;
     if (!meta || meta.err) return;
     const keys = [...entry.transaction.message.accountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];
-    const ours = (key: string | undefined): boolean => key === PUMP_PROGRAM || key === AMM_PROGRAM;
+    const ours = (key: string | undefined): boolean => key === PUMP_PROGRAM || key === AMM_PROGRAM || key === DAMM2_PROGRAM;
+    const swapped = keys.includes(DAMM2_PROGRAM);
     const balances = (list: RawBalance[] | null | undefined): RawBalance[] =>
       (list ?? [])
         // Wrapped SOL is kept too: it is how a pool priced in SOL is told from one priced in something else.
-        .filter((balance) => balance.mint.endsWith(PUMP_MINT_ENDING) || balance.mint === WRAPPED_SOL)
+        // In a transaction that went through a Meteora pool every coin is kept: those coins are not pump.fun's.
+        .filter((balance) => swapped || balance.mint.endsWith(PUMP_MINT_ENDING) || balance.mint === WRAPPED_SOL)
         .map((balance) => ({
           accountIndex: balance.accountIndex,
           mint: balance.mint,
@@ -116,7 +121,11 @@ export function trimRawBlock(found: RawBlock): RawBlock {
     transactions.push({
       index,
       // Only the two programs' own places in the key list are kept: that is all the reader looks up.
-      transaction: { signatures: [entry.transaction.signatures[0]!], message: { accountKeys: keys.map((key) => (ours(key) ? key : "")) } },
+      // (And the paying wallet's, first in the list: a Meteora swap's trader.)
+      transaction: {
+        signatures: [entry.transaction.signatures[0]!],
+        message: { accountKeys: keys.map((key, place) => (ours(key) || (place === 0 && swapped) ? key : "")) },
+      },
       meta: {
         err: null,
         innerInstructions: (meta.innerInstructions ?? [])

@@ -428,6 +428,80 @@ what plan B looks like.** On plan A the same screen has the "as of" labels and t
 - The live Helius stream (`HeliusTxStream`) has still never been run: there is no paid key yet. Everything above is proven on recorded blocks.
 - Quick buy is off on mainnet, and the field is not shown there.
 
+## 11. Beyond pump.fun: what trades where, what each source takes, and what it costs
+
+### Measured, not guessed
+
+`npm run measure -- 120` reads 120 consecutive mainnet blocks (read-only) and counts, for each program, the
+successful transactions that name it, their size as the RPC sends them, and the SOL and USDC the paying wallet's
+balances moved by. A transaction routed through two programs counts under both, so the columns overlap. One run,
+22 November, 25 seconds of chain time, 18,148 successful transactions:
+
+| Program | Transactions a second | MB a second | SOL a second | USDC a second |
+| --- | --- | --- | --- | --- |
+| pump.fun pools (PumpSwap) | 144.9 | 2.06 | 122.8 | 28 |
+| **Meteora DAMM v2** | **87.5** | **0.75** | **57.5** | 1 |
+| pump.fun curve | 50.9 | 0.46 | 9.0 | 5 |
+| Meteora DLMM | 39.4 | 0.61 | 6.1 | 221 |
+| Orca Whirlpool | 15.3 | 0.22 | 11.5 | 748 |
+| Raydium CLMM | 9.1 | 0.12 | 3.3 | 1,737 |
+| Raydium AMM v4 | 8.7 | 0.12 | 1.0 | 1 |
+| Raydium CPMM | 1.4 | 0.02 | 0.0 | 1 |
+| Raydium LaunchLab (LetsBonk) | 0.8 | 0.01 | 0.0 | 0 |
+| Meteora DBC (Believe, Bags, Jupiter Studio) | 0.7 | 0.01 | 0.2 | 0 |
+| Meteora DAMM v1 | 0.5 | 0.01 | 0.0 | 0 |
+| Moonshot, Boop, Heaven | 0 in this sample | | | |
+
+Twenty-five seconds is a small sample and the mix changes by the hour; run it again before relying on the order.
+What it says clearly: outside pump.fun, **Meteora DAMM v2 carries the most coin trading by a wide margin**. Orca
+and Raydium CLMM carry mostly SOL against USDC and other large pairs, not new coins. The other launchpads were
+close to idle.
+
+### What each source takes, and what it costs
+
+Cost on plan A is Helius credits for carrying that program's whole stream (2 credits per 0.1 MB, so MB a second
+times 51.8 million a month) against the plan's 10 million. On plan B the stream is flat-rate ("unlimited events"
+when its pricing page was read), so the cost is our server's work, not money.
+
+| Source | What it takes to build | Plan A | Plan B | Status |
+| --- | --- | --- | --- | --- |
+| **Meteora DAMM v2** | Swap and new-pool events decoded by hand from Meteora's published layout. A swap does not name its coins, so each pool is read from the chain once (2 RPC calls per 50 pools). Prices are a square root, and coins have their own decimals and supply, both handled | About 39 million credits a month: **not possible within plan A.** Not offered there | Included. About a third more stream | **Built.** `FEED_VENUES=pump,meteora-damm2` |
+| Meteora DLMM | A new decoder for bin-based pools: a swap crosses bins, price comes from the active bin. Pools named the same way | About 32 million credits: no | Included | Not built. Next in line by coin trading |
+| Orca Whirlpool | A decoder for tick-based pools, close in shape to Raydium CLMM | About 11 million: no | Included | Not built. Mostly large pairs |
+| Raydium CLMM | As Orca: tick-based, square-root price | About 6 million: only with nothing else | Included | Not built |
+| Raydium AMM v4 | The old constant-product pools. No events: amounts come from the logs or from balance changes | About 6 million | Included | Not built |
+| Raydium CPMM | Constant product with events | About 1 million | Included | Not built |
+| Raydium LaunchLab (LetsBonk) | A curve like pump.fun's: create, trade and migrate events, then a Raydium pool | Under 1 million: **fits plan A** | Included | Not built. Idle when measured |
+| Meteora DBC (Believe, Bags, Jupiter Studio) | A curve with configurable shape, then a DAMM v2 pool, which is already read | Under 1 million: **fits plan A** | Included | Curve not built. **Its coins appear once they reach their DAMM v2 pool** |
+| Moonshot, Boop, Heaven | A decoder each | Negligible | Included | Not built. No trades when measured |
+
+### What is built for Meteora DAMM v2, and its limits
+
+- Pools against SOL only. A pool against USDC or another coin is read from the chain, kept, and its swaps left out.
+- A coin first seen in a DAMM v2 pool is followed from that trade, marked "Meteora" and "followed". Its name and
+  picture are read from the chain like any other coin's. Its creator is not known, so "dev" figures show "?".
+- Its price is taken from one pool: the first it is seen in, until another of its pools is seen holding more SOL.
+  Trades in its other pools are listed and counted in volume, and do not move its price or chart.
+- A pump.fun coin that also has a DAMM v2 pool keeps pump.fun's price. Its Meteora trades are listed and counted.
+- Coins with other than six decimals are held in millionths of a coin like every other. For a nine-decimal coin
+  that drops anything smaller than a millionth of a coin.
+- Until a pool has been read from the chain (a second or two after it is first seen), its swaps are not read.
+  They are not guessed at and are not recovered afterwards.
+- New pools made while listening are picked up; the DBC curve before them is not.
+- Shown, not traded: this site builds trades only for pump.fun's curve and pool.
+- Checked against mainnet: two real swaps in `test/unit/meteora.test.ts`, and every Meteora trade in 30 recorded
+  blocks against the pool's own balance changes in `test/unit/meteora-indexed.test.ts`.
+
+### Mayhem mode, checked against pump.fun's own code
+
+pump.fun's SDK works out a coin's market cap as price times supply, with the supply taken as the mint's real supply
+for a Mayhem-mode coin and one thousand million for every other (`getFee` and `v3Rates` in `@pump-fun/pump-sdk`:
+`isMayhemMode ? mintSupply : ONE_BILLION_SUPPLY`). Ours used one thousand million for all, so **a Mayhem coin's
+market cap here was half of pump.fun's. Fixed:** a Mayhem coin is made with two thousand million, and its supply is
+re-read from its mint when the coin is opened, since the agent's unsold coins can be burned. Holder shares are of
+the whole supply and still leave the vault itself out. I could not compare with the figure on pump.fun's website:
+its API refused the request, and its public docs do not describe Mayhem supply.
+
 ## Sources
 
 Read in full: `github.com/GMGNAI/gmgn-skills` (README and the market, token, swap, track and portfolio

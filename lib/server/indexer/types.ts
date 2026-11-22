@@ -1,7 +1,9 @@
 /** What the indexer takes from the chain, already decoded. A source of these can be the RPC or, in tests, a made-up chain. */
 
-/** Where a trade happened: on a coin's bonding curve, or in its pool after it graduated. */
-export type Venue = "curve" | "amm";
+import type { Damm2Pool, Damm2Swap } from "./meteora";
+
+/** Where a trade happened: on a coin's pump.fun bonding curve, in its pump.fun pool after it graduated, or in a Meteora DAMM v2 pool. */
+export type Venue = "curve" | "amm" | "damm2";
 
 export interface CreateEvent {
   kind: "create";
@@ -43,7 +45,7 @@ export interface PoolEvent {
   mint: string;
   pool: string;
 }
-export type ChainEvent = CreateEvent | TradeEvent | CompleteEvent | PoolEvent;
+export type ChainEvent = CreateEvent | TradeEvent | CompleteEvent | PoolEvent | Damm2Swap | Damm2Pool;
 
 export interface ChainTx {
   signature: string;

@@ -91,10 +91,13 @@ export function describeFrom(mint: string, mintInfo: Info, metaplexInfo: Info, c
   }
   if (!names && metaplexInfo?.owner.equals(METAPLEX)) names = metaplexNames(metaplexInfo.data);
   let creator = "";
+  let mayhem = false;
   const pump = curveInfo !== null && curveInfo.owner.toBase58() === PUMP_PROGRAM;
   if (pump) {
     try {
-      creator = sdk.PUMP_SDK.decodeBondingCurve(curveInfo).creator.toBase58();
+      const curve = sdk.PUMP_SDK.decodeBondingCurve(curveInfo);
+      creator = curve.creator.toBase58();
+      mayhem = (curve as { isMayhemMode?: boolean }).isMayhemMode === true;
     } catch {
       creator = "";
     }
@@ -111,6 +114,7 @@ export function describeFrom(mint: string, mintInfo: Info, metaplexInfo: Info, c
       mintAuthority: unpacked.mintAuthority?.toBase58() ?? null,
       freezeAuthority: unpacked.freezeAuthority?.toBase58() ?? null,
       pump,
+      ...(mayhem ? { mayhem } : {}),
       readAt: now,
     },
   };

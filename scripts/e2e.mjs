@@ -291,13 +291,17 @@ await step("explore lists all three coins in a table, newest first, each with it
     if (!/^\d+\.\d\d% · 1$/.test(text.trim()) || /^0\.00%/.test(text.trim())) throw new Error(`Ring cell reads "${text}"`);
   // The coin launched with a picture shows it, drawn; the two without show their first letter in the same square.
   await ana.waitForFunction(
-    () => [...document.querySelectorAll("table[data-coins] img.coin-picture")].some((image) => image.complete && image.naturalWidth === 512),
+    () =>
+      [...document.querySelectorAll("table[data-coins] .coin-picture > img")].some(
+        (image) => image.complete && image.naturalWidth === 512 && getComputedStyle(image).opacity === "1",
+      ),
     null,
     { timeout: 15000 },
   );
   const pictures = await ana.evaluate(() => ({
-    drawn: document.querySelectorAll("table[data-coins] img.coin-picture").length,
-    letters: [...document.querySelectorAll("table[data-coins] span.coin-picture")].map((box) => box.innerText),
+    drawn: document.querySelectorAll("table[data-coins] .coin-picture > img").length,
+    // A coin with no picture has only its letter in the box; one with a picture has the picture drawn over the letter.
+    letters: [...document.querySelectorAll("table[data-coins] .coin-picture")].filter((box) => !box.querySelector("img")).map((box) => box.innerText),
   }));
   if (pictures.drawn !== 1 || pictures.letters.sort().join("") !== "EQ") throw new Error(`pictures: ${JSON.stringify(pictures)}`);
   await ana.fill("#e-search", "ember");

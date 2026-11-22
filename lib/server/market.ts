@@ -15,6 +15,8 @@ import type { ChainSource } from "./indexer/types";
 import type { ChecksView, CoinView, TradeView, TraderView } from "../contract";
 import { NEARLY_BPS } from "../board-filters";
 import { Describer } from "./describe";
+import { DAMM2_AUTHORITY, DAMM2_PROGRAM } from "./indexer/meteora";
+import { PoolReader } from "./pools";
 import { HISTORY_LIMIT } from "./history-limit";
 import { coinsToDrop } from "./indexer/retention";
 import { riskOf, type Risk } from "./risk";
@@ -27,6 +29,8 @@ import { database, onForget, state } from "./store";
 
 /** The board's first answer: this many of each kind. The live channel adds to it from there. */
 const BOARD_EACH = 150;
+/** Every pump.fun coin is made with this many base units. Only a Mayhem coin's supply is more. */
+const ONE_BILLION_COINS = 1_000_000_000_000_000n;
 const SEARCH_SHOWN = 30;
 const TRADERS_SHOWN = 100;
 const DEV_COINS_SHOWN = 50;
@@ -51,7 +55,7 @@ export const tradeView = (trade: Trade, early = false): TradeView => ({
   sol: Number(trade.sol),
   tok: Number(trade.tokens),
   p: Number(trade.price),
-  v: trade.venue === "amm" ? "a" : "c",
+  v: trade.venue === "amm" ? "a" : trade.venue === "damm2" ? "m" : "c",
   slot: trade.slot,
   ...(early ? { early: 1 as const } : {}),
 });
@@ -137,9 +141,20 @@ export class MarketService {
             uri: described.uri,
             creator: described.creator || market.creator,
           });
+        // A Mayhem coin's supply is what its mint says now: two thousand million at first, less whatever has been burned since.
+        if (described.facts.mayhem && BigInt(described.facts.supply) > 0n && BigInt(described.facts.supply) !== market.supply)
+          await this.indexer.resupply(mint, BigInt(described.facts.supply));
         this.touch(mint);
       },
       problem: (error) => log("warn", "coins could not be read from the chain", failure(error)),
+    });
+    this.indexer.readMeteora = settings().feedVenues.includes("meteora-damm2");
+    this.poolReader = new PoolReader({
+      waiting: (most, skip) => this.indexer.poolsToRead(most, skip),
+      accounts: (keys) => connection().getMultipleAccountsInfo(keys, "confirmed"),
+      learned: (facts) => this.indexer.learnPool(facts),
+      unreadable: (pool) => this.indexer.forgetPool(pool),
+      problem: (error) => log("warn", "pools could not be read from the chain", failure(error)),
     });
     this.tidying = setInterval(
       () => void this.tidy().catch((error: unknown) => log("error", "dropping dead coins failed", { error: String(error) })),
@@ -186,12 +201,15 @@ export class MarketService {
       ...(stream ? { down: stream.down, late: stream.late, repeats: stream.repeats, gaps: stream.gaps } : {}),
       followedLive: this.live?.size ?? this.indexer.markets.size,
       followed: this.indexer.markets.size,
+      venues: settings().feedVenues,
+      poolReadCalls: this.poolReader.calls,
       describeCalls: this.describer.calls,
       describeWaiting: this.describer.waitingFor,
     };
   }
 
   readonly describer: Describer;
+  readonly poolReader: PoolReader;
   private readonly rolling = new Rolling();
   /**
    * What time it is, for everything measured in "the last hour". The real time, except when a recording is being
@@ -346,7 +364,7 @@ export class MarketService {
     const now = Date.now();
     // Nothing has traded since: the figures cannot have changed. Otherwise they are good for a few seconds.
     if (kept && (kept.trades === market.trades || now - kept.at < RISK_GOOD_FOR_MS)) return kept.value;
-    const value = riskOf(database(), market, [curveAddress(market.mint).toBase58(), MAYHEM_VAULT, ...(market.pool ? [market.pool] : [])]);
+    const value = riskOf(database(), market, [curveAddress(market.mint).toBase58(), MAYHEM_VAULT, DAMM2_AUTHORITY, ...(market.pool ? [market.pool] : [])]);
     this.risks.set(market.mint, { at: now, trades: market.trades, value });
     value.catch(() => this.risks.delete(market.mint));
     return value;
@@ -376,9 +394,11 @@ export class MarketService {
       ...(market.seenFromSlot === undefined ? {} : { followedSince: market.createdAt }),
       ...(market.quote
         ? { unsupported: { reason: "quote" as const, quote: market.quote } }
-        : facts && (!facts.pump || facts.decimals !== 6)
+        : facts && !market.venue && (!facts.pump || facts.decimals !== 6)
           ? { unsupported: { reason: "foreign" as const } }
           : {}),
+      ...(!market.venue && (facts?.mayhem || market.supply > ONE_BILLION_COINS) ? { mayhem: true as const } : {}),
+      ...(market.venue ? { venue: "meteora-damm2" as const } : {}),
       // Only a graduation this server saw. A coin first seen in its pool graduated at some earlier time nobody here knows.
       ...(market.completedAt !== undefined && market.completedAt !== market.createdAt ? { graduatedAt: market.completedAt } : {}),
       ...(this.live && !this.live.has(mint) && !market.quote ? { notLiveSince: market.lastTradeAt ?? market.createdAt } : {}),
@@ -567,6 +587,7 @@ export class MarketService {
     const tags: string[] = [];
     if (owner === curveAddress(market.mint).toBase58()) tags.push("curve");
     if (owner === MAYHEM_VAULT) tags.push("mayhem");
+    if (owner === DAMM2_AUTHORITY) tags.push("pool");
     if (owner === market.creator) tags.push("creator");
     if (escrow !== null && owner === escrow) tags.push("ring");
     return tags;
@@ -577,6 +598,7 @@ export class MarketService {
     clearInterval(this.tidying);
     clearInterval(this.following);
     this.describer.stop();
+    this.poolReader.stop();
     if (this.source instanceof StreamSource) this.source.close();
     await this.indexer.stop();
   }
@@ -588,7 +610,7 @@ export class MarketService {
  *   FEED_PROVIDER=helius-ws   Helius's transaction stream; FEED_SCOPE=coins for the cheapest plan, all for everything
  */
 function sourceFromSettings(): ChainSource {
-  const { feedProvider, feedScope, heliusApiKey, network } = settings();
+  const { feedProvider, feedScope, feedVenues, heliusApiKey, network } = settings();
   if (feedProvider === "rpc") return new RpcSource(connection);
   if (!heliusApiKey) throw new Error("FEED_PROVIDER is helius-ws but HELIUS_API_KEY is not set");
   if (network === "local") throw new Error("FEED_PROVIDER helius-ws needs RING_NETWORK devnet or mainnet: there is no Helius stream of a local chain");
@@ -597,7 +619,8 @@ function sourceFromSettings(): ChainSource {
       socketUrl: `wss://${network}.helius-rpc.com/?api-key=${heliusApiKey}`,
       rpc: connection,
       // Everything: the two programs. The cheapest plan: only what makes a coin, plus the coins chosen to be followed.
-      always: feedScope === "all" ? [PUMP_PROGRAM, AMM_PROGRAM] : [PUMP_MINT_AUTHORITY],
+      // Other programs' pools are followed only with everything, and only when FEED_VENUES asks for them: each is more to carry.
+      always: feedScope === "all" ? [PUMP_PROGRAM, AMM_PROGRAM, ...(feedVenues.includes("meteora-damm2") ? [DAMM2_PROGRAM] : [])] : [PUMP_MINT_AUTHORITY],
     }),
   );
 }
@@ -619,6 +642,7 @@ export function market(): Promise<MarketService> {
       const made = new MarketService(sourceFor ? sourceFor() : sourceFromSettings());
       await made.warm();
       await made.describer.start();
+      made.poolReader.start();
       await made.indexer.start();
       return made;
     })();

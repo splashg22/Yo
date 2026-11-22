@@ -36,6 +36,11 @@ export interface Settings {
   jitoTipAccount: string;
   /** How much of the chain the indexer is fed: see FeedScope. */
   feedScope: FeedScope;
+  /**
+   * Which pool programs besides pump.fun's own are read, with FEED_SCOPE=all. FEED_VENUES, a comma-separated list.
+   * "pump" is always read. "meteora-damm2": Meteora's DAMM v2 pools against SOL. Each one added is more stream to carry.
+   */
+  feedVenues: FeedVenue[];
 }
 
 /**
@@ -100,6 +105,15 @@ function rpcUrlFor(network: "local" | "devnet" | "mainnet"): string {
  * "all": every pump.fun and pool trade. Coins already trading are then followed from the first trade seen. Needs a full stream.
  */
 export type FeedScope = "coins" | "all";
+export type FeedVenue = "pump" | "meteora-damm2";
+function feedVenuesFromEnv(): FeedVenue[] {
+  const named = (process.env.FEED_VENUES ?? "pump")
+    .split(",")
+    .map((name) => name.trim())
+    .filter(Boolean);
+  for (const name of named) if (name !== "pump" && name !== "meteora-damm2") throw new Error('FEED_VENUES may name "pump" and "meteora-damm2"');
+  return [...new Set(["pump", ...named])] as FeedVenue[];
+}
 function feedScopeFromEnv(): FeedScope {
   const scope = process.env.FEED_SCOPE ?? "coins";
   if (scope !== "coins" && scope !== "all") throw new Error('FEED_SCOPE must be "coins" or "all"');
@@ -138,6 +152,7 @@ export function settings(): Settings {
       .filter(Boolean),
     jitoTipAccount: process.env.JITO_TIP_ACCOUNT ?? "",
     feedScope: feedScopeFromEnv(),
+    feedVenues: feedVenuesFromEnv(),
   };
 }
 

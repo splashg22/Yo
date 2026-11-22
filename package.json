@@ -32,6 +32,7 @@
     "motion": "node scripts/motion.mjs",
     "window": "node scripts/window.mjs",
     "record": "NODE_USE_ENV_PROXY=1 tsx --env-file=.env scripts/record-chain.ts",
+    "measure": "NODE_USE_ENV_PROXY=1 tsx --env-file=.env scripts/measure-venues.ts",
     "replay": "NODE_USE_ENV_PROXY=1 tsx scripts/replay-server.ts",
     "check:board": "node scripts/board-check.mjs",
     "load": "tsx scripts/load.ts",
