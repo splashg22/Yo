@@ -159,7 +159,8 @@ check("filters are saved as a preset", (await page.evaluate(() => localStorage.g
 await page.click('button:text-is("Clear the filters")');
 
 // The coin page: chart, live trades, holders, top traders, safety checks, dev history, how far back.
-const top = (await call("trending", { window: "h1" })).coins[0];
+// The most traded coin this site can show in full.
+const top = (await call("trending", { window: "h1" })).coins.find((coin) => !coin.unsupported);
 await page.goto(`${base}/coin/${top.mint}`);
 await page.waitForSelector("[data-checks] dl", { timeout: 20000 });
 await page.waitForSelector(".chart-area canvas", { timeout: 20000 });
@@ -176,7 +177,11 @@ check(
   /More can be minted (No|Yes|Not read)/.test(checks) && /Holdings can be frozen (No|Yes|Not read)/.test(checks),
   checks.slice(0, 110),
 );
-check("a check that is not built is shown as not checked, not as passed", /Pool liquidity locked Not checked/.test(checks));
+check(
+  "pool liquidity is read from the chain: a share burned or locked, no pool yet, or not read",
+  /Pool liquidity (\d+(\.\d)?% (burned|locked for good)|No pool yet|Not read)/.test(checks),
+  /Pool liquidity [^.]{0,40}/.exec(checks)?.[0] ?? "",
+);
 check("the creator's other coins card says what it cannot see", /does not mean a clean history/.test(await page.locator("[data-dev]").innerText()));
 const history = (await page.locator("[data-history]").innerText()).replace(/\s+/g, " ");
 check("the page says how far back this coin's trades go", /Complete: every trade|Trades are held from/.test(history), history.slice(0, 100));

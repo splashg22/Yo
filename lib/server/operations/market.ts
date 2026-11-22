@@ -43,6 +43,7 @@ async function tradeRequest(input: Input): Promise<Omit<TradeRequest, "side" | "
     throw new Error("slippage must be a whole number of hundredths of a percent");
   const mint = addressOf(input.mint, "coin address");
   const known = (await market()).indexer.markets.get(mint);
+  if (known?.pricedIn) throw new Error("this coin is priced in another coin, not in SOL. This site cannot trade those yet. Nothing was built.");
   if (known?.venue) throw new Error("this coin does not trade on pump.fun. This site cannot trade it yet. Nothing was built.");
   if (known?.quote) throw new Error("this coin is priced in something other than SOL. This site cannot trade those yet. Nothing was built.");
   return {
@@ -140,7 +141,8 @@ export const marketOperations: Handlers<
 
   /** A coin's trades, newest first. With no `before`, the newest ones, from memory. */
   "coin/trades": async (input) => {
-    const { mint, service } = await followed(input.mint);
+    const { mint, service, market: found } = await followed(input.mint);
+    const rate = service.rateOf(found) ?? 1;
     const limit = limitOf(input.limit, 200, 100);
     const wallet = input.wallet === undefined ? undefined : addressOf(input.wallet, "wallet address");
     const seq = service.hub.seq(`coin:${mint}`);
@@ -150,7 +152,7 @@ export const marketOperations: Handlers<
         trades: recent
           .slice(-limit)
           .reverse()
-          .map((trade) => tradeView(trade)),
+          .map((trade) => tradeView(trade, false, rate)),
         seq,
       };
     }
@@ -158,18 +160,19 @@ export const marketOperations: Handlers<
     if (before !== undefined && (!Number.isInteger(before.slot) || !Number.isInteger(before.x) || !Number.isInteger(before.i)))
       throw new Error('"before" is not a place in the list');
     const cursor = before ? { slot: before.slot as number, txIndex: before.x as number, idx: before.i as number } : null;
-    return { trades: (await service.indexer.tradesBefore(mint, cursor, limit, wallet)).map((trade) => tradeView(trade)), seq };
+    return { trades: (await service.indexer.tradesBefore(mint, cursor, limit, wallet)).map((trade) => tradeView(trade, false, rate)), seq };
   },
 
   /** Candles, oldest first, as [time, open, high, low, close, volume, trades, buys]. With no `before`, the newest, from memory. */
   "coin/candles": async (input) => {
-    const { mint, service } = await followed(input.mint);
+    const { mint, service, market: found } = await followed(input.mint);
+    const wire = (candle: Parameters<typeof candleWire>[0]): number[] => candleWire(candle, service.rateOf(found) ?? 1);
     if (!isTimeframe(input.tf)) throw new Error('"tf" must be one of 1, 60, 300, 900, 3600, 86400 (seconds)');
     const limit = limitOf(input.limit, 600, 300);
     const seq = service.hub.seq(`k:${mint}:${input.tf}`);
-    if (input.before === undefined) return { candles: (await service.indexer.candles(mint, input.tf)).slice(-limit).map(candleWire), seq };
+    if (input.before === undefined) return { candles: (await service.indexer.candles(mint, input.tf)).slice(-limit).map(wire), seq };
     if (typeof input.before !== "number" || !Number.isInteger(input.before) || input.before < 0) throw new Error('"before" must be a time in seconds');
-    return { candles: (await service.indexer.candlesBefore(mint, input.tf, input.before, limit)).map(candleWire), seq };
+    return { candles: (await service.indexer.candlesBefore(mint, input.tf, input.before, limit)).map(wire), seq };
   },
 
   "coin/holders": async (input) => {
@@ -286,7 +289,12 @@ async function positionsOf(wallet: string, onlyMint?: string): Promise<PositionV
   for (const mint of mints) {
     const found = service.indexer.markets.get(mint);
     if (!found) continue;
-    const flow = flows.find((candidate) => candidate.mint === mint) ?? {
+    // A coin whose money cannot be turned into lamports has no value to show here.
+    const rate = service.rateOf(found);
+    if (rate === null) continue;
+    const scaled = (amount: bigint): bigint => (rate === 1 ? amount : BigInt(Math.round(Number(amount) * rate)));
+    const own = flows.find((candidate) => candidate.mint === mint);
+    const flow = (own ? { ...own, boughtSol: scaled(own.boughtSol), soldSol: scaled(own.soldSol) } : undefined) ?? {
       boughtSol: 0n,
       boughtTokens: 0n,
       soldSol: 0n,
@@ -297,7 +305,7 @@ async function positionsOf(wallet: string, onlyMint?: string): Promise<PositionV
     };
     const listed = state().coins.find((coin) => coin.mint === mint);
     const holding = held.get(mint) ?? 0n;
-    const price = priceOf(found.virtualSol, found.virtualTokens);
+    const price = scaled(priceOf(found.virtualSol, found.virtualTokens));
     const value = (holding * price) / (WHOLE_COIN * MICRO);
     // Cost is worked out at the average buy price. Coins that arrived some other way (a transfer, a withdrawal from the Ring) have no cost here.
     const costOf = (tokens: bigint): bigint => (flow.boughtTokens > 0n ? (flow.boughtSol * tokens) / flow.boughtTokens : 0n);

@@ -67,7 +67,20 @@ export interface TraderView {
   firstAt: number;
   tags: string[];
 }
+/**
+ * Whether a coin's pool liquidity can be pulled out, as read from the chain.
+ * "curve": no pool yet, the bonding curve holds the SOL. "none": sold out, and its pool has not been made.
+ * "burned": a pump.fun pool; `issued` LP coins, of which `outstanding` still exist and could be handed back for liquidity.
+ * "locked": a Meteora pool; the share of its liquidity locked for good. "unread": the chain could not be read; `problem` says why.
+ */
+export type LiquidityCheck =
+  | { kind: "curve" }
+  | { kind: "none" }
+  | { kind: "burned"; issued: string; outstanding: string; burnedBps: number }
+  | { kind: "locked"; lockedBps: number }
+  | { kind: "unread"; problem: string };
 export interface ChecksView {
+  liquidity: LiquidityCheck;
   /** Null when the coin's account could not be read from the chain; `factsProblem` says why. */
   facts: CoinFacts | null;
   factsProblem?: string;
@@ -117,7 +130,7 @@ export interface CoinView {
   notLiveSince?: number;
   /**
    * Set for a coin this site cannot trade or chart yet, with the reason. "quote": it is priced in something other than SOL.
-   * "foreign": it trades in a pump.fun pool but is not a pump.fun coin, so the figures this site works out would be wrong for it.
+   * "foreign": it trades in a pump.fun pool, is not a pump.fun coin, and has other than six decimals, which its stored trades did not allow for.
    */
   unsupported?: { reason: "quote"; quote: string } | { reason: "foreign" };
   /** Set for a pump.fun "Mayhem mode" coin: market cap and shares are of its whole supply, the Mayhem vault's coins included, as pump.fun counts them. */
@@ -127,8 +140,20 @@ export interface CoinView {
    * and no graduation, and cannot be traded from this site.
    */
   venue?: "meteora-damm2";
+  /** Set for a coin that trades in a pump.fun pool but was not made on pump.fun. Its market cap is on its own supply, read from its mint. */
+  foreign?: true;
   /** When the coin graduated, in milliseconds, if this server saw it happen. */
   graduatedAt?: number;
+  /**
+   * Set for a coin priced in USDC, not SOL. Every figure in lamports on this coin is then USDC turned into lamports at
+   * the price of SOL when it was sent, so that shown in dollars it is the USDC itself; shown in SOL it is a conversion.
+   */
+  quote?: "USDC";
+  /**
+   * Set for a coin priced in another coin, not in SOL: which. Each of its trades was turned into SOL at that coin's
+   * price at the time. Between its own trades its price here does not move with that coin's.
+   */
+  pricedIn?: { mint: string; symbol: string };
   /** False for a pump.fun coin that was made somewhere else and is only traded here. */
   launchedHere: boolean;
   marketCapLamports: string;

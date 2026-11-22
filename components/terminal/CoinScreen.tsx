@@ -120,7 +120,7 @@ export function CoinScreen({ mint }: { mint: string }) {
     .map((trade) => ({ at: Math.floor(trade.t / 1000), side: trade.b ? "buy" : "sell", who: trade.w === me ? "me" : "creator", price: trade.p }));
   const view: ChartView = { measure, unit, supplyCoins: Number(BigInt(coin.privacy.supply)) / 1e6, solUsd: solPrice?.usd ?? null };
   // Trading is built for pump.fun's curve and pool only. A coin priced from another program's pool is shown, not traded.
-  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue;
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue && !coin.quote && !coin.pricedIn;
   const readOnly = config !== null && config !== "offline" && config.network === "mainnet";
 
   return (
@@ -142,6 +142,20 @@ export function CoinScreen({ mint }: { mint: string }) {
                         : "Sold out: no pool yet"
                       : "On the curve"}
                 </span>
+                {coin.pricedIn && (
+                  <Link
+                    className="tag"
+                    href={`/coin/${coin.pricedIn.mint}`}
+                    title="Each trade is turned into SOL at that coin's price at the time. Between this coin's own trades, its price here does not move with that coin's."
+                  >
+                    Priced in {coin.pricedIn.symbol || shortAddress(coin.pricedIn.mint)}
+                  </Link>
+                )}
+                {coin.quote && (
+                  <span className="tag" title="Dollar figures are the USDC itself. SOL figures are converted at the price of SOL now.">
+                    Priced in USDC
+                  </span>
+                )}
                 {!coin.launchedHere && <span className="tag">Not launched here</span>}
                 {coin.followedSince !== undefined && (
                   <span
@@ -227,16 +241,35 @@ export function CoinScreen({ mint }: { mint: string }) {
               <h2 className="px">Not supported yet</h2>
               {coin.unsupported.reason === "quote" ? (
                 <p className="body">
-                  This coin is priced in something other than SOL (<span className="address">{shortAddress(coin.unsupported.quote)}</span>). This site reads and
-                  trades only coins priced in SOL for now, so it shows no price, chart or trades for this one, and cannot trade it. It is listed so that it is
-                  not mistaken for a coin with no activity.
+                  This coin is priced in something this site cannot turn into a price
+                  {coin.unsupported.quote ? (
+                    <>
+                      {" "}
+                      (<span className="address">{shortAddress(coin.unsupported.quote)}</span>)
+                    </>
+                  ) : null}
+                  . It reads coins priced in SOL, and coins priced in USDC when it has a price of SOL to set them beside. For this one it shows no price, chart
+                  or trades, and cannot trade it. It is listed so that it is not mistaken for a coin with no activity.
                 </p>
               ) : (
                 <p className="body">
-                  This coin trades in a pump.fun pool but is not a pump.fun coin. This site works out market cap, holders&apos; shares and the rest on the
-                  assumption of a pump.fun coin, so those figures would be wrong here. They are not shown, and it cannot be traded from here.
+                  This coin trades in a pump.fun pool, is not a pump.fun coin, and has other than six decimals. This site works out market cap, holders&apos;
+                  shares and the rest on the assumption of a pump.fun coin, so those figures would be wrong here. They are not shown, and it cannot be traded
+                  from here.
                 </p>
               )}
+            </section>
+          ) : coin.pricedIn && !readOnly ? (
+            <section className="card" data-priced-in>
+              <h2 className="px">Shown, not traded</h2>
+              <p className="body">
+                This coin is priced in another coin, not in SOL. This site reads it and cannot trade it yet: it builds trades only for coins priced in SOL.
+              </p>
+            </section>
+          ) : coin.quote && !readOnly ? (
+            <section className="card" data-usdc>
+              <h2 className="px">Shown, not traded</h2>
+              <p className="body">This coin is priced in USDC. This site reads it and cannot trade it yet: it builds trades only for coins priced in SOL.</p>
             </section>
           ) : coin.venue && !readOnly ? (
             <section className="card" data-other-venue>

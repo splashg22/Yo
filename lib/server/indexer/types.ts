@@ -34,6 +34,13 @@ export interface TradeEvent {
   virtualTokens: bigint;
   realSol: bigint;
   realTokens: bigint;
+  /**
+   * Present on a curve trade of a coin priced in something other than SOL: that thing's address. Every "SOL" amount
+   * on the event is then in its smallest units, not lamports. The indexer turns it into lamports where it can.
+   */
+  quoteMint?: string;
+  /** True on a trade of a pump.fun "Mayhem mode" coin. */
+  mayhem?: boolean;
 }
 export interface CompleteEvent {
   kind: "complete";
@@ -44,7 +51,11 @@ export interface PoolEvent {
   kind: "pool";
   mint: string;
   pool: string;
+  /** Present when the pool's other side is not SOL: what it is. */
+  quote?: string;
 }
+/** USDC on mainnet. A coin priced in it is kept in USDC and turned into lamports when shown, at the price of SOL then. */
+export const USDC = "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 export type ChainEvent = CreateEvent | TradeEvent | CompleteEvent | PoolEvent | Damm2Swap | Damm2Pool;
 
 export interface ChainTx {

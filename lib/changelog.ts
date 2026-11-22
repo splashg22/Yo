@@ -23,6 +23,11 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "A coin's page lists its top traders by what they made, and its safety checks: whether more can be minted and whether holdings can be frozen, read from the coin's own account, with the creator's other coins and how far back the coin's trades go.",
       "Names and pictures of coins that were already trading are read from the chain. Pictures are fetched by the server, redrawn small and served from here.",
       "The docs say exactly which coins the terminal covers, which it lists as not supported, and which it does not see.",
+      "Coins in Meteora DAMM v2 pools against SOL are followed where the server is fed every trade: the largest source of coin trading outside pump.fun when measured. Shown, not traded.",
+      "pump.fun coins priced in another coin are given a price in SOL through that coin, trade by trade. Coins priced in USDC are read in USDC.",
+      "A pool liquidity check on every coin page: the share of a pump.fun pool's LP coins that was burned, or of a Meteora pool's liquidity that is locked for good, read from the chain.",
+      "A Mayhem-mode coin's market cap counts its whole supply, as pump.fun's own code does. It was half that before.",
+      "Coin pictures are fetched ahead into the server's own cache, so a row never waits on a public gateway.",
     ],
   },
   {

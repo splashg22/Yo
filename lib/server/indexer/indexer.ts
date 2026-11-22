@@ -11,7 +11,7 @@
 import type { Db, Sql } from "../db";
 import { TIMEFRAMES, bucketOf, extend, priceOf, type Candle, type Market, type Timeframe, type Trade } from "./model";
 import { toMillionths, tradeFrom, type PoolFacts } from "./meteora";
-import type { ChainBlock, ChainSource, ChainTx, EarlyTx, TradeEvent } from "./types";
+import { USDC, type ChainBlock, type ChainSource, type ChainTx, type EarlyTx, type TradeEvent } from "./types";
 
 /** How many applied blocks are kept undoable. A confirmed block is practically never dropped; this is far deeper than any seen. */
 export const UNDO_DEPTH = 300;
@@ -65,9 +65,10 @@ interface MarketRow {
   quote: string | null;
   venue: string | null;
   decimals: number | null;
+  priced_in: string | null;
 }
 const MARKET_COLUMNS =
-  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades, seen_from, quote, venue, decimals";
+  "mint, creator, name, symbol, uri, created_at, created_slot, supply::text, initial_real_tokens::text, virtual_sol::text, virtual_tokens::text, real_sol::text, real_tokens::text, complete, completed_at, last_trade_at, pool, holders, trades, seen_from, quote, venue, decimals, priced_in";
 const fromRow = (row: MarketRow): Market => ({
   mint: row.mint,
   creator: row.creator,
@@ -92,6 +93,7 @@ const fromRow = (row: MarketRow): Market => ({
   ...(row.quote === null || row.quote === undefined ? {} : { quote: row.quote }),
   ...(row.venue === "damm2" ? { venue: "damm2" as const } : {}),
   ...(row.decimals === null || row.decimals === undefined ? {} : { decimals: row.decimals }),
+  ...(row.priced_in === null || row.priced_in === undefined ? {} : { pricedIn: row.priced_in }),
 });
 const toRow = (market: Market): MarketRow => ({
   mint: market.mint,
@@ -117,9 +119,10 @@ const toRow = (market: Market): MarketRow => ({
   quote: market.quote ?? null,
   venue: market.venue ?? null,
   decimals: market.decimals ?? null,
+  priced_in: market.pricedIn ?? null,
 });
 const MARKET_RECORD =
-  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int, seen_from bigint, quote text, venue text, decimals int";
+  "mint text, creator text, name text, symbol text, uri text, created_at bigint, created_slot bigint, supply numeric, initial_real_tokens numeric, virtual_sol numeric, virtual_tokens numeric, real_sol numeric, real_tokens numeric, complete boolean, completed_at bigint, last_trade_at bigint, pool text, holders int, trades int, seen_from bigint, quote text, venue text, decimals int, priced_in text";
 const MARKET_NAMES = MARKET_RECORD.split(", ").map((column) => column.split(" ")[0]!);
 
 interface TradeRow {
@@ -181,12 +184,16 @@ const PUMP_CURVE_TOKENS = 793_100_000_000_000n;
  * say (name, ticker, creator, when it was made, anything earlier) is left empty and marked by `seenFromSlot`.
  * A pool trade does not name its coin: it is the coin whose account, among those the transaction changed, the pool owns.
  */
-function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number): Market | undefined {
+function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number, pricedIn?: string): Market | undefined {
   const pool = event.venue === "amm" ? event.mint.slice(5) : undefined;
-  // A pool is followed only if it is seen to hold wrapped SOL: a pool priced in something else would be read at a wrong price.
-  if (pool && !tx.balances.some((balance) => balance.owner === pool && balance.mint === WRAPPED_SOL)) return undefined;
-  const mint = pool ? tx.balances.find((balance) => balance.owner === pool && balance.mint !== WRAPPED_SOL)?.mint : event.mint;
+  // A pool is followed only if it is seen to hold wrapped SOL or USDC: a pool priced in anything else would be read at a wrong price.
+  const holds = (mint: string): boolean => tx.balances.some((balance) => balance.owner === pool && balance.mint === mint);
+  const poolQuote = pool ? (holds(WRAPPED_SOL) ? WRAPPED_SOL : holds(USDC) ? USDC : undefined) : undefined;
+  if (pool && !poolQuote) return undefined;
+  const mint = pool ? tx.balances.find((balance) => balance.owner === pool && balance.mint !== poolQuote)?.mint : event.mint;
   if (!mint) return undefined;
+  // A curve trade already turned into lamports names the coin it was priced in, and carries no other money.
+  const quote = pricedIn ? undefined : pool ? (poolQuote === USDC ? USDC : undefined) : event.quoteMint;
   return {
     mint,
     creator: "",
@@ -195,7 +202,8 @@ function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number): M
     uri: "",
     createdAt: at,
     createdSlot: slot,
-    supply: PUMP_SUPPLY,
+    // A Mayhem coin's supply is twice the usual; its mint is read later for the exact figure.
+    supply: event.mayhem ? PUMP_SUPPLY * 2n : PUMP_SUPPLY,
     initialRealTokens: PUMP_CURVE_TOKENS,
     virtualSol: event.virtualSol,
     virtualTokens: event.virtualTokens,
@@ -206,7 +214,22 @@ function discovered(event: TradeEvent, tx: ChainTx, slot: number, at: number): M
     holders: 0,
     trades: 0,
     seenFromSlot: slot,
+    ...(quote ? { quote } : {}),
+    ...(pricedIn ? { pricedIn } : {}),
   };
+}
+
+/**
+ * A trade of a coin priced in another coin, turned into lamports at that other coin's price as it stands at this
+ * point in the chain. `priced` is the other coin's market: it is followed here and its own amounts are in lamports.
+ */
+function inLamportsOf(event: TradeEvent, priced: Market): TradeEvent {
+  const price = priceOf(priced.virtualSol, priced.virtualTokens);
+  // The other coin's amounts arrive in its own smallest units; its price is millionths of a lamport for a million millionths of it.
+  const lamports = (amount: bigint): bigint => (toMillionths(amount, priced.decimals ?? 6) * price) / 1_000_000_000_000n;
+  const turned: TradeEvent = { ...event, sol: lamports(event.sol), virtualSol: lamports(event.virtualSol), realSol: lamports(event.realSol) };
+  delete turned.quoteMint;
+  return turned;
 }
 
 /**
@@ -548,6 +571,12 @@ export class Indexer {
         }
         if (event.kind === "create") {
           if (this.markets.has(event.mint) || next.has(event.mint)) continue;
+          // A coin made priced in another coin that is followed here starts with a price in SOL, at that coin's price now.
+          const base = event.quoteMint && event.quoteMint !== USDC ? (next.get(event.quoteMint) ?? this.markets.get(event.quoteMint)) : undefined;
+          const priced = base && !base.quote ? base : undefined;
+          const startsAt = priced
+            ? (toMillionths(event.virtualSol, priced.decimals ?? 6) * priceOf(priced.virtualSol, priced.virtualTokens)) / 1_000_000_000_000n
+            : event.virtualSol;
           next.set(event.mint, {
             mint: event.mint,
             creator: event.creator,
@@ -558,14 +587,14 @@ export class Indexer {
             createdSlot: block.slot,
             supply: event.supply,
             initialRealTokens: event.realTokens,
-            virtualSol: event.virtualSol,
+            virtualSol: startsAt,
             virtualTokens: event.virtualTokens,
             realSol: 0n,
             realTokens: event.realTokens,
             complete: false,
             holders: 0,
             trades: 0,
-            ...(event.quoteMint ? { quote: event.quoteMint } : {}),
+            ...(priced ? { pricedIn: event.quoteMint! } : event.quoteMint ? { quote: event.quoteMint } : {}),
           });
           created.push(event.mint);
         } else if (event.kind === "complete") {
@@ -576,7 +605,8 @@ export class Indexer {
           }
         } else if (event.kind === "pool") {
           const market = touch(event.mint);
-          if (market) {
+          // The pool a coin graduates into is against what the coin is priced in. Any other pool of it is not its market.
+          if (market && (event.quote ?? undefined) === (market.pricedIn ?? market.quote ?? undefined)) {
             market.pool = event.pool;
             market.complete = true;
             market.completedAt ??= at;
@@ -586,10 +616,37 @@ export class Indexer {
           const place = idx++;
           const mint = event.venue === "amm" ? (pools.get(event.mint.slice(5)) ?? this.pools.get(event.mint.slice(5))) : event.mint;
           let market = touch(mint);
+          // What the trade is priced in: named by a curve trade itself, known from the coin for a pool trade.
+          const pricedIn = event.venue === "curve" ? (event.quoteMint === USDC ? undefined : event.quoteMint) : market?.pricedIn;
+          let trade = event;
+          if (pricedIn) {
+            // Priced in another coin. It can be given a price in SOL only while that coin is followed here and has one.
+            const other = next.get(pricedIn) ?? this.markets.get(pricedIn);
+            if (other && !other.quote) trade = inLamportsOf(event, other);
+            else {
+              // Not now. A coin not seen before is still listed, as one this site cannot price yet.
+              if (!market && this.discover && event.venue === "curve") {
+                const found = discovered(event, tx, block.slot, at);
+                if (found && !this.markets.has(found.mint) && !next.has(found.mint)) {
+                  next.set(found.mint, found);
+                  created.push(found.mint);
+                }
+              }
+              continue;
+            }
+            // A coin listed earlier as one that could not be priced can be from here on.
+            if (market && market.quote === pricedIn) {
+              delete market.quote;
+              market.pricedIn = pricedIn;
+              // What it held until now was in the other coin's units. It starts from this trade's own figures.
+              market.virtualSol = trade.virtualSol;
+              market.virtualTokens = trade.virtualTokens;
+            }
+          }
           if (!market && this.discover) {
             // A coin that was trading before this indexer began to listen. It is followed from here on, and says so:
             // its name, its creator and everything before this trade are not known until they are read from the chain.
-            const found = discovered(event, tx, block.slot, at);
+            const found = discovered(trade, tx, block.slot, at, pricedIn);
             if (found && !this.markets.has(found.mint) && !next.has(found.mint)) {
               next.set(found.mint, found);
               created.push(found.mint);
@@ -597,9 +654,11 @@ export class Indexer {
               market = found;
             }
           }
-          if (!market || market.quote) continue;
-          const trade = await this.tradeInto(market, event, { signature: tx.signature, idx: place, slot: block.slot, txIndex: tx.index, at }, candles);
-          trades.push(trade);
+          // A coin priced in USDC is read, in USDC. One still marked as priced in anything else is listed and not read.
+          if (!market || (market.quote && market.quote !== USDC)) continue;
+          // A curve trade in USDC belongs only to a coin priced in USDC, and the other way round.
+          if (event.venue === "curve" && (event.quoteMint === USDC) !== (market.quote === USDC)) continue;
+          trades.push(await this.tradeInto(market, trade, { signature: tx.signature, idx: place, slot: block.slot, txIndex: tx.index, at }, candles));
         }
       }
       for (const balance of tx.balances) {

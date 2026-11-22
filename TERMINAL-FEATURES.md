@@ -204,7 +204,7 @@ three RPC methods, no key but the RPC's own). In them:
 - 3,409 successful transactions touching pump.fun, its pool program or a pump.fun coin: **about 170 a second.**
 - **2,047 trades, about 100 a second** (418 on bonding curves, 1,592 in pools), across 203 coins.
 - **6 new coins**, about one every 3 seconds, which is roughly 25,000 a day.
-- Found on the way: **some pump.fun coins are now priced in USDC, not SOL** (37 trades and one new coin in the
+- Found on the way (and described wrongly here at first: see section 12, they are priced in other coins, not USDC): **some pump.fun coins are now priced in USDC, not SOL** (37 trades and one new coin in the
   sample). Devnet never showed one. Ours reads only SOL-priced coins for now and leaves the others out
   rather than show them at a wrong price.
 
@@ -370,7 +370,7 @@ is set; nothing else changes.
 | pump.fun bonding curve, coins priced in SOL | **Covered**, from the coin's first block | Everything |
 | PumpSwap (pump.fun's pool program), SOL pools of pump.fun coins | **Covered** | Everything |
 | pump.fun coins already trading before we listened | **Covered from the first trade seen**; name, picture, creator and safety facts read from the chain afterwards | Marked "followed"; holders and top-ten shown as "at least"; snipers, bundles, insiders "not known" |
-| pump.fun coins priced in USDC or another coin | **Listed, not supported** | Name and "not priced in SOL: not supported yet". No price, never a zero |
+| pump.fun coins priced in another coin, or in USDC | **Covered since section 12** when the other coin is followed; otherwise listed, not supported | A SOL price through the other coin, trade by trade; or name and "not supported yet" with no price |
 | Coins in PumpSwap pools that were not made on pump.fun | **Listed, not supported** once their account is read | "Not a pump.fun coin: not supported yet". No price |
 | pump.fun Mayhem-mode coins | Covered. The Mayhem vault's extra thousand million coins are left out of holder figures, as the curve is | Market cap uses the supply the creation event states |
 | LetsBonk, Moonshot, Believe, Boop, Jupiter Studio and other launchpads | **Not covered** | Not on the board |
@@ -501,6 +501,51 @@ market cap here was half of pump.fun's. Fixed:** a Mayhem coin is made with two 
 re-read from its mint when the coin is opened, since the agent's unsold coins can be burned. Holder shares are of
 the whole supply and still leave the vault itself out. I could not compare with the figure on pump.fun's website:
 its API refused the request, and its public docs do not describe Mayhem supply.
+
+## 12. Coins not priced in SOL, the liquidity check, and pictures (22 November)
+
+### "USDC-priced" was wrong: they are priced in other coins
+
+Earlier in this document, and to you, I called pump.fun's non-SOL coins "USDC-priced". Reading the events properly
+shows otherwise. In 300 recorded mainnet blocks, 136 of 2,338 curve trades were of coins not priced in SOL, and
+**not one was priced in USDC**. They are priced in other coins: mostly other pump.fun coins, a few tokenised stocks
+and similar. pump.fun's SDK calls these quote coins, with a depth (a coin priced in a coin priced in SOL).
+
+What is built:
+
+- **A coin priced in another coin gets a real price in SOL** when that other coin is followed here and has a price.
+  Each trade is turned into lamports at the other coin's price at that point in the chain, so trades, chart, volume
+  and market cap are in SOL like any coin's. This is exact at each trade and repeatable from a recording.
+  Limit: between its own trades, its price here does not move when the other coin's does. Rows are tagged "in" and
+  the other coin's ticker.
+- **A coin priced in a coin not followed here** (it has not traded since the server began listening, or it is not a
+  pump.fun coin) stays "not supported yet", with no price, until that coin is seen.
+- **USDC is supported too**, by a different route, because a dollar price at trade time would need the price of SOL
+  at every past block: trades are held in USDC and turned into lamports when sent to the page, at the price of SOL
+  then, so the dollar figure shown is the USDC itself. Proven by a unit test on made-up trades only: **there was
+  no real USDC-priced trade to test against.**
+- None of these can be traded from this site.
+
+### Pool liquidity: burned or locked
+
+Built, and on every coin page (docs: "The pool liquidity check"). For a pump.fun pool: LP coins issued, from the
+pool's account, against LP coins that still exist, from the LP coin's account; "100% burned" only when none exist.
+For a Meteora pool: the share its own account records as locked for good. Two RPC calls per coin opened, at most
+once a minute. Tested on real accounts copied from mainnet: a graduated pump.fun pool (100% burned) and Meteora
+pools at 0%, 93% and 100% locked. Found on the first run: a coin in a pump.fun pool that pump.fun did not make
+reads 0% burned, which is exactly the case the check exists for.
+
+Not covered: who holds LP coins that still exist; LP coins locked in a third-party locker; Meteora locks that end
+on a date.
+
+### Pictures
+
+The server now fetches the pictures of the coins on its board and rankings ahead of anyone asking, into its own
+cache on disk, and serves only from that. A row never waits on a gateway: a picture not fetched yet shows the
+ticker's first letter, and the page asks again a few seconds later. A gateway that answers "too many requests" is
+left alone for 30 seconds and the next one is tried. How fast the cache fills is still set by the public gateways:
+from this machine it was slow, a handful of pictures in the first minute. A paid gateway or pump.fun's own image
+host would be faster; neither is used.
 
 ## Sources
 

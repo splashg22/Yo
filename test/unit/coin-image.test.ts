@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { coinImage, outside } from "../../lib/server/coin-image";
+import { coinImage, forgetPictureState, outside, pictureKept, pictureStats } from "../../lib/server/coin-image";
 
 const previous = process.env.APP_DATA_DIR;
 const real = outside.fetch;
@@ -27,6 +27,7 @@ afterAll(() => {
 });
 beforeEach(() => {
   calls = [];
+  forgetPictureState();
 });
 
 describe("a coin's picture", () => {
@@ -99,5 +100,34 @@ describe("a coin's picture", () => {
   it("refuses anything that is not a coin's address without touching the disk or the network", async () => {
     expect(await coinImage("../../etc/passwd", "https://example-host.com/coin.json")).toBeNull();
     expect(calls).toEqual([]);
+  });
+
+  it("leaves a gateway alone for a while after it says not now, and still finds the picture at the next one", async () => {
+    const picture = await png();
+    const cid = "QmQ77MDu7SSB599eVZr2MhYA3bUYuVmbNvZgS7R2x58SJr";
+    outside.fetch = (address) => {
+      calls.push(address);
+      if (address.startsWith("https://ipfs.io/")) return Promise.reject(new Error("the address answered 429"));
+      return Promise.resolve(
+        address.endsWith("/p.png") ? { bytes: picture, type: "image/png" } : { bytes: Buffer.from(JSON.stringify({ image: `ipfs://${cid}/p.png` })), type: "" },
+      );
+    };
+    expect(Buffer.isBuffer(await coinImage(mint(4), `ipfs://${cid}`))).toBe(true);
+    // The first gateway was asked once. The picture itself, on the same gateways, was asked of the second straight away.
+    expect(calls.filter((address) => address.startsWith("https://ipfs.io/"))).toHaveLength(1);
+    expect(calls[calls.length - 1]!.startsWith("https://dweb.link/")).toBe(true);
+    // And the next coin does not try the resting gateway at all.
+    calls = [];
+    await coinImage(mint(5), `ipfs://${cid}`);
+    expect(calls.some((address) => address.startsWith("https://ipfs.io/"))).toBe(false);
+  });
+
+  it("knows what it already keeps, so nothing kept is fetched ahead again", () => {
+    expect(pictureKept(mint(0))).toBe(true);
+    // A coin found to have no picture counts as kept for the hour it is remembered.
+    expect(pictureKept(mint(1))).toBe(true);
+    expect(pictureKept(mint(7))).toBe(false);
+    expect(pictureStats.kept).toBeGreaterThan(0);
+    expect(pictureStats.none).toBeGreaterThan(0);
   });
 });

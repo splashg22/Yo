@@ -3,8 +3,10 @@
  * decoded, drawn again small, and kept on this server's disk. The browser is only ever given this server's own copy:
  * a visitor's browser never calls the creator's host, so opening the board tells no stranger who is looking.
  *
- * Fetched only when a browser asks for it, a few at a time. A coin whose picture cannot be had is remembered as such
- * for an hour, so a broken link costs one try.
+ * Fetched ahead of being asked for: the server fetches the pictures of the coins its board and rankings show
+ * (lib/server/market.ts), a few at a time, so a row is drawn from this cache and does not wait on anyone's gateway.
+ * A coin whose picture cannot be had is remembered as such for an hour, so a broken link costs one try. A gateway
+ * that says "not now" is left alone for half a minute.
  */
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
@@ -16,7 +18,7 @@ const SIDE = 96;
 const DESCRIPTION_MAX_BYTES = 100_000;
 const PICTURE_MAX_BYTES = 3_000_000;
 const MAX_PIXELS = 16_000_000;
-const AT_ONCE = 4;
+const AT_ONCE = 8;
 const WAITING_MOST = 300;
 const RETRY_AFTER_MS = 3_600_000;
 /** After a "not now", how long before the same coin is tried again. */
@@ -67,18 +69,51 @@ export function addressesFor(raw: string): string[] {
   const found = /^(?:ipfs:\/\/(?:ipfs\/)?|https:\/\/[^/]+\/ipfs\/)((?:Qm[1-9A-HJ-NP-Za-km-z]{44}|b[a-z2-7]{20,})(?:\/[^?#]*)?)/i.exec(raw.trim());
   return found ? IPFS_GATEWAYS.map((gateway) => gateway + found[1]!) : [raw];
 }
+/** A host that said "not now" is left alone for this long: asking it again at once only earns another refusal. */
+const COOL_MS = 30_000;
+const cooling = new Map<string, number>();
+const hostOf = (address: string): string => {
+  try {
+    return new URL(address).host;
+  } catch {
+    return address;
+  }
+};
+/** What the cache has done since the server started, for /health. */
+export const pictureStats = { kept: 0, none: 0, later: 0, fromDisk: 0 };
+
 async function fetched(raw: string, maxBytes: number) {
   let busy = false;
-  let last: unknown;
-  for (const address of addressesFor(raw)) {
+  let last: unknown = new Error("every gateway is being left alone for a moment");
+  const now = Date.now();
+  const candidates = addressesFor(raw);
+  const rested = candidates.filter((address) => (cooling.get(hostOf(address)) ?? 0) <= now);
+  if (rested.length === 0) throw new Later(String(last));
+  for (const address of rested) {
     try {
       return await outside.fetch(address, { maxBytes });
     } catch (error) {
       last = error;
-      if (/answered (429|5\d\d)|timeout|aborted|fetch failed/i.test(String(error))) busy = true;
+      if (/answered (429|5\d\d)|timeout|aborted|fetch failed/i.test(String(error))) {
+        busy = true;
+        cooling.set(hostOf(address), Date.now() + COOL_MS);
+      }
     }
   }
-  throw busy ? new Later(String(last)) : last;
+  // Some gateways were not tried because they are resting: the picture may still be there.
+  throw busy || rested.length < candidates.length ? new Later(String(last)) : last;
+}
+/** For tests: forget which hosts are resting and which coins were asked for lately. */
+export function forgetPictureState(): void {
+  cooling.clear();
+  askedLately.clear();
+}
+/** True while there is room to start another fetch without queueing behind the ones under way. */
+export const pictureRoom = (): boolean => busy < AT_ONCE && waiting.length === 0;
+/** True when a coin's picture, or the fact that it has none, is already kept. */
+export function pictureKept(mint: string): boolean {
+  const none = join(folder(), `${mint}.none`);
+  return existsSync(join(folder(), `${mint}.webp`)) || (existsSync(none) && Date.now() - statSync(none).mtimeMs < RETRY_AFTER_MS);
 }
 
 async function make(uri: string): Promise<Buffer | null> {
@@ -101,7 +136,10 @@ export function coinImage(mint: string, uri: string): Promise<Buffer | null | "l
   if (!/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(mint)) return Promise.resolve(null);
   const kept = join(folder(), `${mint}.webp`);
   const none = join(folder(), `${mint}.none`);
-  if (existsSync(kept)) return Promise.resolve(readFileSync(kept));
+  if (existsSync(kept)) {
+    pictureStats.fromDisk += 1;
+    return Promise.resolve(readFileSync(kept));
+  }
   if (existsSync(none) && Date.now() - statSync(none).mtimeMs < RETRY_AFTER_MS) return Promise.resolve(null);
   if (Date.now() - (askedLately.get(mint) ?? 0) < LATER_MS) return Promise.resolve("later");
   let running = inFlight.get(mint);
@@ -114,8 +152,11 @@ export function coinImage(mint: string, uri: string): Promise<Buffer | null | "l
           return null;
         });
         writeFileSync(bytes ? kept : none, bytes ?? "");
+        if (bytes) pictureStats.kept += 1;
+        else pictureStats.none += 1;
         return bytes;
       } catch {
+        pictureStats.later += 1;
         if (askedLately.size > 20_000) askedLately.clear();
         askedLately.set(mint, Date.now());
         return "later";

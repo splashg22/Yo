@@ -33,8 +33,17 @@ export interface Market {
    * creation time are not known from the stream, and nothing before this slot is held. Absent: followed from its creation.
    */
   seenFromSlot?: number;
-  /** Set for a coin priced in something other than SOL: the address of what it is priced in. Its trades are not read. */
+  /**
+   * Set for a coin priced in something other than SOL whose amounts are NOT held in lamports: the address of what it
+   * is priced in. USDC: its trades are read and held in USDC. Anything else: a coin this indexer could not price,
+   * whose trades are not read.
+   */
   quote?: string;
+  /**
+   * Set for a coin priced in another coin that IS followed here: that coin's address. Each of its trades was turned
+   * into lamports at that coin's price at that moment, so everything held about it is in lamports like any other.
+   */
+  pricedIn?: string;
   /**
    * Set for a coin that is not pump.fun's and whose price is taken from a Meteora DAMM v2 pool (`pool`). Such a coin
    * has no curve, no creation event seen and no graduation; its "virtual" reserves are written so that their ratio is

@@ -40,21 +40,33 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
       const name = CURVE_EVENTS.get(tag);
       if (name === "tradeevent") {
         const event = sdk.PUMP_SDK.decodeTradeEventBc(body);
-        // A coin priced in something other than SOL (pump.fun has USDC-priced coins on mainnet) carries its amounts
-        // in other fields and zero in the SOL ones. Read as SOL it would be a trade at no price, so it is not read at all.
-        if (!pricedInSol((event as { quoteMint?: { toBase58(): string } }).quoteMint)) return null;
+        // A coin priced in something other than SOL (on mainnet: mostly in another pump.fun coin) carries its amounts
+        // in other fields and zero in the SOL ones. Read as SOL it would be a trade at no price.
+        // Such a trade is passed on in the units of what the coin is priced in, with that named. Whether it can be turned
+        // into a price is the indexer's to say: it knows which coins it follows.
+        const quoted = event as {
+          quoteMint?: { toBase58(): string };
+          quoteAmount?: BN;
+          virtualQuoteReserves?: BN;
+          realQuoteReserves?: BN;
+          mayhemMode?: boolean;
+        };
+        const inSol = pricedInSol(quoted.quoteMint);
+        if (!inSol && (!quoted.quoteAmount || !quoted.virtualQuoteReserves || !quoted.realQuoteReserves)) return null;
         return {
           kind: "trade",
           venue: "curve",
           mint: event.mint.toBase58(),
           wallet: event.user.toBase58(),
           isBuy: event.isBuy,
-          sol: big(event.solAmount),
+          sol: big(inSol ? event.solAmount : quoted.quoteAmount!),
           tokens: big(event.tokenAmount),
-          virtualSol: big(event.virtualSolReserves),
+          virtualSol: big(inSol ? event.virtualSolReserves : quoted.virtualQuoteReserves!),
           virtualTokens: big(event.virtualTokenReserves),
-          realSol: big(event.realSolReserves),
+          realSol: big(inSol ? event.realSolReserves : quoted.realQuoteReserves!),
           realTokens: big(event.realTokenReserves),
+          ...(inSol ? {} : { quoteMint: quoted.quoteMint!.toBase58() }),
+          ...(quoted.mayhemMode === true ? { mayhem: true } : {}),
         };
       }
       if (name === "createevent") {
@@ -73,7 +85,10 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
           // works out such a coin's market cap on the mint's whole supply, and every other coin's on the thousand million
           // (getFee and v3Rates in @pump-fun/pump-sdk: `isMayhemMode ? mintSupply : ONE_BILLION_SUPPLY`). So does this.
           supply: big(event.tokenTotalSupply) * ((event as { isMayhemMode?: boolean }).isMayhemMode === true ? 2n : 1n),
-          virtualSol: big(event.virtualSolReserves),
+          // A coin priced in something else starts from that thing's reserves, in its own smallest unit.
+          virtualSol: big(
+            pricedInSol(quote) ? event.virtualSolReserves : ((event as { virtualQuoteReserves?: BN }).virtualQuoteReserves ?? event.virtualSolReserves),
+          ),
           virtualTokens: big(event.virtualTokenReserves),
           realTokens: big(event.realTokenReserves),
         };
@@ -85,8 +100,9 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
       const name = AMM_EVENTS.get(tag);
       if (name === "createpoolevent") {
         const event = sdk.PUMP_SDK.decodeCreatePoolEventAmm(body);
-        if (event.quoteMint.toBase58() !== WSOL) return null;
-        return { kind: "pool", mint: event.baseMint.toBase58(), pool: event.pool.toBase58() };
+        // A pool against SOL, or against whatever the coin is priced in. The indexer takes it only if it matches the coin.
+        const quote = event.quoteMint.toBase58();
+        return { kind: "pool", mint: event.baseMint.toBase58(), pool: event.pool.toBase58(), ...(quote === WSOL ? {} : { quote }) };
       }
       if (name === "buyevent" || name === "sellevent") {
         // The pool's event does not name the coin; the indexer fills it in from the pool's address.

@@ -101,22 +101,27 @@ describe("coins that were trading before the indexer began to listen", () => {
           if (event.kind !== "trade") continue;
           const pool = event.mint.slice(5);
           const placed =
-            event.venue === "curve" ||
+            // A curve trade priced in another coin is counted apart, below: it is stored only if that coin is followed.
+            (event.venue === "curve" && !event.quoteMint) ||
             (tx.balances.some((balance) => balance.owner === pool && balance.mint === WRAPPED_SOL) &&
               tx.balances.some((balance) => balance.owner === pool && balance.mint !== WRAPPED_SOL));
           if (placed) wanted += 1;
         }
     const stored = (await db.query<{ n: number }>("select count(*)::int as n from trades"))[0]!.n;
     expect(wanted).toBeGreaterThan(1000);
-    expect(stored).toBe(wanted);
     const markets = [...indexer.markets.values()];
+    // Trades of coins priced in another coin, each turned into lamports through a coin that is followed here.
+    const throughAnother = markets.filter((market) => market.pricedIn).reduce((sum, market) => sum + market.trades, 0);
+    expect(throughAnother).toBeGreaterThan(0);
+    expect(stored).toBe(wanted + throughAnother);
     expect(markets.length).toBeGreaterThan(100);
     const found = markets.filter((market) => market.seenFromSlot !== undefined);
     const made = markets.filter((market) => market.seenFromSlot === undefined);
     // Coins made during the recording know their name; coins found by a trade do not, and are marked.
     expect(made.filter((market) => !market.quote).every((market) => market.name !== "" && market.creator !== "")).toBe(true);
     expect(found.length).toBeGreaterThan(90);
-    expect(found.every((market) => market.name === "" && market.creator === "" && market.trades > 0)).toBe(true);
+    // (A coin priced in a coin that is not followed is listed with no trade read into it.)
+    expect(found.every((market) => market.name === "" && market.creator === "" && (market.trades > 0 || market.quote !== undefined))).toBe(true);
     // Both kinds of venue were found, and a pool coin's address is a real coin's address, not the pool's.
     const inPools = found.filter((market) => market.pool);
     expect(inPools.length).toBeGreaterThan(20);

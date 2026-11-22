@@ -11,9 +11,12 @@ import { AMM_PROGRAM, PUMP_PROGRAM } from "./indexer/decode";
 import { HeliusTxStream, PUMP_MINT_AUTHORITY } from "./indexer/helius-stream";
 import { RpcSource } from "./indexer/rpc-source";
 import { StreamSource } from "./indexer/stream-source";
-import type { ChainSource } from "./indexer/types";
-import type { ChecksView, CoinView, TradeView, TraderView } from "../contract";
+import { USDC, type ChainSource } from "./indexer/types";
+import { knownSolPrice } from "./usd";
+import type { ChecksView, CoinView, LiquidityCheck, TradeView, TraderView } from "../contract";
+import { liquidityOf } from "./liquidity";
 import { NEARLY_BPS } from "../board-filters";
+import { coinImage, pictureKept, pictureRoom, pictureStats } from "./coin-image";
 import { Describer } from "./describe";
 import { DAMM2_AUTHORITY, DAMM2_PROGRAM } from "./indexer/meteora";
 import { PoolReader } from "./pools";
@@ -45,21 +48,37 @@ const REFOLLOW_EVERY_MS = 5_000;
 /** A coin somebody opened is kept this long after, whatever its trading. */
 const KEEP_ASKED_MS = 24 * 3_600_000;
 
-export const tradeView = (trade: Trade, early = false): TradeView => ({
+/**
+ * `rate`: what one of the trade's own money units is worth in lamports. 1 for a coin priced in SOL. For a coin
+ * priced in USDC it is lamports for a millionth of a USDC at the price of SOL now, so the page, which shows dollars
+ * as lamports times the price of SOL, shows the USDC that was actually paid.
+ */
+export const tradeView = (trade: Trade, early = false, rate = 1): TradeView => ({
   s: trade.signature,
   i: trade.idx,
   t: trade.at,
   w: trade.wallet,
   b: trade.isBuy ? 1 : 0,
   x: trade.txIndex,
-  sol: Number(trade.sol),
+  sol: rate === 1 ? Number(trade.sol) : Math.round(Number(trade.sol) * rate),
   tok: Number(trade.tokens),
-  p: Number(trade.price),
+  p: Number(trade.price) * rate,
   v: trade.venue === "amm" ? "a" : trade.venue === "damm2" ? "m" : "c",
   slot: trade.slot,
   ...(early ? { early: 1 as const } : {}),
 });
-export const candleWire = (candle: Candle): number[] => [candle.t, candle.o, candle.h, candle.l, candle.c, candle.v, candle.n, candle.b];
+export const candleWire = (candle: Candle, rate = 1): number[] => [
+  candle.t,
+  candle.o * rate,
+  candle.h * rate,
+  candle.l * rate,
+  candle.c * rate,
+  candle.v * rate,
+  candle.n,
+  candle.b,
+];
+/** A whole amount in a coin's own money, as lamports. */
+const inLamports = (amount: bigint, rate: number): bigint => (rate === 1 ? amount : BigInt(Math.round(Number(amount) * rate)));
 
 interface Stats {
   volume: Record<WindowKey, number>;
@@ -98,7 +117,10 @@ export class MarketService {
       {
         applied: (block) => this.applied(block),
         early: (_tx, trades) => {
-          for (const trade of trades) this.hub.publish(`coin:${trade.mint}`, ["e", tradeView(trade, true)]);
+          for (const trade of trades) {
+            const rate = this.rateOf(this.indexer.markets.get(trade.mint));
+            if (rate !== null) this.hub.publish(`coin:${trade.mint}`, ["e", tradeView(trade, true, rate)]);
+          }
         },
         reorg: (_slot, mints) => {
           this.sent.clear();
@@ -134,13 +156,25 @@ export class MarketService {
       read: async (mint, described) => {
         const market = this.indexer.markets.get(mint);
         if (!market) return;
-        if (market.name === "" && market.seenFromSlot !== undefined)
+        if (market.name === "" && market.seenFromSlot !== undefined) {
           await this.indexer.describe(mint, {
             name: described.name,
             symbol: described.symbol,
             uri: described.uri,
             creator: described.creator || market.creator,
           });
+          // Now that it says where its picture is, the picture is fetched.
+          this.picture([mint]);
+        }
+        // A coin in a pump.fun pool that pump.fun did not make has its own supply, not pump.fun's thousand million.
+        if (
+          !described.facts.pump &&
+          !market.venue &&
+          described.facts.decimals === 6 &&
+          BigInt(described.facts.supply) > 0n &&
+          BigInt(described.facts.supply) !== market.supply
+        )
+          await this.indexer.resupply(mint, BigInt(described.facts.supply));
         // A Mayhem coin's supply is what its mint says now: two thousand million at first, less whatever has been burned since.
         if (described.facts.mayhem && BigInt(described.facts.supply) > 0n && BigInt(described.facts.supply) !== market.supply)
           await this.indexer.resupply(mint, BigInt(described.facts.supply));
@@ -156,6 +190,15 @@ export class MarketService {
       unreadable: (pool) => this.indexer.forgetPool(pool),
       problem: (error) => log("warn", "pools could not be read from the chain", failure(error)),
     });
+    // Pictures of the coins the board and rankings show are fetched ahead of anyone asking, newest wanted first.
+    this.picturing = setInterval(() => {
+      while (pictureRoom() && this.toPicture.length > 0) {
+        const mint = this.toPicture.pop()!;
+        this.queuedPictures.delete(mint);
+        const uri = this.indexer.markets.get(mint)?.uri;
+        if (uri && !pictureKept(mint)) void coinImage(mint, uri).catch(() => undefined);
+      }
+    }, 200);
     this.tidying = setInterval(
       () => void this.tidy().catch((error: unknown) => log("error", "dropping dead coins failed", { error: String(error) })),
       TIDY_EVERY_MS,
@@ -203,11 +246,24 @@ export class MarketService {
       followed: this.indexer.markets.size,
       venues: settings().feedVenues,
       poolReadCalls: this.poolReader.calls,
+      pictures: { ...pictureStats, waiting: this.toPicture.length },
       describeCalls: this.describer.calls,
       describeWaiting: this.describer.waitingFor,
     };
   }
 
+  private readonly toPicture: string[] = [];
+  private readonly queuedPictures = new Set<string>();
+  private readonly picturing: ReturnType<typeof setInterval>;
+  /** Asks for coins' pictures to be fetched into this server's cache, without waiting for them. The last named are fetched first. */
+  private picture(mints: Iterable<string>): void {
+    for (const mint of mints) {
+      if (this.queuedPictures.has(mint) || !this.indexer.markets.get(mint)?.uri) continue;
+      if (this.toPicture.length >= 5_000) this.queuedPictures.delete(this.toPicture.shift()!);
+      this.toPicture.push(mint);
+      this.queuedPictures.add(mint);
+    }
+  }
   readonly describer: Describer;
   readonly poolReader: PoolReader;
   private readonly rolling = new Rolling();
@@ -233,7 +289,10 @@ export class MarketService {
   }
   /** Stops following coins nobody trades or needs, and tells the board they are gone. Returns how many. */
   async tidy(now = this.clock()): Promise<number> {
-    const gone = coinsToDrop(this.indexer.markets.values(), now, (mint) => this.needed(mint, now));
+    // A coin other coins are priced in stays followed while any of them is: without it they have no price.
+    const pricing = new Set<string>();
+    for (const market of this.indexer.markets.values()) if (market.pricedIn) pricing.add(market.pricedIn);
+    const gone = coinsToDrop(this.indexer.markets.values(), now, (mint) => pricing.has(mint) || this.needed(mint, now));
     if (gone.length === 0) return 0;
     await this.indexer.drop(gone);
     for (const mint of gone) {
@@ -250,13 +309,19 @@ export class MarketService {
   }
 
   private applied(block: Applied): void {
-    for (const trade of block.trades) this.rolling.add(trade.mint, Math.floor(trade.at / 1000), Number(trade.sol), trade.isBuy);
     for (const trade of block.trades) {
-      const wire = ["t", tradeView(trade)];
+      // Without a price of SOL a USDC trade cannot be put beside SOL ones: it is stored, and neither counted nor sent, until there is one.
+      const rate = this.rateOf(this.indexer.markets.get(trade.mint));
+      if (rate === null) continue;
+      this.rolling.add(trade.mint, Math.floor(trade.at / 1000), Number(trade.sol) * rate, trade.isBuy);
+      const wire = ["t", tradeView(trade, false, rate)];
       this.hub.publish(`coin:${trade.mint}`, wire);
       this.hub.publish(`wallet:${trade.wallet}`, wire);
     }
-    for (const { mint, tf, candle } of block.candles) this.hub.publish(`k:${mint}:${tf}`, ["k", candleWire(candle)]);
+    for (const { mint, tf, candle } of block.candles) {
+      const rate = this.rateOf(this.indexer.markets.get(mint));
+      if (rate !== null) this.hub.publish(`k:${mint}:${tf}`, ["k", candleWire(candle, rate)]);
+    }
     // What the page shows of a wallet is read again after anything that moved its coins or its SOL.
     for (const trade of block.trades) forgetBalances(trade.wallet);
     for (const holder of block.holders) {
@@ -271,6 +336,18 @@ export class MarketService {
     }
     this.patchTimer ??= setTimeout(() => void this.patch(), PATCH_MS);
     for (const listener of this.onApplied) listener(block);
+  }
+
+  /**
+   * What one unit of a coin's own money is worth in lamports: 1 for a coin priced in SOL; for one priced in USDC,
+   * the lamports a millionth of a USDC buys at the price of SOL now. Null when it cannot be said: a coin priced in
+   * anything else, or no price of SOL to hand.
+   */
+  rateOf(market: Market | undefined): number | null {
+    if (!market?.quote) return 1;
+    if (market.quote !== USDC) return null;
+    const price = knownSolPrice();
+    return price ? 1000 / price.usd : null;
   }
 
   /** Has a coin's current figures sent out again: after its past has been filled in. */
@@ -340,6 +417,8 @@ export class MarketService {
     const kept = this.trends.get(window);
     if (kept && Date.now() - kept.at < 2_000) return kept.value;
     const top = this.rolling.top(WINDOWS[window], Math.floor(this.clock() / 1000), TRENDING_SHOWN);
+    // The top of the list is fetched first.
+    this.picture(top.map((entry) => entry.mint).reverse());
     const value = Promise.all(top.map(({ mint }) => this.view(mint))).then((views) => views.filter((view): view is CoinView => view !== undefined));
     this.trends.set(window, { at: Date.now(), value });
     return value;
@@ -350,11 +429,15 @@ export class MarketService {
    */
   async warm(): Promise<void> {
     const since = Math.floor(this.clock() / 1000) - WINDOWS.h24;
-    const rows = await database().query<{ mint: string; t: number; vol_sol: string; n: number; buys: number }>(
-      "select mint, t, vol_sol::text, n, buys from candles where tf = 60 and t > $1",
+    const rows = await database().query<{ mint: string; t: number; vol_sol: string; n: number; buys: number; quote: string | null }>(
+      "select c.mint, c.t, c.vol_sol::text, c.n, c.buys, m.quote from candles c join markets m on m.mint = c.mint where c.tf = 60 and c.t > $1",
       [since],
     );
-    for (const row of rows) this.rolling.add(row.mint, Number(row.t), Number(row.vol_sol), false, row.n, row.buys);
+    const usdc = this.rateOf({ quote: USDC } as Market);
+    for (const row of rows) {
+      const rate = row.quote === null ? 1 : row.quote === USDC ? usdc : null;
+      if (rate !== null) this.rolling.add(row.mint, Number(row.t), Number(row.vol_sol) * rate, false, row.n, row.buys);
+    }
   }
 
   /** A coin's risk figures, worked out again at most every few seconds however often the coin trades. */
@@ -377,6 +460,8 @@ export class MarketService {
     const listed = state().coins.find((coin) => coin.mint === mint);
     const stats = await this.stats(market);
     const facts = this.describer.facts(mint);
+    // Null: this coin's money cannot be turned into lamports, so no figure in money is shown for it at all.
+    const rate = this.rateOf(market);
     const inRing = ringAvailable() ? ring.coinStats(mint) : { inRing: 0n, depositors: 0 };
     // The curve itself, or the pool after it, holds coins but is not a holder in the sense anyone means.
     const venueHolds = market.complete ? (market.pool ? 1 : 0) : market.realTokens > 0n ? 1 : 0;
@@ -392,27 +477,31 @@ export class MarketService {
       ...(listed ? (listed.image ? { image: listed.image } : {}) : market.uri ? { image: `/coin-image/${mint}` } : {}),
       launchedHere: listed !== undefined,
       ...(market.seenFromSlot === undefined ? {} : { followedSince: market.createdAt }),
-      ...(market.quote
-        ? { unsupported: { reason: "quote" as const, quote: market.quote } }
-        : facts && !market.venue && (!facts.pump || facts.decimals !== 6)
+      ...(rate === null
+        ? { unsupported: { reason: "quote" as const, quote: market.quote ?? "" } }
+        : // A coin in a pump.fun pool that is not pump.fun's, with other than six decimals: its trades were stored as if it had six.
+          facts && !market.venue && !facts.pump && facts.decimals !== 6
           ? { unsupported: { reason: "foreign" as const } }
           : {}),
+      ...(facts && !market.venue && !facts.pump && facts.decimals === 6 ? { foreign: true as const } : {}),
       ...(!market.venue && (facts?.mayhem || market.supply > ONE_BILLION_COINS) ? { mayhem: true as const } : {}),
       ...(market.venue ? { venue: "meteora-damm2" as const } : {}),
       // Only a graduation this server saw. A coin first seen in its pool graduated at some earlier time nobody here knows.
       ...(market.completedAt !== undefined && market.completedAt !== market.createdAt ? { graduatedAt: market.completedAt } : {}),
       ...(this.live && !this.live.has(mint) && !market.quote ? { notLiveSince: market.lastTradeAt ?? market.createdAt } : {}),
-      marketCapLamports: marketCapOf(market).toString(),
-      microLamportsPerCoin: priceOf(market.virtualSol, market.virtualTokens).toString(),
+      ...(market.quote === USDC && rate !== null ? { quote: "USDC" as const } : {}),
+      ...(market.pricedIn ? { pricedIn: { mint: market.pricedIn, symbol: this.indexer.markets.get(market.pricedIn)?.symbol ?? "" } } : {}),
+      marketCapLamports: inLamports(marketCapOf(market), rate ?? 1).toString(),
+      microLamportsPerCoin: inLamports(priceOf(market.virtualSol, market.virtualTokens), rate ?? 1).toString(),
       changeBasisPoints: stats.change.h24 ?? 0,
       changeSince: Math.max(market.createdAt, this.clock() - 86_400_000),
       change: stats.change,
       volume24hLamports: String(stats.volume24h),
       volumeLamports: { m5: String(stats.volume.m5), h1: String(stats.volume.h1), h6: String(stats.volume.h6), h24: String(stats.volume.h24) },
-      liquidityLamports: market.realSol.toString(),
+      liquidityLamports: inLamports(market.realSol, rate ?? 1).toString(),
       buys24h: stats.buys24h,
       sells24h: stats.sells24h,
-      ...(market.quote ? {} : { risk: await this.risk(market) }),
+      ...(rate === null ? {} : { risk: await this.risk(market) }),
       complete: market.complete,
       hasPool: market.pool !== undefined,
       progressBps: progressOf(market),
@@ -453,6 +542,7 @@ export class MarketService {
     );
     take(all.filter((market) => market.complete).sort((a, b) => (b.completedAt ?? 0) - (a.completedAt ?? 0)));
     for (const { mint } of this.rolling.top(WINDOWS.h1, Math.floor(this.clock() / 1000), BOARD_EACH)) chosen.add(mint);
+    this.picture(chosen);
     const value = Promise.all([this.recordFrom(), ...[...chosen].map((mint) => this.view(mint))]).then(([recordFrom, ...views]) => {
       const coins = views.filter((view): view is CoinView => view !== undefined);
       for (const view of coins) if (!this.sent.has(view.mint)) this.sent.set(view.mint, view);
@@ -506,6 +596,7 @@ export class MarketService {
       db.query<{ owner: string; amount: string }>("select owner, amount::text from holders where mint = $1 and amount > 0", [market.mint]),
     ]);
     const holding = new Map(held.map((row) => [row.owner, BigInt(row.amount)]));
+    const rate = this.rateOf(market) ?? 1;
     const price = priceOf(market.virtualSol, market.virtualTokens);
     const ranked = rows.map((row) => {
       const holds = holding.get(row.wallet) ?? 0n;
@@ -516,8 +607,8 @@ export class MarketService {
     ranked.sort((a, b) => (b.made > a.made ? 1 : b.made < a.made ? -1 : 0));
     return ranked.slice(0, TRADERS_SHOWN).map(({ row, holds }) => ({
       wallet: row.wallet,
-      boughtLamports: row.bought,
-      soldLamports: row.sold,
+      boughtLamports: inLamports(BigInt(row.bought), rate).toString(),
+      soldLamports: inLamports(BigInt(row.sold), rate).toString(),
       boughtCoins: row.coins_in,
       soldCoins: row.coins_out,
       holding: holds.toString(),
@@ -543,6 +634,16 @@ export class MarketService {
     }
     return this.recordFromKept.value;
   }
+  /** Whether a coin's pool liquidity can be pulled out. Read from the chain at most once a minute per coin. */
+  private readonly liquidities = new Map<string, { at: number; pool: string | undefined; value: Promise<LiquidityCheck> }>();
+  private liquidity(market: Market): Promise<LiquidityCheck> {
+    const kept = this.liquidities.get(market.mint);
+    if (kept && kept.pool === market.pool && Date.now() - kept.at < 60_000) return kept.value;
+    const value = liquidityOf(market, (keys) => connection().getMultipleAccountsInfo(keys, "confirmed"));
+    if (this.liquidities.size > 5_000) this.liquidities.clear();
+    this.liquidities.set(market.mint, { at: Date.now(), pool: market.pool, value });
+    return value;
+  }
   /** A coin's safety facts from the chain, its creator's other coins here, and how far back its trades go. */
   async checks(market: Market): Promise<ChecksView> {
     let facts: ChecksView["facts"] = null;
@@ -559,11 +660,13 @@ export class MarketService {
           .sort((a, b) => b.createdAt - a.createdAt)
           .slice(0, DEV_COINS_SHOWN)
       : [];
+    const liquidity = await this.liquidity(market);
     const [first, recordFrom] = await Promise.all([
       database().query<{ first: string | null }>("select min(at)::text as first from trades where mint = $1", [market.mint]),
       this.recordFrom(),
     ]);
     return {
+      liquidity,
       facts,
       ...(factsProblem ? { factsProblem } : {}),
       dev: {
@@ -574,7 +677,7 @@ export class MarketService {
           symbol: other.symbol,
           createdAt: other.createdAt,
           complete: other.complete,
-          marketCapLamports: marketCapOf(other).toString(),
+          marketCapLamports: inLamports(marketCapOf(other), this.rateOf(other) ?? 0).toString(),
         })),
       },
       history: { from: first[0]?.first ? Number(first[0].first) : null, complete: market.seenFromSlot === undefined, limit: HISTORY_LIMIT },
@@ -597,6 +700,7 @@ export class MarketService {
     clearTimeout(this.patchTimer);
     clearInterval(this.tidying);
     clearInterval(this.following);
+    clearInterval(this.picturing);
     this.describer.stop();
     this.poolReader.stop();
     if (this.source instanceof StreamSource) this.source.close();

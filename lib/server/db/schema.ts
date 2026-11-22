@@ -59,6 +59,8 @@ alter table markets add column if not exists seen_from bigint;
 alter table markets add column if not exists quote text;
 -- Added on 22 November 2026. venue: where a coin that is not pump.fun's takes its price from (null: pump.fun). decimals: the coin's own, when not six.
 alter table markets add column if not exists venue text;
+-- priced_in: the coin a coin is priced in, when its amounts were turned into lamports at that coin's price (null: priced in SOL, or see quote).
+alter table markets add column if not exists priced_in text;
 alter table markets add column if not exists decimals int;
 -- Pools of other programs, read from the chain once each: which coin a pool trades and against what.
 create table if not exists venue_pools (

@@ -189,15 +189,29 @@ export default function Docs() {
               their name, picture and creator read from the chain afterwards.
             </li>
           </ul>
+          <p>Covered where the server is fed every trade, and marked as what they are:</p>
+          <ul>
+            <li>
+              Coins in Meteora DAMM v2 pools against SOL, marked &quot;Meteora&quot;. Shown, not traded. A pump.fun coin that also has such a pool keeps
+              pump.fun&apos;s price; its Meteora trades are listed and counted.
+            </li>
+            <li>
+              pump.fun coins priced in another coin instead of SOL, marked &quot;in&quot; and that coin&apos;s ticker. Each trade is turned into SOL at that
+              coin&apos;s price at the time, which needs that coin to be followed here. Between its own trades such a coin&apos;s price does not move with the
+              other&apos;s.
+            </li>
+            <li>pump.fun coins priced in USDC: read in USDC, and shown in dollars as the USDC itself. None was seen trading when this was built.</li>
+            <li>Six-decimal coins in a pump.fun pool that pump.fun did not make, marked &quot;Not pump.fun&apos;s&quot;, on their own supply.</li>
+          </ul>
           <p>Listed, and marked &quot;not supported yet&quot;, with no price shown:</p>
           <ul>
-            <li>pump.fun coins priced in USDC or anything else that is not SOL.</li>
-            <li>Coins that trade in a pump.fun pool but were not made on pump.fun.</li>
+            <li>A coin priced in a coin this site does not follow, or in USDC while there is no price of SOL to set it beside.</li>
+            <li>A coin in a pump.fun pool that pump.fun did not make and that has other than six decimals.</li>
           </ul>
           <p>Not covered at all, and not on the board:</p>
           <ul>
-            <li>Other launchpads: LetsBonk, Moonshot, Believe, Boop, Jupiter Studio and the rest.</li>
-            <li>Raydium, Meteora and Orca pools, including pools of pump.fun coins made there by hand.</li>
+            <li>Other launchpads: LetsBonk, Moonshot, Believe, Boop, Jupiter Studio and the rest, until their coins reach a pool that is covered.</li>
+            <li>Raydium and Orca pools, Meteora&apos;s DLMM pools, and Meteora pools against anything but SOL.</li>
             <li>Any coin that has not traded since this site began to listen, until somebody opens it by its address.</li>
           </ul>
           <p>How far back the record goes:</p>
@@ -221,8 +235,28 @@ export default function Docs() {
           <p>
             Where the data comes from: Solana itself, through an RPC provider, decoded by this site with pump.fun&apos;s published SDK. No figure is bought from
             or copied from another terminal. A coin&apos;s picture is fetched by this server from where the coin&apos;s creator points, drawn again small, and
-            served from here, so your browser never calls a stranger&apos;s host.
+            served from here, so your browser never calls a stranger&apos;s host. The server fetches the pictures of the coins on its board ahead of anyone
+            asking; a coin whose picture has not arrived yet shows the first letter of its ticker.
           </p>
+
+          <h2 id="liquidity-check">The pool liquidity check</h2>
+          <p>
+            On a coin&apos;s page, &quot;Pool liquidity&quot; says whether the liquidity in the coin&apos;s pool can be taken out. It is read from the chain
+            when the page is opened, and again a minute later at the soonest.
+          </p>
+          <ul>
+            <li>
+              A pump.fun pool: the pool&apos;s account says how many LP coins it has issued; the LP coin&apos;s own account says how many still exist. The
+              difference was burned. &quot;100% burned&quot; is shown only when none exist. Any that exist can be handed back for that share of the liquidity by
+              whoever holds them. This check does not look at who that is, or whether they have locked them somewhere else.
+            </li>
+            <li>
+              A Meteora DAMM v2 pool: the share of the pool&apos;s liquidity that its own account records as locked for good. Locks that end on a date are not
+              counted.
+            </li>
+            <li>A coin still on its curve has no pool. The check says so.</li>
+            <li>If the chain could not be read, the check says &quot;Not read&quot; and why. It is never shown as passed without having been made.</li>
+          </ul>
 
           <h2 id="risk-figures">The risk figures on the board</h2>
           <p>

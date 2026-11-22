@@ -35,7 +35,8 @@ function expected(blocks: ChainBlock[]) {
   const events: ChainEvent[] = blocks.slice(1).flatMap((block) => block.txs.flatMap((tx) => tx.events));
   for (const event of events) {
     if (event.kind === "create") followed.add(event.mint);
-    else if (event.kind === "trade" && followed.has(event.mint)) trades += 1;
+    // A trade priced in another coin is stored only when that coin is followed, which without discovery it is not here.
+    else if (event.kind === "trade" && followed.has(event.mint) && !event.quoteMint) trades += 1;
   }
   return { coins: followed.size, trades };
 }
@@ -65,8 +66,10 @@ describe("a stretch of real mainnet, recorded", () => {
     const count = (test: (event: ChainEvent) => boolean): number => blocks.flatMap((block) => block.txs.flatMap((tx) => tx.events)).filter(test).length;
     expect(blocks).toHaveLength(50);
     // Counted once from the recording, apart from the code under test. Curve trades priced in something other than
-    // SOL are in the recording too and are left out on purpose (lib/server/indexer/decode.ts), not read as free.
-    expect(count((event) => event.kind === "trade" && event.venue === "curve")).toBe(495);
+    // SOL are in the recording too. They are counted apart: read as SOL they would be trades at no price.
+    expect(count((event) => event.kind === "trade" && event.venue === "curve" && !event.quoteMint)).toBe(495);
+    // And 71 curve trades of coins priced in another coin, passed on in that coin's units with it named.
+    expect(count((event) => event.kind === "trade" && event.quoteMint !== undefined)).toBe(71);
     expect(count((event) => event.kind === "trade" && event.venue === "amm")).toBe(1406);
     // Four new coins: three priced in SOL, and one priced in something else, passed on with that said.
     expect(count((event) => event.kind === "create")).toBe(4);

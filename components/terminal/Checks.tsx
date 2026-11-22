@@ -13,6 +13,20 @@ import type { ChecksView, CoinView } from "@/lib/contract";
 import { shortAddress } from "@/lib/format";
 import { Time, UsdOfSol } from "../ui/Money";
 
+function Liquidity({ check }: { check: ChecksView["liquidity"] }) {
+  if (check.kind === "curve") return <>No pool yet: on the curve</>;
+  if (check.kind === "none") return <>No pool yet</>;
+  if (check.kind === "unread") return <>Not read</>;
+  const bps = check.kind === "burned" ? check.burnedBps : check.lockedBps;
+  const word = check.kind === "burned" ? "burned" : "locked for good";
+  // All of it, said only when it is all of it. Anything less is a share somebody could withdraw.
+  if (bps >= 10_000) return <>100% {word}</>;
+  return (
+    <span className="down">
+      {(bps / 100).toFixed(bps < 1000 ? 1 : 0)}% {word}
+    </span>
+  );
+}
 const share = (bps: number | undefined): string => (bps === undefined ? "Not known" : `${(bps / 100).toFixed(bps < 1000 ? 1 : 0)}%`);
 
 export function Checks({ coin }: { coin: CoinView }) {
@@ -62,13 +76,28 @@ export function Checks({ coin }: { coin: CoinView }) {
             <dd>{share(coin.risk?.bundles?.heldBps)}</dd>
             <dt>Wallets that never bought hold</dt>
             <dd>{share(coin.risk?.insiders?.heldBps)}</dd>
-            <dt>Pool liquidity locked</dt>
-            <dd>Not checked</dd>
+            <dt>Pool liquidity</dt>
+            <dd data-check="liquidity">
+              <Liquidity check={checks.liquidity} />
+            </dd>
           </dl>
+        )}
+        {checks?.liquidity.kind === "unread" && <p className="note-line">The pool could not be read: {checks.liquidity.problem}.</p>}
+        {checks?.liquidity.kind === "burned" && checks.liquidity.burnedBps < 10_000 && (
+          <p className="note-line">
+            The pool has issued LP coins that still exist. Whoever holds them can hand them back for that share of the liquidity. This check does not look at
+            who holds them.
+          </p>
+        )}
+        {checks?.liquidity.kind === "locked" && (
+          <p className="note-line">
+            A Meteora pool: the share of its liquidity locked for good, from the pool&apos;s own account. Locks that end on a date are not counted, so the rest
+            may or may not be withdrawable today.
+          </p>
         )}
         {checks && !facts && <p className="note-line">The coin&apos;s account could not be read: {checks.factsProblem ?? "no reason given"}.</p>}
         <p className="note-line">
-          The first three are read from the coin&apos;s own account on the chain
+          The first three, and the pool&apos;s liquidity, are read from the chain: the coin&apos;s own account, and its pool
           {facts ? (
             <>
               , <Time at={facts.readAt} /> ago

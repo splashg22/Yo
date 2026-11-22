@@ -703,7 +703,7 @@ function Row({
   readOnly: boolean;
   place: number | undefined;
 }) {
-  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue;
+  const tradeable = (!coin.complete || coin.hasPool) && !coin.unsupported && !coin.venue && !coin.quote && !coin.pricedIn;
   const change = coin.change.m5 ?? coin.change.h1 ?? coin.change.h24;
   return (
     <div className={`coin-row${marked ? " cursor" : ""}`} style={style} data-coin={coin.mint}>
@@ -720,6 +720,30 @@ function Row({
             <span className="full" title={coin.name || "This coin's name has not been read from the chain yet"}>
               {coin.name || "Name not read yet"}
             </span>
+            {coin.pricedIn && (
+              <span
+                className="tag"
+                title="This coin is priced in another coin, not in SOL. Each of its trades is turned into SOL at that coin's price at the time. Between its own trades, its price here does not move with that coin's."
+              >
+                in {coin.pricedIn.symbol || shortAddress(coin.pricedIn.mint)}
+              </span>
+            )}
+            {coin.quote && (
+              <span
+                className="tag"
+                title="This coin is priced in USDC, not SOL. Its dollar figures are the USDC itself. Shown in SOL, they are converted at the price of SOL now."
+              >
+                USDC
+              </span>
+            )}
+            {coin.foreign && (
+              <span
+                className="tag"
+                title="It trades in a pump.fun pool but was not made on pump.fun. Its market cap is worked out on its own supply, read from the chain."
+              >
+                Not pump.fun&apos;s
+              </span>
+            )}
             {coin.venue && (
               <span
                 className="tag"
@@ -740,11 +764,17 @@ function Row({
           <span className="sub">
             {coin.unsupported ? (
               coin.unsupported.reason === "quote" ? (
-                <span className="tag" title="This coin is priced in something other than SOL. This site cannot chart or trade those yet.">
-                  Not priced in SOL: not supported yet
+                <span
+                  className="tag"
+                  title="This coin is priced in something this site cannot turn into a price yet: neither SOL nor USDC, or USDC with no price of SOL to hand."
+                >
+                  No price here: not supported yet
                 </span>
               ) : (
-                <span className="tag" title="It trades in a pump.fun pool but is not a pump.fun coin. The figures this site works out would be wrong for it.">
+                <span
+                  className="tag"
+                  title="It trades in a pump.fun pool, was not made on pump.fun, and has other than six decimals. Its figures here would be wrong, so none are shown."
+                >
                   Not a pump.fun coin: not supported yet
                 </span>
               )

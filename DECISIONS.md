@@ -154,6 +154,13 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 148 | A pump.fun coin keeps pump.fun's price when it also trades on Meteora | One price per coin. Two pools' prices in one chart would draw false wicks |
 | 149 | Meteora is off unless `FEED_VENUES` names it, and is not offered on plan A | Its stream alone is about four times plan A's credits |
 | 150 | A Mayhem coin's market cap counts its whole supply | pump.fun's own SDK does (`isMayhemMode ? mintSupply : ONE_BILLION_SUPPLY`). Replaces the unverified half of decision 139 |
+| 151 | A coin priced in another coin is turned into SOL at index time, trade by trade, not when shown | The other coin's price at that block is part of the chain's record, so the result is exact and the same on every replay. Converting when shown would redraw history at today's price |
+| 152 | A coin priced in USDC is held in USDC and converted when sent to the page | A dollar price at index time needs the price of SOL at every past block, which the chain does not carry. Shown in dollars it is the USDC itself |
+| 153 | "100% burned" is said only when no LP coin exists; shares are rounded down | A check that rounds 99.99% up to "all" is the one a rug hides behind |
+| 154 | The liquidity check does not look at who holds LP coins that still exist | Telling a locker contract from a wallet needs a list of lockers nobody has audited. Said on the page |
+| 155 | A six-decimal coin in a pump.fun pool that pump.fun did not make is shown, on its own supply; other decimals stay unsupported there | Its trades were stored assuming six decimals. Meteora coins are converted at the door; pump.fun-pool strangers are not yet |
+| 156 | Pictures are fetched ahead for the board and rankings, and the picture address answers within a quarter of a second whether or not the picture is there | A browser keeps six connections to a host. Six slow pictures were holding up the board's own requests |
+| 157 | I had called non-SOL pump.fun coins "USDC-priced". They are priced in other coins | Corrected in TERMINAL-FEATURES.md section 12. Found by listing the quote coin of every recorded trade |
 
 ## Only you
 
