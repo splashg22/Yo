@@ -1,25 +1,26 @@
 # Terminal features: what the leading terminals have, what each needs, and a launch plan
 
-22 November 2026. Step 1 of `TERMINAL-BRIEF.md`. **Nothing has been built from this yet.** It is for
-you to read and correct before step 2.
+22 November 2026. Step 1 of `TERMINAL-BRIEF.md`, corrected the same day from the providers' own pages and with
+your answers (section 9). Step 2, the data layer, has begun: see section 6.
 
 ## Read this first: how good the evidence is
 
-This session's network settings block the terminals' own sites (`axiom.trade`, `docs.axiom.trade`,
-`gmgn.ai`, `docs.gmgn.ai`) and every pricing page I tried. So:
+**Corrected on 22 November, second pass.** The first version of this file was written when the terminals'
+own sites could not be opened from here. They can now be read with a plain request, and two things were
+redone from the pages themselves: **Axiom's whole documentation** (all 34 pages) and **every price**.
+Where this pass changed a cell it is the pages that speak, not a summary.
 
 | Product | What was actually read | Trust |
 | --- | --- | --- |
-| GMGN | Its official API repository on GitHub (`GMGNAI/gmgn-skills`, v1.7.2, 13 Nov 2026), read in full: field names, definitions, order types. Its web docs only as search-result summaries | Good for data and orders, weak for the look of the web app |
-| Photon | Its official docs (GitBook), read in full | Good |
-| BullX NEO | Its official docs (GitBook), read in full | Good, but see below: trading is suspended |
+| Axiom | Its whole docs site, read in full (`docs.axiom.trade/llms-full.txt`, 34 pages). It is thin: much is shown only in screenshots, there is no changelog, and no page carries a date. The app itself (`axiom.trade`) refuses automated readers | Good for what the docs say; much of the product is simply not documented. "?" in Axiom's column now means "not in its docs", not "could not look" |
+| GMGN | Its official API repository on GitHub (`GMGNAI/gmgn-skills`, v1.7.2, 13 Nov 2026), read in full. Its web docs only as search summaries; `gmgn.ai` refuses automated readers | Good for data and orders, weak for the look of the web app |
+| Photon | Its official docs (GitBook), read in full. The app refuses automated readers | Good |
+| BullX NEO | Its official docs (GitBook), read in full | Good, but trading is suspended |
 | Terminal (was Padre) | Landing page, terms and troubleshooting page, read; two third-party reviews. Its docs were taken offline | Middling |
-| Axiom | **No page read.** Search-result summaries of its docs, most of them over a year old, plus third-party guides | Weak. Every Axiom cell needs checking |
-| Prices | **No pricing page read.** Search-result summaries only | Every price below is unconfirmed |
+| Prices | Each provider's own pricing or billing page, read on 22 November | Good. Exact plans are in section 6 |
 
-To fix this, allow these hosts in the session's network settings and I will reread and correct the
-table: `docs.axiom.trade`, `axiom.trade`, `docs.gmgn.ai`, `gmgn.ai`, `www.helius.dev`, `shyft.to`,
-`docs.birdeye.so`, `docs.x.com`, `pumpportal.fun`.
+Still not read: the three apps themselves (they answer automated readers with a refusal, which is their
+choice and not a setting on our side), and GMGN's web docs.
 
 Marks in the tables: **Y** documented by the product itself · **y** third-party source only ·
 **?** could not confirm · **N** documented as absent. Columns: **A** Axiom, **G** GMGN, **P** Photon,
@@ -36,18 +37,23 @@ weeks. "Ours" is the terminal inside RINGPAD as pushed (`6b1f43a`).
    The launchpad most coins start on now owns a terminal.
 3. **"Off, reduced, secure" is Axiom's wording.** GMGN has one anti-MEV switch, on by default. Photon
    has "Fast" and "Secure", chosen by the size of the tip. BullX had "MEV only" on or off.
-4. **Axiom copy trading is not confirmed.** One source says it has none, another says its tracker can
-   copy buys. GMGN's is documented.
-5. **Nobody publishes how they detect snipers, insiders or bundles.** The definitions are one line each
-   and carry no thresholds (section "Risk figures" below). Ours can publish its rules. That is a real
+4. **Axiom's docs describe no copy trading**, no spot stop loss or take profit by name, no trailing stop
+   and no DCA. They describe limit orders ("set a precise buy or sell price", by slider or by dragging
+   a line on the chart), buying or selling on migration, and a wallet tracker. Third-party guides credit
+   it with more; its own pages do not. GMGN's copy trading is documented.
+5. **Almost nobody publishes how they detect snipers, insiders or bundles.** The one rule with a number
+   is Axiom's for bundles: "If at least four transactions happen in the same block, they are flagged as
+   a potential bundle". Everything else is one line each with no thresholds (section "Risk figures" below). Ours can publish its rules. That is a real
    difference, and cheap.
 6. **Every one of them holds signing power for the user.** Axiom uses Turnkey; GMGN, Photon and BullX
    generate a trading wallet on their side; Terminal says keys are encrypted with the user's password.
    That is how their limit orders, stop losses and copy trades run while the user is asleep. Your rule
    is that keys stay with the user. This is the biggest decision in this file: see "Orders without
    custody".
-7. **The going fee is 1% per trade**, less cashback (Axiom: about 0.75% to 0.95% net by tier; Terminal:
-   up to 35% of fees back). RINGPAD's proposed 0.5% (DECISIONS.md, row 100) is half the market.
+7. **The going fee is 1% per trade**, less cashback. Axiom, from its fee page: 1% base, and seven tiers
+   from Wood (0.95% net) through Bronze 0.90%, Silver 0.875%, Gold 0.85%, Platinum 0.825%, Diamond 0.80%
+   to Champion (0.75% net); referred users get 10% off; referrers earn 30%, 3% and 2% over three levels.
+   Terminal: up to 35% of fees back. RINGPAD's proposed 0.5% (DECISIONS.md, row 100) is half the market.
 
 Features they have that the brief does not list:
 
@@ -71,7 +77,7 @@ Features they have that the brief does not list:
 | Feature | A | G | P | B | T | How it works there | Data it needs | Effort | Ours today |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Three live columns: new, about to graduate, graduated | Y | Y | Y | Y | y | Axiom "Pulse": New Pairs, Final Stretch, Migrated. GMGN "Trenches": new creation, near completion, completed. BullX: New Creations, About to Graduate, Graduated | Every create, trade and migration event of each launchpad, as a stream | Have it for our coins; L for all coins (needs a mainnet stream) | **Part.** The board, live, virtualised, pause on hover. But only coins launched here or opened by address: there is no feed of every new pump.fun coin |
-| Launchpads covered | ? | Y | Y | Y | y | GMGN: 24 on Solana. Photon: pump.fun and Moonshot. Axiom: pump.fun and others, list unconfirmed | One decoder per launchpad program | M each | pump.fun and its pool only |
+| Launchpads covered | Y | Y | Y | Y | y | GMGN: 24 on Solana. Photon: pump.fun and Moonshot. Axiom's docs name pump.fun and one other whose name is blanked out in the page, with Raydium as the place coins migrate to | One decoder per launchpad program | M each | pump.fun and its pool only |
 | Row: age, market cap, volume, holders | Y | Y | Y | Y | y | Standard | Indexed trades and balances | Have it | **Yes** |
 | Row: liquidity, buys and sells count, bonding progress | Y | Y | Y | Y | ? | GMGN also shows net buys and time to graduate | Indexed trades; curve or pool reserves | S | **Part.** Progress yes; liquidity and buy/sell counts are stored but not shown |
 | Row: top-10 share, dev holding | Y | Y | Y | Y | y | Share of supply, curve and pool excluded | Holder balances | S | **Part.** On the coin's screen, not on the row |
@@ -88,7 +94,7 @@ Features they have that the brief does not list:
 
 | Feature | A | G | P | B | T | How it works there | Data it needs | Effort | Ours today |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Candle chart with timeframes | Y | Y | Y | Y | Y | Photon and BullX use TradingView's library. GMGN: 1m to 1d, 1s on its paid API plan | Trades, or stored candles | Have it | **Yes.** Our own canvas chart, 1s to 1d |
+| Candle chart with timeframes | Y | Y | Y | Y | Y | Axiom, Photon and BullX use TradingView's library. GMGN: 1m to 1d, 1s on its paid API plan | Trades, or stored candles | Have it | **Yes.** Our own canvas chart, 1s to 1d |
 | Market cap and price views | ? | ? | ? | Y | ? | | Supply | Have it | **Yes**, in SOL or dollars |
 | Your own buys and sells marked | y | ? | ? | Y | Y | BullX also marks dev trades, tracked wallets and open limit orders | Your trades | Have it | **Yes.** Dev and tracked-wallet marks: no |
 | Limit order by dragging a line on the chart | Y | ? | Y | Y | Y | | Limit orders | S after limit orders exist | **No** |
@@ -109,8 +115,8 @@ Features they have that the brief does not list:
 
 | Figure | As documented | A rule ours can compute and publish |
 | --- | --- | --- |
-| Snipers | Axiom: "early buyers". GMGN: "wallets that bought at token launch"; it reports the top 70. BullX: "bought very early"; its panel covers the first 70 buyers | Bought within the first N slots of the coin's first trade (N stated on the page, proposed 3), other than the creator. Shown as count and share of supply still held |
-| Bundles | Axiom: supply held in "bundle wallets". GMGN: "wallets in bot-bundled buys" | Two or more different wallets buying in the same slot as the creation, or back to back in one block, in the coin's first N slots |
+| Snipers | Axiom: "the percentage of early buyers (snipers)". GMGN: "wallets that bought at token launch"; it reports the top 70. BullX: "bought very early"; its panel covers the first 70 buyers | Bought within the first N slots of the coin's first trade (N stated on the page, proposed 3), other than the creator. Shown as count and share of supply still held |
+| Bundles | Axiom: supply held in "bundle wallets"; "at least four transactions ... in the same block" are flagged, and a wallet whose next transaction is not bundled is disregarded. GMGN: "wallets in bot-bundled buys" | Two or more different wallets buying in the same slot as the creation, or back to back in one block, in the coin's first N slots |
 | Insiders | Axiom: "private sales, team members". BullX: "received tokens without buying them". GMGN "rat trader": "insider or sneak-trading wallets" | Holds coins it did not buy on the curve or pool (received by transfer), or was funded by the creator's wallet. The first half is cheap; the second needs funding lookups |
 | Dev | The creating wallet | The same |
 
@@ -124,12 +130,12 @@ the trades that produced it. No other terminal shows its working.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Market buy and sell, amount presets | Y | Y | Y | Y | Y | Axiom and Photon: three presets. BullX: five each way | Trade path | Have it | **Yes.** Four amounts each way |
 | Percentage sells | ? | Y | Y | Y | Y | | Your balance | Have it | **Yes** |
-| Settings per preset: slippage, priority fee, tip | Y | Y | Y | Y | y | Axiom's default tip 0.001 SOL. BullX defaults 0.01 SOL each | None | S | **Part.** One set of settings, not one per preset. Tip is built and has never run (tip accounts exist only on mainnet) |
+| Settings per preset: slippage, priority fee, tip | Y | Y | Y | Y | y | Axiom: priority fee and tip both default to 0.001 SOL; how many presets it has is not in its docs. BullX defaults 0.01 SOL each | None | S | **Part.** One set of settings, not one per preset. Tip is built and has never run (tip accounts exist only on mainnet) |
 | A recommended fee from network conditions | Y | ? | Y | ? | ? | Axiom shows the current minimum tip; "auto fee" with a cap. Photon "Auto Speed" | Recent priority fees (RPC) and Jito's tip floor (free API) | S | **No** |
 | MEV protection modes | Y | Y | Y | Y | y | Axiom: off, reduced, secure. Photon: Jito below a tip threshold, bloXroute above. All of them route through Jito or a private relay | Jito's block engine (no subscription; a tip per trade) or Helius Sender | M. **Mainnet only: cannot be proven on devnet** | **No** |
 | Clear status per trade with reason and link | ? | ? | ? | ? | Y | Poorly documented everywhere | Confirmation stream | Have it | **Yes.** Signing, sent, confirmed or failed with the reason, and a receipt |
 | Limit orders (buy dip, buy breakout) | Y | Y | Y | Y | Y | On price or market cap. Photon: expiry 24, 48 or 72 hours | Price stream, **and something that can sign when the price is reached** | L | **No** |
-| Take profit and stop loss | Y | Y | Y | Y | Y | As limit-order kinds, or attached to a buy | Same | L | **No** |
+| Take profit and stop loss | ? | Y | Y | Y | Y | As limit-order kinds, or attached to a buy. Axiom's docs name them only for perpetuals | Same | L | **No** |
 | Trailing stop | y | Y | ? | ? | Y | Sells after a set fall from the peak | Same | S after the above | **No** |
 | DCA | y | ? | Y | Y | Y | Amount, interval, count, market cap range | Same | S after the above | **No** |
 | Buy or sell on migration | Y | ? | ? | ? | ? | Axiom, documented | Migration events, and a signer | S after the above | **No** |
@@ -149,8 +155,10 @@ four ways to do it. Only you can pick, because the first is what everyone else d
 | **C. Jupiter's trigger orders** | An on-chain program | Yes | No: only coins with pool liquidity, and a $10 minimum (to be confirmed) | Fine for graduated coins. Jupiter's fee is 0.1% on top |
 | **D. While the terminal is open** | The user's key, in the browser | No | Yes | Simple and truthful, and useless overnight. A fair fallback, labelled as such |
 
-My recommendation: **B for take profit, stop loss and limit sells, with D as the fallback and C offered
-for graduated coins.** It is the only one that gives overnight orders while keeping your rule to the
+**Decided on 22 November: D for now.** Orders run only while the terminal is open, and the screen says
+so plainly. No hosted signer. B is to be proven on the local chain and written up
+(`SIGNED-IN-ADVANCE.md`) before you decide on it. What I had recommended, for the record: **B for take
+profit, stop loss and limit sells, with D as the fallback and C offered for graduated coins.** It is the only one that gives overnight orders while keeping your rule to the
 letter, and no competitor has it. Limit **buys**, DCA and copy trading are harder under B (the amount
 and the coin must be known in advance; copy trading cannot be, by its nature) and are where A would be
 needed if you want them. I would not build A without your say-so.
@@ -161,11 +169,11 @@ needed if you want them. I would not build A without your say-so.
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Portfolio: holdings and PnL per coin | Y | Y | Y | Y | Y | BullX: by period, with a calendar; any wallet's address can be viewed | Indexed trades and balances | Have it | **Yes**, for any wallet |
 | Trade history, open orders | Y | Y | Y | Y | Y | | Same; orders | S | **Part.** Trades per coin; no single history page, no orders |
-| Watchlist | ? | Y | Y | Y | ? | GMGN: with groups. Photon: three coins | None (the browser) | S | **No** |
+| Watchlist | Y | Y | Y | Y | ? | Axiom: a star beside each coin. GMGN: with groups. Photon: three coins | None (the browser) | S | **No** |
 | Wallet tracker with a live feed | Y | Y | y | Y | Y | Axiom shows tracked buys beside the board and on charts | Every trade by those wallets, across all coins: a stream filtered by wallet | M | **No** |
 | Alerts in the terminal | y | ? | y | Y | Y | Price, tracked wallet, new pair | The streams above | S after the tracker | **No** |
 | Alerts by Telegram | ? | Y | ? | ? | ? | GMGN's alert bot and channel | A Telegram bot (free). **The server must know which wallets and coins the user watches**, which cuts against the privacy aim | M | **No** |
-| Copy trading | ? | Y | ? | ? | N | GMGN: fixed amount or a cap per buy, per-target limits, copies sells or uses your own take profit and stop loss | Tracker, and a signer that acts unattended (way A above) | L | **No** |
+| Copy trading | ? | Y | ? | ? | N | Not in Axiom's docs. GMGN: fixed amount or a cap per buy, per-target limits, copies sells or uses your own take profit and stop loss | Tracker, and a signer that acts unattended (way A above) | L | **No** |
 | Wallet rankings | ? | Y | ? | Y | ? | GMGN: smart money, KOL lists; PnL over 1, 7, 30 days, win rate | Every trade on the chain per wallet, for months: a data provider, or a large index of our own | L | **No** |
 | Shareable profit card | ? | ? | ? | Y | Y | An image of one position's result | Your trades | S | **No** |
 
@@ -182,38 +190,87 @@ needed if you want them. I would not build A without your say-so.
 | Several charts on one screen | ? | ? | ? | ? | ? | Not found in any docs read | None | M | **No** |
 | Perpetuals, staking, more chains, public API | Y | Y | Y | Y | Y | Axiom: Hyperliquid perps, staking. All: several chains. GMGN: a public API | Much | L each | **No** |
 
-## 6. What data the terminal needs, and what it would cost each month
+## 6. What data the terminal needs, and what it costs each month
 
-**Every price here is from a search summary of the provider's page and is unconfirmed.** I would
-confirm each on its page before you pay for anything.
+**Prices confirmed on 22 November 2026 from each provider's own pricing or billing page.** Plans change;
+check the page again on the day you pay.
 
-The need that decides the bill is the first row of the first table: **a feed of every new coin and
-every trade on the launchpads**, not only the coins we already follow. Our indexer today reads whole
-blocks through the RPC, which is right for a local chain and cannot keep up with mainnet.
+### How much data there is (measured, not estimated)
 
-| Need | Used for | Options | Monthly cost |
+On 22 November I recorded 50 consecutive mainnet blocks, about 20 seconds (`npm run record`, read-only:
+three RPC methods, no key but the RPC's own). In them:
+
+- 151 MB of blocks as the RPC sends them: **about 3 MB a block, 7.5 MB a second.**
+- 3,409 successful transactions touching pump.fun, its pool program or a pump.fun coin: **about 170 a second.**
+- **2,047 trades, about 100 a second** (418 on bonding curves, 1,592 in pools), across 203 coins.
+- **6 new coins**, about one every 3 seconds, which is roughly 25,000 a day.
+- Found on the way: **some pump.fun coins are now priced in USDC, not SOL** (37 trades and one new coin in the
+  sample). Devnet never showed one. Ours reads only SOL-priced coins for now and leaves the others out
+  rather than show them at a wrong price.
+
+That is the firehose. It decides what each plan can carry.
+
+### The plans
+
+| Need | Provider and plan | Monthly price | What it gives, from its page |
 | --- | --- | --- | --- |
-| RPC | Sending trades, reading accounts | Helius Developer | $49 |
-| A mainnet stream of launchpad transactions | The board, charts, feeds, risk figures, tracker | Helius LaserStream (Business plan) · Shyft gRPC (Build) · Chainstack Geyser add-on · PumpPortal's websocket (third party; new coins and migrations free, trades possibly metered) | $499 · $199 · $49 plus a plan of unknown price · about $0 |
-| History we do not have | Dev's earlier coins, wallet rankings, charts older than our index | Birdeye · Solana Tracker · Moralis (its holder endpoints were due to be switched off in July 2026) | $99 to $250 · €50 to €397 · unclear |
-| Landing and MEV protection | Tip and "secure" modes | Jito (no subscription) · Helius Sender (included) | $0; the user pays a tip per trade |
-| A hosted signer, only if you choose way A | Offline orders, copy trading | Turnkey · Privy | About $0.05 to $0.10 per signature · $0 to $299 |
-| X posts | X monitor | X's API at about $0.005 per post read · third-party readers | About $150 for 50 accounts posting 20 times a day · $5 to $30 |
-| Telegram | Alerts | Bot API | $0 |
-| Server and database | Everything | Railway and Neon | $20 to $35 |
+| RPC and websockets | **Helius Developer** | **$49** | 10M credits, 50 requests a second, standard and enhanced websockets (150 connections). An ordinary read is 1 credit. Streams are billed by size: 2 credits per 0.1 MB. Extra credits $5 per million; automatic top-up is **off** by default, so at the limit requests are refused until credits are added |
+| | Helius Free | $0 | 1M credits, 10 requests a second, standard websockets only, a hard stop at the limit. Helius's own page calls it "suitable for development and testing" |
+| | Helius Business | $499 | 100M credits; the first plan with LaserStream (gRPC) on mainnet |
+| A full stream of every trade | **Chainstack Growth + Geyser add-on** | **$49 + $49 = $98** | Yellowstone gRPC, 2 streams, **unlimited events**, mainnet, filtered by program |
+| | Shyft Build | $199 | gRPC, 10 connections, "No Credits. No Bandwidth Limits. No Overages." |
+| | Solana Tracker gRPC | €200 | 25 connections, no overages |
+| New coins and migrations only | PumpPortal | $0 | Those two streams are free. Trades per coin are metered (0.01 SOL per 10,000 events) and need an API key **and a funded mainnet wallet**. Its terms grant a "single, personal" licence and forbid publishing its contents unless authorised |
+| History we do not have | Birdeye Lite · Premium | $39 · $199 | 2.5M · 20M compute units; websockets from Premium |
+| | DexScreener API | $0 | Commercial use allowed; 300 requests a minute on pair and token endpoints; may not be used to build a product that competes with DexScreener |
+| Landing and MEV protection | Jito | $0 | No subscription; minimum tip 1,000 lamports per bundle; 1 request a second per address by default |
+| X posts | X API | $0.005 per post read | Pay per use. 50 accounts posting 20 times a day is about $150 a month |
+| Telegram | Bot API | $0 | |
+| Server and database | Railway Hobby · Neon | $5 · $0 to pay-for-use | |
 
-Three totals:
+### What the cheapest tier can and cannot do
 
-| Set-up | What it gives | About, per month |
+You asked for the cheapest tier only. There are two honest candidates, and they differ in what the board can show.
+
+| | **A. Helius Developer: $49, plus $5 hosting = $54 a month** | **B. A + Chainstack's stream: $152 a month** |
 | --- | --- | --- |
-| **Cheapest that is real** | Mainnet, read-only. Helius Developer, PumpPortal for new coins and migrations, our own indexer for the coins people open, small hosting | **$55 to $85** |
-| **Comfortable** | Our own stream of every launchpad trade (Shyft), Helius Developer, Birdeye Starter for history, hosting | **About $380** |
-| **One vendor, most headroom** | Helius Business with LaserStream, Birdeye Premium, hosting | **About $730** |
-| Add the X monitor | | **+ $5 to $150** |
+| Every new pump.fun coin, the moment it is made | Yes | Yes |
+| Every migration | Yes | Yes |
+| Live trades, chart and holders for a coin someone has open, or on a watchlist | Yes | Yes |
+| Live market cap, volume and buy/sell counts for **every** coin on the board | **No.** Only for coins being followed trade by trade. The rest show their figures as of when they were last read, marked with their age | Yes |
+| Snipers, bundles and insiders for every new coin | **Only for coins followed from their first block**, which this plan can afford for a bounded number at a time | Yes |
+| Trending by volume across all coins | No: it needs every trade | Yes |
 
-On devnet, as now, the cost is the Helius key you already have. But pump.fun on devnet has almost no
-activity, so the board would be honest and nearly empty. A terminal can only be judged on mainnet data.
-Reading mainnet is not trading on it: no keys, no money.
+Why A cannot carry everything: the full stream measured above is about 2 MB a second of pump.fun
+transactions, which at Helius's rate of 2 credits per 0.1 MB is about 40 credits a second, some
+**100 million credits a month against a plan of 10 million**. Carried on Helius alone it would cost about
+$500 a month in extra credits. New coins and migrations by themselves are tiny (a few thousand credits a
+day), and a followed coin costs in proportion to its own trading.
+
+I do not recommend PumpPortal: its terms do not allow publishing its data, and its trade streams need a
+funded mainnet wallet, which your rule forbids.
+
+**My recommendation: start on A, exactly "Helius Developer, $49 a month", with automatic top-up left
+off so the bill cannot grow.** Build the board so that every figure it cannot keep live is shown with its
+age, never as live. Move to B when you want the full board; because the data layer sits behind one
+interface (below), that is a change of provider, not a rebuild. **Nothing is bought until you say so; until
+then everything is built and tested on the recording.**
+
+### One interface, so the provider can be swapped
+
+Everything above the data layer reads from one interface, `ChainSource`
+(`lib/server/indexer/types.ts`): the newest slot, the slots in a range, one block's decoded
+transactions, and a subscription. Behind it today:
+
+| Source | What it is | State |
+| --- | --- | --- |
+| `RpcSource` | Whole blocks through an RPC | Built. Right for the local chain and devnet; too heavy for mainnet |
+| `RecordedSource` | A recorded stretch of mainnet, played back | **Built this round**, with its tests (`test/unit/recorded.test.ts`) |
+| `SimChain` | A made-up chain, for load tests and reorganisations | Built |
+| A websocket source (Helius, plan A) | New coins and migrations, plus per-coin subscriptions | Not built: waits for your go-ahead on the plan |
+| A gRPC source (Chainstack or Shyft, plan B) | Every pump.fun and pool transaction | Not built |
+
+Nothing in any source can send a transaction: the interface has no method for it.
 
 ## 7. Launch plan in three tiers
 
@@ -227,7 +284,8 @@ Reading mainnet is not trading on it: no keys, no money.
 | 4 | Safety panel: mint and freeze authority, liquidity burned, top-10, dev holding and dev's trades, the three shares | Table stakes | A few account reads per coin |
 | 5 | Top traders on a coin; trade history; watchlist; labels in every list | Our data already holds it | The browser, our index |
 | 6 | Settings per preset, a recommended fee, tip, MEV modes | Without a tip and a private route, trades on mainnet lose to everyone else's | Jito; mainnet to prove it |
-| 7 | Take profit, stop loss and limit sells, signed in advance (way B), with "while open" as the fallback | The one trading feature no serious user will do without | Proof on the local chain first |
+| 7 | Limit orders, take profit and stop loss that run **only while the terminal is open**, and say so on the screen | Your decision of 22 November: no hosted signer, and nothing signed in advance until its proof has been read | The price stream; the browser |
+| 7a | A sell strategy attached to every buy: take-profit and stop-loss levels set once and applied to each new position, under the same "while open" rule | Added to the launch set on 22 November | Item 7 |
 | 8 | Every state designed: stale, disconnected, wrong network, no balance | In the brief; mostly there | None |
 
 Already there and kept: the three columns, the chart, feed, holders, quick buy, one-click with a
@@ -276,18 +334,19 @@ email and trade in ten seconds"; one launchpad at first; no years of wallet hist
 network of them near the validators, so on mainnet our trades will land later than Axiom's or
 Photon's. How much later is unknown until it is measured on mainnet.
 
-## 9. What I need you to decide before step 2
+## 9. Decisions, as answered on 22 November
 
-1. **Which terminal this is.** I have taken "the terminal" to be the one inside RINGPAD, which is the
-   only terminal code there is, and have not opened the parked ShadowTerminal artifact. Say if you
-   meant that one, or want the terminal split out under that name.
-2. **Mainnet data, read-only: yes or no, and at which budget** (about $55 to $85, $380 or $730 a month).
-   Without it the board stays on devnet and nearly empty.
-3. **Offline orders: way B** (signed in advance, mine to prove first), or way A (a hosted signer, as
-   the others do), or neither for now.
-4. **The tiers above:** move anything up or down.
-5. **Network access** for the hosts listed at the top, so the Axiom column and every price can be
-   checked against the pages themselves.
+1. **Which terminal:** the one inside RINGPAD. ShadowTerminal stays parked and untouched.
+2. **Mainnet data:** yes, read-only, cheapest tier, behind one interface so the provider can be swapped.
+   Nothing on mainnet may send a transaction or hold a key. Built and tested on recorded mainnet data until a
+   plan is confirmed. **Waiting on you:** confirm "Helius Developer, $49 a month" (section 6), or choose the
+   $152 set-up for the full board.
+3. **Offline orders:** neither for now. Limit, take profit and stop loss run only while the terminal is open.
+   The signed-in-advance design is proven and written up separately before any decision.
+4. **Tiers:** agreed. Copy trading and wallet rankings are "later". Added to launch: a sell strategy on every
+   buy, and the feed of all new pump.fun coins. Trailing stop, DCA, limits dragged on the chart and other
+   launchpads are "next".
+5. **Fee:** stays a setting, 0.5% proposed, off by default.
 
 ## Sources
 

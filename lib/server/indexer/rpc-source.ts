@@ -9,13 +9,15 @@ import type { ChainBlock, ChainSource, ChainTx, EarlyTx } from "./types";
  * A block as the RPC gives it, read as plain JSON. The library's own reader is not used for blocks: it refuses a
  * whole block that holds a version 1 transaction, and the Privacy Rings program sends those on devnet.
  */
-interface RawBalance {
+export interface RawBalance {
   accountIndex: number;
   mint: string;
   owner?: string;
   uiTokenAmount: { amount: string };
 }
-interface RawTx {
+export interface RawTx {
+  /** Its place in its block, where the block has been cut down to the transactions that matter (a recording). Absent: its place in the list. */
+  index?: number;
   transaction: { signatures: string[]; message: { accountKeys: string[] } };
   meta: {
     err: unknown;
@@ -26,7 +28,7 @@ interface RawTx {
     postTokenBalances?: RawBalance[] | null;
   } | null;
 }
-interface RawBlock {
+export interface RawBlock {
   blockhash: string;
   previousBlockhash: string;
   parentSlot: number;
@@ -66,6 +68,70 @@ function txOf(entry: RawTx, index: number): ChainTx | null {
   return { signature: entry.transaction.signatures[0]!, index, events, balances: [...totals.values()] };
 }
 
+/** A block as the indexer takes it, from a block as the RPC gives it. */
+export function blockFromRaw(slot: number, found: RawBlock): ChainBlock {
+  const txs: ChainTx[] = [];
+  found.transactions.forEach((entry, index) => {
+    const tx = txOf(entry, entry.index ?? index);
+    if (tx) txs.push(tx);
+  });
+  return {
+    slot,
+    hash: found.blockhash,
+    parentSlot: found.parentSlot,
+    parentHash: found.previousBlockhash,
+    time: found.blockTime ?? Math.floor(Date.now() / 1000),
+    txs,
+  };
+}
+
+/** pump.fun gives every coin an address ending in these four letters. Used only to decide what a recording keeps. */
+const PUMP_MINT_ENDING = "pump";
+/**
+ * Cuts a block down to what the indexer reads: the transactions that went through and either called pump.fun or
+ * its pool program or moved a pump.fun coin, each with only the fields `blockFromRaw` uses. A mainnet block is
+ * several megabytes; cut down it is a few tens of kilobytes. For recordings (scripts/record-chain.ts).
+ * What is lost: log lines, so an event whose inner call the RPC did not return cannot be recovered from them.
+ */
+export function trimRawBlock(found: RawBlock): RawBlock {
+  const transactions: RawTx[] = [];
+  found.transactions.forEach((entry, index) => {
+    const meta = entry.meta;
+    if (!meta || meta.err) return;
+    const keys = [...entry.transaction.message.accountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];
+    const ours = (key: string | undefined): boolean => key === PUMP_PROGRAM || key === AMM_PROGRAM;
+    const balances = (list: RawBalance[] | null | undefined): RawBalance[] =>
+      (list ?? [])
+        .filter((balance) => balance.mint.endsWith(PUMP_MINT_ENDING))
+        .map((balance) => ({
+          accountIndex: balance.accountIndex,
+          mint: balance.mint,
+          owner: balance.owner,
+          uiTokenAmount: { amount: balance.uiTokenAmount.amount },
+        }));
+    const [before, after] = [balances(meta.preTokenBalances), balances(meta.postTokenBalances)];
+    if (!keys.some(ours) && before.length + after.length === 0) return;
+    transactions.push({
+      index,
+      // Only the two programs' own places in the key list are kept: that is all the reader looks up.
+      transaction: { signatures: [entry.transaction.signatures[0]!], message: { accountKeys: keys.map((key) => (ours(key) ? key : "")) } },
+      meta: {
+        err: null,
+        innerInstructions: (meta.innerInstructions ?? [])
+          .map((group) => ({
+            instructions: group.instructions
+              .filter((call) => ours(keys[call.programIdIndex]))
+              .map((call) => ({ programIdIndex: call.programIdIndex, data: call.data })),
+          }))
+          .filter((group) => group.instructions.length > 0),
+        preTokenBalances: before,
+        postTokenBalances: after,
+      },
+    });
+  });
+  return { blockhash: found.blockhash, previousBlockhash: found.previousBlockhash, parentSlot: found.parentSlot, blockTime: found.blockTime, transactions };
+}
+
 export class RpcSource implements ChainSource {
   constructor(private readonly connection: () => Connection) {}
 
@@ -87,19 +153,7 @@ export class RpcSource implements ChainSource {
       throw error;
     }
     if (!found) return null;
-    const txs: ChainTx[] = [];
-    found.transactions.forEach((entry, index) => {
-      const tx = txOf(entry, index);
-      if (tx) txs.push(tx);
-    });
-    return {
-      slot,
-      hash: found.blockhash,
-      parentSlot: found.parentSlot,
-      parentHash: found.previousBlockhash,
-      time: found.blockTime ?? Math.floor(Date.now() / 1000),
-      txs,
-    };
+    return blockFromRaw(slot, found);
   }
   watch(onSlot: () => void, onEarly: (tx: EarlyTx) => void): () => void {
     const chain = this.connection();

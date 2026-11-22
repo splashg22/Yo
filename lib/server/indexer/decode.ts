@@ -23,6 +23,12 @@ const AMM_EVENTS = discriminators(ammIdl.events);
 /** Anchor writes an event as a call to the program itself, whose data starts with this marker. */
 const EVENT_CALL = Buffer.from("e445a52e51cb9a1d", "hex");
 
+/** True for a coin priced in SOL: the field is absent on older events, and all ones or wrapped SOL on newer ones. */
+const pricedInSol = (quoteMint: { toBase58(): string } | undefined): boolean => {
+  const quote = quoteMint?.toBase58();
+  return quote === undefined || quote === "11111111111111111111111111111111" || quote === WSOL;
+};
+
 /** One event from its bytes (discriminator first), or null if it is not one the indexer follows or cannot be read. */
 export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
   if (data.length < 8) return null;
@@ -33,6 +39,9 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
       const name = CURVE_EVENTS.get(tag);
       if (name === "tradeevent") {
         const event = sdk.PUMP_SDK.decodeTradeEventBc(body);
+        // A coin priced in something other than SOL (pump.fun has USDC-priced coins on mainnet) carries its amounts
+        // in other fields and zero in the SOL ones. Read as SOL it would be a trade at no price, so it is not read at all.
+        if (!pricedInSol((event as { quoteMint?: { toBase58(): string } }).quoteMint)) return null;
         return {
           kind: "trade",
           venue: "curve",
@@ -49,6 +58,7 @@ export function decodeEvent(program: string, data: Buffer): ChainEvent | null {
       }
       if (name === "createevent") {
         const event = sdk.PUMP_SDK.decodeCreateEventBc(body);
+        if (!pricedInSol((event as { quoteMint?: { toBase58(): string } }).quoteMint)) return null;
         return {
           kind: "create",
           mint: event.mint.toBase58(),

@@ -17,3 +17,4 @@ shots/motion-*
 .data-window/
 .data-devnet/
 dist/
+.data-recorded/
