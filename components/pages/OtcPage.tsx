@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "../ui/controls";
 import { useCallback, useEffect, useState } from "react";
 import { sessionApi, signedApi } from "@/lib/client/api";
 import { COIN_DECIMALS, SOL_DECIMALS } from "@/lib/constants";
@@ -19,7 +20,7 @@ export function OtcPage() {
     <AppPage
       label="OTC"
       title="Sell a block to a named buyer"
-      intro="You name the buyer, the size and the price. When the buyer accepts, the coin and the payment change hands together, or nothing moves. Each side must hold what it is giving in its Ring balance. The size and price are not published. In this build Ring balances are simulated, and the site's own server can read every offer."
+      intro="Sell a block to one named buyer: coin and payment change hands together, or nothing moves. Simulated in this build."
     >
       <NeedsRing>
         <WalletGate>
@@ -142,13 +143,13 @@ function Desk() {
               <label className="label" htmlFor="o-coin">
                 Coin
               </label>
-              <select id="o-coin" value={mint} onChange={(event) => setForm({ ...form, mint: event.target.value })}>
-                {coins.map((coin) => (
-                  <option key={coin.mint} value={coin.mint}>
-                    {coin.symbol}
-                  </option>
-                ))}
-              </select>
+              <Choice
+                id="o-coin"
+                label="Coin"
+                value={mint}
+                onChange={(chosen) => setForm({ ...form, mint: chosen })}
+                options={coins.map((coin) => ({ value: coin.mint, label: coin.symbol }))}
+              />
             </div>
             <div className="field">
               <label className="label" htmlFor="o-amount">

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import type { Activity } from "@/lib/contract";
-import { formatTime, shortAddress } from "@/lib/format";
+import { shortAddress } from "@/lib/format";
+import { Time } from "./Money";
 
 /**
  * The latest public transactions for one address, as the chain lists them. Refreshed on a
@@ -37,20 +38,40 @@ export function ActivityList({ load, empty, version = 0 }: { load: () => Promise
           </button>
         </p>
       )}
-      <ul className="events">
-        {activity === null && !problem && <li className="pub">Reading the chain.</li>}
-        {activity?.length === 0 && <li className="pub">{empty}</li>}
-        {activity?.map((entry) => (
-          <li key={entry.signature}>
-            <b className="address">{shortAddress(entry.signature)}</b>
-            <span className="label">{entry.blockTime === undefined ? "Time not recorded" : formatTime(entry.blockTime * 1000)}</span>
-            <span className="pub">{entry.failed ? "Failed on-chain. Nothing moved except the network fee." : "Confirmed."}</span>
-            <Link className="link" href={`/tx/${entry.signature}`}>
-              Receipt
-            </Link>
-          </li>
-        ))}
-      </ul>
+      {activity === null && !problem && <p className="body">Reading the chain.</p>}
+      {activity?.length === 0 && <p className="body">{empty}</p>}
+      {activity !== null && activity.length > 0 && (
+        <div className="table-wrap">
+          <table className="grid" data-activity>
+            <thead>
+              <tr>
+                <th>When</th>
+                <th>Transaction</th>
+                <th>State</th>
+                <th className="r">Receipt</th>
+              </tr>
+            </thead>
+            <tbody>
+              {activity.map((entry) => (
+                <tr key={entry.signature}>
+                  <td>{entry.blockTime === undefined ? <span className="quiet">Not recorded</span> : <Time at={entry.blockTime * 1000} />}</td>
+                  <td>
+                    <span className="address" title={entry.signature}>
+                      {shortAddress(entry.signature)}
+                    </span>
+                  </td>
+                  <td>{entry.failed ? <span className="tag hot">Failed: only the network fee moved</span> : <span className="tag">Confirmed</span>}</td>
+                  <td className="r">
+                    <Link className="link" href={`/tx/${entry.signature}`}>
+                      Receipt
+                    </Link>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   );
 }

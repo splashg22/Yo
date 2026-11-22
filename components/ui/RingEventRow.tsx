@@ -1,6 +1,7 @@
 import { NATIVE } from "@/lib/constants";
 import type { RingEvent } from "@/lib/contract";
-import { formatCoin, formatSol, formatTime } from "@/lib/format";
+import { formatCoin, formatSol, shortAddress } from "@/lib/format";
+import { Time } from "./Money";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { openNote, type NoteKeys } from "@/lib/notes";
@@ -14,7 +15,7 @@ const TITLES: Record<RingEvent["kind"], string> = {
   window: "Sealed window",
 };
 
-/** One entry of a wallet's own Ring history: the public part, then the part only its keys can read. */
+/** One row of a wallet's own Ring history: when, what, the public part, the part only its keys can read, how it stands, and its receipt. */
 export function RingEventRow({
   event,
   me,
@@ -40,16 +41,24 @@ export function RingEventRow({
       current = false;
     };
   }, [sealedNote, noteKeys]);
-  const who = (address: string | undefined) => (address === me ? "you" : <span className="address">{address}</span>);
+  const who = (address: string | undefined) =>
+    address === me ? (
+      "you"
+    ) : (
+      <span className="address" title={address}>
+        {shortAddress(address ?? "")}
+      </span>
+    );
   return (
-    <li>
-      <b>
-        {TITLES[event.kind]}
-        {event.pending ? ", payout not yet confirmed" : ""}
-      </b>
-      <span className="label">{formatTime(event.at)}</span>
-      <span className="pub">
-        Public: {event.kind === "register" && <>your wallet published its Ring keys.</>}
+    <tr data-event={event.kind}>
+      <td>
+        <Time at={event.at} />
+      </td>
+      <td>
+        <b>{TITLES[event.kind]}</b>
+      </td>
+      <td className="pub" style={{ whiteSpace: "normal" }}>
+        {event.kind === "register" && <>Your wallet published its Ring keys.</>}
         {event.kind === "deposit" && (
           <>
             {formatCoin(open.coin!, open.amount!)} {symbol(open.coin!)} from {who(open.wallet)}.
@@ -62,48 +71,60 @@ export function RingEventRow({
         )}
         {event.kind === "transfer" && (
           <>
-            a transfer from {who(open.from)} to {who(open.to)}.
+            A transfer from {who(open.from)} to {who(open.to)}.
           </>
         )}
         {event.kind === "otc" && (
           <>
-            a transfer each way between {who(open.seller)} and {who(open.buyer)}.
+            A transfer each way between {who(open.seller)} and {who(open.buyer)}.
           </>
         )}
-      </span>
-      {event.kind === "transfer" && (
-        <span className="enc">
-          Not published: {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}.
-        </span>
-      )}
-      {event.kind === "transfer" && sealedNote !== undefined && (
-        <span className="enc">
-          {note === undefined
-            ? noteKeys
-              ? "Opening the sealed note."
-              : "There is a sealed note. Only a wallet made in this browser can open it."
-            : note === null
-              ? "There is a sealed note, but this wallet's key does not open it."
-              : `Sealed note, readable only by you and the other wallet: "${note}"`}
-        </span>
-      )}
-      {event.kind === "window" && (
-        <span className="enc">
-          Not published: you {sealed.did} {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}
-          {sealed.returned && sealed.returned !== "0" ? `, and ${formatSol(sealed.returned, 9)} came back unspent` : ""}.
-        </span>
-      )}
-      {event.kind === "otc" && (
-        <span className="enc">
-          Not published: {formatCoin(sealed.coin!, sealed.size!)} {symbol(sealed.coin!)} for {formatSol(sealed.price!, 9)}
-          {sealed.paidIn === NATIVE ? "" : ` in ${symbol(sealed.paidIn!)}`}.
-        </span>
-      )}
-      {event.signature && (
-        <Link className="link" href={`/tx/${event.signature}`}>
-          Receipt
-        </Link>
-      )}
-    </li>
+        {event.kind === "window" && <>A sealed launch window.</>}
+      </td>
+      <td className="enc" style={{ whiteSpace: "normal" }}>
+        {event.kind === "transfer" && (
+          <>
+            {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}.
+          </>
+        )}
+        {event.kind === "transfer" && sealedNote !== undefined && (
+          <>
+            {" "}
+            {note === undefined
+              ? noteKeys
+                ? "Opening the sealed note."
+                : "There is a sealed note. Only a wallet made in this browser can open it."
+              : note === null
+                ? "There is a sealed note, but this wallet's key does not open it."
+                : `Sealed note, readable only by you and the other wallet: "${note}"`}
+          </>
+        )}
+        {event.kind === "window" && (
+          <>
+            You {sealed.did} {formatCoin(sealed.coin!, sealed.amount!)} {symbol(sealed.coin!)}
+            {sealed.returned && sealed.returned !== "0" ? `, and ${formatSol(sealed.returned, 9)} came back unspent` : ""}.
+          </>
+        )}
+        {event.kind === "otc" && (
+          <>
+            {formatCoin(sealed.coin!, sealed.size!)} {symbol(sealed.coin!)} for {formatSol(sealed.price!, 9)}
+            {sealed.paidIn === NATIVE ? "" : ` in ${symbol(sealed.paidIn!)}`}.
+          </>
+        )}
+        {(event.kind === "deposit" || event.kind === "withdraw" || event.kind === "register") && <span className="quiet">Nothing</span>}
+      </td>
+      <td>{event.pending ? <span className="tag hot">Payout pending</span> : <span className="tag">Confirmed</span>}</td>
+      <td className="r">
+        {event.signature ? (
+          <Link className="link" href={`/tx/${event.signature}`}>
+            Receipt
+          </Link>
+        ) : (
+          <span className="quiet" title="A move between Ring balances has no public transaction of its own in this build.">
+            None
+          </span>
+        )}
+      </td>
+    </tr>
   );
 }

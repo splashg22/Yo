@@ -1,5 +1,6 @@
 "use client";
 
+import { FileButton, Tick } from "../ui/controls";
 import Link from "next/link";
 import { useState } from "react";
 import { api, signAndSend } from "@/lib/client/api";
@@ -20,7 +21,7 @@ export function LaunchPage() {
     <AppPage
       label="Launch"
       title="Create a coin and register it with a Ring"
-      intro="One signature creates the coin on a pump.fun bonding curve and registers its mint with the Ring. The launch is public. From then on holders can keep it in a Ring balance."
+      intro="One signature creates the coin on a pump.fun curve and registers it with the Ring. A launch is public."
     >
       <WalletGate>
         <LaunchForm />
@@ -84,7 +85,7 @@ function LaunchForm() {
   };
 
   const launch = () =>
-    run("Waiting for the chain to confirm", async () => {
+    run("Launching the coin", async (onSent) => {
       const mint = newActor(); // the new coin's own key: it signs this one transaction and is then discarded
       const built = await api("launch/build", {
         wallet: me.address,
@@ -98,7 +99,7 @@ function LaunchForm() {
         ...(form.picture ? { session: await me.session({ ask: true }) } : {}),
         toRing,
       });
-      const sent = await signAndSend(me, built.transaction, [mint.seed]);
+      const sent = await signAndSend(me, built.transaction, [mint.seed], onSent);
       setLaunched({
         mint: mint.address,
         symbol: form.symbol.trim().toUpperCase(),
@@ -205,12 +206,11 @@ function LaunchForm() {
         <label className="label" htmlFor="l-picture">
           Picture, optional. PNG, JPEG, WebP or GIF, up to 1.5 MB
         </label>
-        <input
+        <FileButton
           id="l-picture"
-          type="file"
           accept="image/png,image/jpeg,image/webp,image/gif"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
+          chosen={form.pictureName}
+          onFile={(file) => {
             if (!file) return setForm({ ...form, picture: "", pictureName: "" });
             readPicture(file).then(
               (picture) => {
@@ -218,13 +218,14 @@ function LaunchForm() {
                 setProblem("");
               },
               (error: unknown) => {
-                event.target.value = "";
                 setForm((current) => ({ ...current, picture: "", pictureName: "" }));
                 setProblem(error instanceof Error ? error.message : String(error));
               },
             );
           }}
-        />
+        >
+          Choose a picture
+        </FileButton>
         <span className="label">
           The picture and description are public. Hidden data in the file, such as where a photo was taken, is removed before it is kept.
         </span>
@@ -243,10 +244,9 @@ function LaunchForm() {
         />
       </div>
       {ringOn && (
-        <label className="check">
-          <input type="checkbox" checked={form.toRing} onChange={(event) => setForm({ ...form, toRing: event.target.checked })} />
-          <span>Put my first buy straight into my Ring balance. The buy itself is public either way.</span>
-        </label>
+        <Tick checked={form.toRing} onChange={(toRing) => setForm({ ...form, toRing })}>
+          Put my first buy straight into my Ring balance. The buy itself is public either way.
+        </Tick>
       )}
       <div className="actions">
         <button className="btn" type="submit">

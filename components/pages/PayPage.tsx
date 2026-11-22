@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "../ui/controls";
 import QRCode from "qrcode";
 import { sealNoteFor } from "@/lib/client/notes";
 import { useEffect, useMemo, useState } from "react";
@@ -153,13 +154,13 @@ function MakeLink() {
           <label className="label" htmlFor="p-coin">
             Coin
           </label>
-          <select id="p-coin" value={form.mint} onChange={(event) => setForm({ ...form, mint: event.target.value })}>
-            {mints.map((mint) => (
-              <option key={mint} value={mint}>
-                {symbol(mint)}
-              </option>
-            ))}
-          </select>
+          <Choice
+            id="p-coin"
+            label="Coin"
+            value={form.mint}
+            onChange={(mint) => setForm({ ...form, mint })}
+            options={mints.map((mint) => ({ value: mint, label: symbol(mint) }))}
+          />
         </div>
         <div className="field">
           <label className="label" htmlFor="p-amount">

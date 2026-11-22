@@ -31,11 +31,7 @@ export function StatusPage() {
   }, [refresh]);
 
   return (
-    <AppPage
-      label="Status"
-      title="What this build is running on, read just now"
-      intro="Every line below is read from the chain when this page asks. Nothing is remembered from an earlier check."
-    >
+    <AppPage label="Status" title="What this build is running on, read just now" intro="Read from the chain when this page asks.">
       {problem && (
         <p className="notice" role="alert">
           The status could not be read: {problem}{" "}

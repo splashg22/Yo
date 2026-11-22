@@ -1,5 +1,6 @@
 "use client";
 
+import { FileButton, Tick } from "../ui/controls";
 import { useState, type ReactNode } from "react";
 import { useWallet } from "./WalletProvider";
 
@@ -9,6 +10,7 @@ export function WalletGate({ children }: { children: ReactNode }) {
   const [password, setPassword] = useState("");
   const [again, setAgain] = useState("");
   const [file, setFile] = useState("");
+  const [fileName, setFileName] = useState("");
   const [restoring, setRestoring] = useState(false);
   const [visible, setVisible] = useState(false);
   const [problem, setProblem] = useState("");
@@ -60,7 +62,17 @@ export function WalletGate({ children }: { children: ReactNode }) {
           <label className="label" htmlFor="backup-file">
             Backup file
           </label>
-          <input id="backup-file" type="file" accept="application/json,.json" onChange={(event) => void event.target.files?.[0]?.text().then(setFile)} />
+          <FileButton
+            id="backup-file"
+            accept="application/json,.json"
+            chosen={fileName}
+            onFile={(chosen) => {
+              setFileName(chosen?.name ?? "");
+              void chosen?.text().then(setFile);
+            }}
+          >
+            Choose the backup file
+          </FileButton>
         </div>
       )}
       <div className="field">
@@ -89,10 +101,9 @@ export function WalletGate({ children }: { children: ReactNode }) {
           />
         </div>
       )}
-      <label className="check">
-        <input type="checkbox" checked={visible} onChange={(event) => setVisible(event.target.checked)} />
-        <span>Show the password as I type</span>
-      </label>
+      <Tick checked={visible} onChange={setVisible}>
+        Show the password as I type
+      </Tick>
       <div className="actions">
         <button className="btn" type="submit" disabled={busy || !password || (restoring && !file)}>
           {restoring ? "Restore" : wallet.hasBackup ? "Unlock" : "Create wallet"}

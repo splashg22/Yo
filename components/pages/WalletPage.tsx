@@ -1,5 +1,6 @@
 "use client";
 
+import { Choice } from "../ui/controls";
 import { useCallback, useEffect, useState } from "react";
 import { api, sessionApi, signAndSend, signedApi } from "@/lib/client/api";
 import { sealNoteFor } from "@/lib/client/notes";
@@ -27,7 +28,7 @@ export function WalletPage() {
     <AppPage
       label="Ring wallet"
       title="Deposit, transfer, withdraw"
-      intro="Moving coins into or out of a Ring balance is public. A move between Ring balances does not publish the coin or the amount; both wallet addresses stay public. In this build Ring balances are simulated: the site's own server keeps them and can read every move."
+      intro="Deposits and withdrawals are public. A transfer between Ring balances shows both wallets, not the coin or the amount. Ring balances are simulated in this build."
     >
       <WalletGate>
         <NeedsRing instead={<PublicWallet />}>
@@ -148,12 +149,12 @@ function OpenWallet() {
   };
 
   const submit = () =>
-    run("Waiting for the chain to confirm", async (): Promise<Outcome> => {
+    run("Waiting for the chain to confirm", async (onSent): Promise<Outcome> => {
       const amount = parseAmount(form.amount, decimalsOf(form.mint)).toString();
       let outcome: Outcome;
       if (tab === "deposit") {
         const { transaction } = await api("ring/deposit/build", { wallet: me.address, mint: form.mint, amount });
-        const sent = await signAndSend(me, transaction);
+        const sent = await signAndSend(me, transaction, undefined, onSent);
         outcome = { message: `Deposited ${form.amount} ${symbol(form.mint)} into your Ring balance.`, signature: sent.signature };
       } else if (tab === "transfer") {
         const note = await sealNoteFor(me, form.to.trim(), form.memo);
@@ -187,223 +188,245 @@ function OpenWallet() {
 
   return (
     <>
-      <dl className="kv">
-        <dt>{me.kind === "browser" ? "Deposit address" : me.label}</dt>
-        <dd>
-          <Address value={me.address} />
-        </dd>
-      </dl>
-      <div className="actions">
-        {me.kind === "browser" && (
-          <button className="link" type="button" onClick={saveBackup}>
-            Save encrypted backup
-          </button>
-        )}
-        {config !== null && config !== "offline" && config.network === "local" && (
-          <button
-            className="link"
-            type="button"
-            disabled={busy}
-            onClick={() =>
-              void run("Asking the faucet", async () => {
-                await api("faucet", { wallet: me.address });
-                await refresh();
-                return { message: "10 test SOL added to your wallet." };
-              })
-            }
-          >
-            Get test SOL
-          </button>
-        )}
-        <button
-          className="link"
-          type="button"
-          disabled={busy}
-          onClick={() =>
-            void run("Checking the chain", async () => {
-              const found = await signedApi("ring/recheck", me);
-              await refresh();
-              return {
-                message:
-                  found.credited + found.payoutsResolved === 0
-                    ? "Nothing was missing."
-                    : `Recovered ${found.credited} deposit(s) and settled ${found.payoutsResolved} payout(s).`,
-              };
-            })
-          }
-        >
-          Check for anything missing
-        </button>
-        <button className="link" type="button" onClick={lock}>
-          Lock
-        </button>
-      </div>
-      {me.kind === "browser" && (
-        <p className="body">
-          Fund this address from any wallet or exchange. That transfer is public, like any other. The key exists only in this browser and in your backup file.
-        </p>
-      )}
-
-      {loadProblem && (
-        <p className="notice" role="alert">
-          Your balances could not be read: {loadProblem}{" "}
-          <button className="link" type="button" onClick={() => void refresh()}>
-            Try again
-          </button>
-        </p>
-      )}
-      <div className="scroll-x">
-        <table className="plain">
-          <thead>
-            <tr>
-              <th>Coin</th>
-              <th>In your wallet, public</th>
-              <th>In your Ring balance</th>
-            </tr>
-          </thead>
-          <tbody>
-            {mints.map((mint) => (
-              <tr key={mint}>
-                <td data-label="Coin">{symbol(mint)}</td>
-                <td data-label="Wallet" className="num">
-                  {inWallet ? formatCoin(mint, inWallet[mint] ?? "0") : "Reading"}
-                </td>
-                <td data-label="Ring" className="num">
-                  {mine ? formatCoin(mint, mine.balances[mint] ?? "0") : "Reading"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <div className="tabs" role="group" aria-label="Action">
-        {TABS.map((name) => (
-          <button
-            key={name}
-            type="button"
-            aria-pressed={tab === name}
-            onClick={() => {
-              setTab(name);
-              setReviewing(false);
-              setFormProblem("");
-            }}
-          >
-            {name}
-          </button>
-        ))}
-      </div>
-      {reviewing ? (
-        <Confirm actions={[tab]} label={`Sign and ${tab}`} busy={busy} onConfirm={() => void submit()} onCancel={() => setReviewing(false)}>
-          <p className="body">
-            {tab === "deposit" ? "Deposit" : tab === "transfer" ? "Send" : "Withdraw"} {form.amount} {symbol(form.mint)}
-            {tab !== "deposit" && form.to.trim() ? (
-              <>
-                {" "}
-                to <span className="address">{form.to.trim()}</span>
-              </>
-            ) : null}
-            .
-          </p>
-          {tab === "withdraw" && (
-            <p className="body">
-              The network fee comes out of the SOL in your Ring balance. If the destination has never held this coin, so does the rent for its account, about
-              0.002 SOL.
-            </p>
-          )}
-          {tab === "withdraw" &&
-            withdrawalWarnings(mine?.history ?? [], { wallet: me.address, mint: form.mint, amount: reviewedAmount(), destination: form.to.trim() }).map(
-              (warning) => (
-                <p key={warning} className="notice">
-                  {warning}
-                </p>
-              ),
-            )}
-        </Confirm>
-      ) : (
-        <form
-          className="form"
-          onSubmit={(event) => {
-            event.preventDefault();
-            review();
-          }}
-        >
-          <div className="pair">
-            <div className="field">
-              <label className="label" htmlFor="w-coin">
-                Coin
-              </label>
-              <select id="w-coin" value={form.mint} onChange={(event) => setForm({ ...form, mint: event.target.value })}>
-                {mints.map((mint) => (
-                  <option key={mint} value={mint}>
-                    {symbol(mint)}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="field">
-              <label className="label" htmlFor="w-amount">
-                Amount
-              </label>
-              <input
-                id="w-amount"
-                inputMode="decimal"
-                autoComplete="off"
-                value={form.amount}
-                onChange={(event) => setForm({ ...form, amount: event.target.value })}
-                placeholder="0.0"
-              />
-            </div>
-          </div>
-          {tab !== "deposit" && (
-            <div className="field">
-              <label className="label" htmlFor="w-to">
-                {tab === "transfer" ? "Recipient's wallet address" : "Destination, if not your own wallet"}
-              </label>
-              <input
-                id="w-to"
-                value={form.to}
-                onChange={(event) => setForm({ ...form, to: event.target.value })}
-                spellCheck={false}
-                autoComplete="off"
-                autoCapitalize="off"
-              />
-            </div>
-          )}
-          {tab === "transfer" && (
-            <div className="field">
-              <label className="label" htmlFor="w-memo">
-                Note, sealed in your browser, optional
-              </label>
-              <input id="w-memo" value={form.memo} maxLength={140} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
-            </div>
-          )}
+      <div className="cols two">
+        <section className="block" aria-label="Balances and actions">
+          <dl className="kv">
+            <dt>{me.kind === "browser" ? "Deposit address" : me.label}</dt>
+            <dd>
+              <Address value={me.address} />
+            </dd>
+          </dl>
           <div className="actions">
-            <button className="btn" type="submit">
-              Review
+            {me.kind === "browser" && (
+              <button className="link" type="button" onClick={saveBackup}>
+                Save encrypted backup
+              </button>
+            )}
+            {config !== null && config !== "offline" && config.network === "local" && (
+              <button
+                className="link"
+                type="button"
+                disabled={busy}
+                onClick={() =>
+                  void run("Asking the faucet", async () => {
+                    await api("faucet", { wallet: me.address });
+                    await refresh();
+                    return { message: "10 test SOL added to your wallet." };
+                  })
+                }
+              >
+                Get test SOL
+              </button>
+            )}
+            <button
+              className="link"
+              type="button"
+              disabled={busy}
+              onClick={() =>
+                void run("Checking the chain", async () => {
+                  const found = await signedApi("ring/recheck", me);
+                  await refresh();
+                  return {
+                    message:
+                      found.credited + found.payoutsResolved === 0
+                        ? "Nothing was missing."
+                        : `Recovered ${found.credited} deposit(s) and settled ${found.payoutsResolved} payout(s).`,
+                  };
+                })
+              }
+            >
+              Check for anything missing
+            </button>
+            <button className="link" type="button" onClick={lock}>
+              Lock
             </button>
           </div>
-          {formProblem && (
-            <p className="status-line bad" role="alert">
-              {formProblem}
+          {me.kind === "browser" && (
+            <p className="body">
+              Fund this address from any wallet or exchange. That transfer is public, like any other. The key exists only in this browser and in your backup
+              file.
             </p>
           )}
-        </form>
-      )}
-      {line}
 
-      <h2 className="h3">Your Ring history</h2>
-      <ul className="events">
-        {mine === null && !loadProblem && <li className="pub">Reading your history.</li>}
-        {mine?.history.length === 0 && <li className="pub">Nothing yet. A deposit, transfer or withdrawal will appear here.</li>}
-        {mine?.history.map((event) => (
-          <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} noteKeys={me.noteKeys} />
-        ))}
-      </ul>
+          {loadProblem && (
+            <p className="notice" role="alert">
+              Your balances could not be read: {loadProblem}{" "}
+              <button className="link" type="button" onClick={() => void refresh()}>
+                Try again
+              </button>
+            </p>
+          )}
+          <div className="scroll-x">
+            <table className="plain">
+              <thead>
+                <tr>
+                  <th>Coin</th>
+                  <th>In your wallet, public</th>
+                  <th>In your Ring balance</th>
+                </tr>
+              </thead>
+              <tbody>
+                {mints.map((mint) => (
+                  <tr key={mint}>
+                    <td data-label="Coin">{symbol(mint)}</td>
+                    <td data-label="Wallet" className="num">
+                      {inWallet ? formatCoin(mint, inWallet[mint] ?? "0") : "Reading"}
+                    </td>
+                    <td data-label="Ring" className="num">
+                      {mine ? formatCoin(mint, mine.balances[mint] ?? "0") : "Reading"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
-      <h2 className="h3">Your wallet&apos;s public transactions</h2>
-      <p className="body">The latest transactions this wallet took part in, as anyone can list them from the chain.</p>
-      <ActivityList load={loadActivity} version={mine?.history.length ?? 0} empty="None yet. Funding the wallet will be the first." />
+          <div className="tabs" role="group" aria-label="Action">
+            {TABS.map((name) => (
+              <button
+                key={name}
+                type="button"
+                aria-pressed={tab === name}
+                onClick={() => {
+                  setTab(name);
+                  setReviewing(false);
+                  setFormProblem("");
+                }}
+              >
+                {name}
+              </button>
+            ))}
+          </div>
+          {reviewing ? (
+            <Confirm actions={[tab]} label={`Sign and ${tab}`} busy={busy} onConfirm={() => void submit()} onCancel={() => setReviewing(false)}>
+              <p className="body">
+                {tab === "deposit" ? "Deposit" : tab === "transfer" ? "Send" : "Withdraw"} {form.amount} {symbol(form.mint)}
+                {tab !== "deposit" && form.to.trim() ? (
+                  <>
+                    {" "}
+                    to <span className="address">{form.to.trim()}</span>
+                  </>
+                ) : null}
+                .
+              </p>
+              {tab === "withdraw" && (
+                <p className="body">
+                  The network fee comes out of the SOL in your Ring balance. If the destination has never held this coin, so does the rent for its account,
+                  about 0.002 SOL.
+                </p>
+              )}
+              {tab === "withdraw" &&
+                withdrawalWarnings(mine?.history ?? [], { wallet: me.address, mint: form.mint, amount: reviewedAmount(), destination: form.to.trim() }).map(
+                  (warning) => (
+                    <p key={warning} className="notice">
+                      {warning}
+                    </p>
+                  ),
+                )}
+            </Confirm>
+          ) : (
+            <form
+              className="form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                review();
+              }}
+            >
+              <div className="pair">
+                <div className="field">
+                  <label className="label" htmlFor="w-coin">
+                    Coin
+                  </label>
+                  <Choice
+                    id="w-coin"
+                    label="Coin"
+                    value={form.mint}
+                    onChange={(mint) => setForm({ ...form, mint })}
+                    options={mints.map((mint) => ({ value: mint, label: symbol(mint) }))}
+                  />
+                </div>
+                <div className="field">
+                  <label className="label" htmlFor="w-amount">
+                    Amount
+                  </label>
+                  <input
+                    id="w-amount"
+                    inputMode="decimal"
+                    autoComplete="off"
+                    value={form.amount}
+                    onChange={(event) => setForm({ ...form, amount: event.target.value })}
+                    placeholder="0.0"
+                  />
+                </div>
+              </div>
+              {tab !== "deposit" && (
+                <div className="field">
+                  <label className="label" htmlFor="w-to">
+                    {tab === "transfer" ? "Recipient's wallet address" : "Destination, if not your own wallet"}
+                  </label>
+                  <input
+                    id="w-to"
+                    value={form.to}
+                    onChange={(event) => setForm({ ...form, to: event.target.value })}
+                    spellCheck={false}
+                    autoComplete="off"
+                    autoCapitalize="off"
+                  />
+                </div>
+              )}
+              {tab === "transfer" && (
+                <div className="field">
+                  <label className="label" htmlFor="w-memo">
+                    Note, sealed in your browser, optional
+                  </label>
+                  <input id="w-memo" value={form.memo} maxLength={140} onChange={(event) => setForm({ ...form, memo: event.target.value })} />
+                </div>
+              )}
+              <div className="actions">
+                <button className="btn" type="submit">
+                  Review
+                </button>
+              </div>
+              {formProblem && (
+                <p className="status-line bad" role="alert">
+                  {formProblem}
+                </p>
+              )}
+            </form>
+          )}
+          {line}
+        </section>
+        <section className="block" aria-label="History">
+          <h2 className="h3">Your Ring history</h2>
+          {mine === null && !loadProblem && <p className="body">Reading your history.</p>}
+          {mine?.history.length === 0 && <p className="body">Nothing yet. A deposit, transfer or withdrawal will appear here.</p>}
+          {mine !== null && mine.history.length > 0 && (
+            <div className="table-wrap">
+              <table className="grid" data-history>
+                <thead>
+                  <tr>
+                    <th>When</th>
+                    <th>What</th>
+                    <th>Public</th>
+                    <th>Not published</th>
+                    <th>State</th>
+                    <th className="r">Receipt</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {mine.history.map((event) => (
+                    <RingEventRow key={event.id} event={event} me={me.address} symbol={symbol} noteKeys={me.noteKeys} />
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h2 className="h3">Your wallet&apos;s public transactions</h2>
+          <p className="body">The latest transactions this wallet took part in, as anyone can list them from the chain.</p>
+          <ActivityList load={loadActivity} version={mine?.history.length ?? 0} empty="None yet. Funding the wallet will be the first." />
+        </section>
+      </div>
     </>
   );
 }
