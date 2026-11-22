@@ -51,9 +51,7 @@ export function RingEventRow({
     );
   return (
     <tr data-event={event.kind}>
-      <td>
-        <Time at={event.at} />
-      </td>
+      <td>{event.at > 0 ? <Time at={event.at} /> : <span className="num">Slot {open.slot ?? "unknown"}</span>}</td>
       <td>
         <b>{TITLES[event.kind]}</b>
       </td>

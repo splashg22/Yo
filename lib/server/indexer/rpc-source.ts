@@ -1,29 +1,50 @@
 /** The chain, read through the RPC: confirmed blocks in order, and a subscription that hears of trades before their block is read. */
-import { PublicKey, type CompiledInstruction, type Connection, type MessageCompiledInstruction, type VersionedBlockResponse } from "@solana/web3.js";
+import { PublicKey, type Connection } from "@solana/web3.js";
 import bs58 from "bs58";
+import { NEWEST_TRANSACTION_VERSION, rawCall } from "../solana";
 import { AMM_PROGRAM, PUMP_PROGRAM, eventsInCalls, eventsInLogs } from "./decode";
 import type { ChainBlock, ChainSource, ChainTx, EarlyTx } from "./types";
 
-type BlockTx = VersionedBlockResponse["transactions"][number];
+/**
+ * A block as the RPC gives it, read as plain JSON. The library's own reader is not used for blocks: it refuses a
+ * whole block that holds a version 1 transaction, and the Privacy Rings program sends those on devnet.
+ */
+interface RawBalance {
+  accountIndex: number;
+  mint: string;
+  owner?: string;
+  uiTokenAmount: { amount: string };
+}
+interface RawTx {
+  transaction: { signatures: string[]; message: { accountKeys: string[] } };
+  meta: {
+    err: unknown;
+    loadedAddresses?: { writable?: string[]; readonly?: string[] };
+    innerInstructions?: { instructions: { programIdIndex: number; data: string }[] }[] | null;
+    logMessages?: string[] | null;
+    preTokenBalances?: RawBalance[] | null;
+    postTokenBalances?: RawBalance[] | null;
+  } | null;
+}
+interface RawBlock {
+  blockhash: string;
+  previousBlockhash: string;
+  parentSlot: number;
+  blockTime: number | null;
+  transactions: RawTx[];
+}
 const SKIPPED = /-32007|-32009|-32004|was skipped|not available|Block not available/i;
 
-function txOf(entry: BlockTx, index: number): ChainTx | null {
+function txOf(entry: RawTx, index: number): ChainTx | null {
   const meta = entry.meta;
   if (!meta || meta.err) return null;
-  const message = entry.transaction.message;
-  const keys: PublicKey[] = [...message.staticAccountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];
-  const involved = keys.some((key) => {
-    const text = key.toBase58();
-    return text === PUMP_PROGRAM || text === AMM_PROGRAM;
-  });
+  const keys: string[] = [...entry.transaction.message.accountKeys, ...(meta.loadedAddresses?.writable ?? []), ...(meta.loadedAddresses?.readonly ?? [])];
+  const involved = keys.some((key) => key === PUMP_PROGRAM || key === AMM_PROGRAM);
   // Events: from the programs' calls to themselves, which a cut-short log cannot lose; from the log lines if there are none.
   let events = involved
     ? eventsInCalls(
         (meta.innerInstructions ?? []).flatMap((group) =>
-          group.instructions.map((instruction: CompiledInstruction | MessageCompiledInstruction) => ({
-            program: keys[instruction.programIdIndex]?.toBase58() ?? "",
-            data: "accounts" in instruction ? Buffer.from(bs58.decode(instruction.data)) : Buffer.from(instruction.data),
-          })),
+          group.instructions.map((instruction) => ({ program: keys[instruction.programIdIndex] ?? "", data: Buffer.from(bs58.decode(instruction.data)) })),
         ),
       )
     : [];
@@ -55,14 +76,12 @@ export class RpcSource implements ChainSource {
     return this.connection().getBlocks(from, to, "confirmed");
   }
   async block(slot: number): Promise<ChainBlock | null> {
-    let found: VersionedBlockResponse | null;
+    let found: RawBlock | null;
     try {
-      found = await this.connection().getBlock(slot, {
-        commitment: "confirmed",
-        maxSupportedTransactionVersion: 0,
-        transactionDetails: "full",
-        rewards: false,
-      });
+      found = await rawCall<RawBlock>(this.connection(), "getBlock", [
+        slot,
+        { commitment: "confirmed", encoding: "json", maxSupportedTransactionVersion: NEWEST_TRANSACTION_VERSION, transactionDetails: "full", rewards: false },
+      ]);
     } catch (error) {
       if (SKIPPED.test(String(error))) return null;
       throw error;

@@ -296,6 +296,7 @@ table.grid tr:hover td {
   background: rgba(255, 255, 255, 0.1);
 }
 .tick {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 10px;
@@ -379,9 +380,15 @@ table.grid tr:hover td {
   letter-spacing: 0.14em;
 }
 .pick-file {
-  display: inline-flex;
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
+  gap: 8px 12px;
+  min-width: 0;
+}
+.pick-file .quiet {
+  overflow-wrap: anywhere;
+  min-width: 0;
 }
 .pick-file input {
   position: absolute;
@@ -655,7 +662,7 @@ table.grid tr:hover td {
 .tag {
   font-family: var(--display);
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   border: 1px solid var(--rule);
@@ -932,21 +939,32 @@ kbd {
   gap: 0;
   min-width: 0;
 }
+.coin-row .top {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  min-width: 0;
+}
 .coin-row .name b {
   font-family: var(--display);
   font-weight: 900;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  flex: none;
 }
-.coin-row .sub {
+.coin-row .full {
   font-size: 12px;
   color: var(--mute);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  min-width: 0;
+}
+.coin-row .sub {
+  font-size: 12px;
+  color: var(--mute);
+  white-space: nowrap;
 }
 .coin-row .nums {
   display: grid;
@@ -1102,4 +1120,56 @@ kbd {
   .trade-dock {
     display: none;
   }
+}
+
+/* The real file input and checkbox stay in the page for keyboards and forms, but take up no room and draw nothing. */
+.pick-file,
+.tick {
+  position: relative;
+}
+.pick-file input[type="file"],
+.tick input[type="checkbox"] {
+  position: absolute;
+  width: 1px !important;
+  height: 1px !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0;
+  border: 0 !important;
+  overflow: hidden;
+  clip-path: inset(50%);
+  opacity: 0;
+}
+
+/* ---- a finger, not a pointer: every control on a phone is at least 40px tall ---- */
+@media (max-width: 600px) {
+  .seg button,
+  .feed-tabs button,
+  .coin-row .quick,
+  .toolbar .btn,
+  .statusbar .link {
+    min-height: 40px;
+  }
+  /* Controls that sit inside a line of figures keep the line's height and take the room above and below it. */
+  .when,
+  .vrow a,
+  .tray a,
+  .tray button,
+  .card .link,
+  table.grid td a,
+  table.grid td .link {
+    display: inline-block;
+    padding-block: 13px;
+    margin-block: -13px;
+  }
+}
+
+/* How much of a field's room is used, at the end of its label. */
+.label .count {
+  float: right;
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--mute);
 }

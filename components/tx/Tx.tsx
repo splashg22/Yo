@@ -33,7 +33,6 @@ export interface TxHandle {
   failed: (reason: string, expired?: boolean) => void;
 }
 interface TxApi {
-  entries: TxEntry[];
   /** Starts an entry in the tray and returns the handle that moves it on. */
   begin: (label: string) => TxHandle;
   dismiss: (id: number) => void;
@@ -64,7 +63,8 @@ export function TxProvider({ children }: { children: ReactNode }) {
     },
     [dismiss],
   );
-  const value = useMemo(() => ({ entries, begin, dismiss }), [entries, begin, dismiss]);
+  // What pages hold on to never changes, so an entry moving through its states re-renders the tray and nothing else.
+  const value = useMemo(() => ({ begin, dismiss }), [begin, dismiss]);
   return (
     <Context.Provider value={value}>
       {children}

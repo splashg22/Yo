@@ -19,18 +19,22 @@ import { decryptBackup, encryptBackup, type Backup } from "../backup";
 import { actorFromSeed, newActor, signMessage, type Actor } from "../keys";
 import { noteKeysFor } from "../notes";
 import { signTransaction } from "../sign";
+import type { RingRequest } from "./ring-real";
+import type * as RingModule from "./ring-real";
 
 export type VaultRequest =
   | { op: "create"; password: string }
   | { op: "unlock"; backup: unknown; password: string }
   | { op: "resume"; kept: Kept }
+  | { op: "fresh"; password: string }
   | { op: "lock" }
   | { op: "address" }
   | { op: "signMessage"; message: Uint8Array }
   | { op: "signTransaction"; transaction: string; extraSeeds: Uint8Array[] }
   | { op: "noteKeys" }
   | { op: "autoLock"; minutes: number }
-  | { op: "touch" };
+  | { op: "touch" }
+  | RingRequest;
 /** What the page keeps in session storage: which sealing key, and the sealed wallet key. Useless without the worker's IndexedDB key. */
 export interface Kept {
   keyId: string;
@@ -38,7 +42,11 @@ export interface Kept {
   sealed: string;
 }
 export type VaultEvent =
-  { id: number; ok: true; result: unknown } | { id: number; ok: false; error: string } | { id: number; progress: number } | { locked: "idle" | "asked" };
+  | { id: number; ok: true; result: unknown }
+  | { id: number; ok: false; error: string }
+  | { id: number; progress: number }
+  | { id: number; stage: string }
+  | { locked: "idle" | "asked" };
 
 let actor: Actor | null = null;
 let keyId: string | null = null;
@@ -119,6 +127,7 @@ async function forgetKey(id: string | null): Promise<void> {
 let idleTimer: ReturnType<typeof setTimeout> | undefined;
 const post = (event: VaultEvent): void => (self as unknown as { postMessage(message: VaultEvent): void }).postMessage(event);
 
+let ringModule: typeof RingModule | undefined;
 function lock(reason: "idle" | "asked"): void {
   clearTimeout(idleTimer);
   if (!actor) return;
@@ -126,6 +135,7 @@ function lock(reason: "idle" | "asked"): void {
   actor = null;
   void forgetKey(keyId); // without it, a sealed copy left in the tab's storage opens nothing
   keyId = null;
+  ringModule?.closeRing(); // only if the Ring was used: locking must not load its SDK
   post({ locked: reason });
 }
 function used(): void {
@@ -147,6 +157,15 @@ async function handle(id: number, request: VaultRequest): Promise<unknown> {
       actor = made;
       used();
       return { address: made.address, backup, kept: await seal() };
+    }
+    case "fresh": {
+      // A second wallet, made and sealed here and then forgotten: only its address and its encrypted backup leave.
+      const made = newActor();
+      const backup: Backup = encryptBackup(made, request.password, undefined, progress);
+      const address = made.address;
+      made.seed.fill(0);
+      used();
+      return { address, backup };
     }
     case "unlock": {
       const opened = decryptBackup(request.backup, request.password, progress);
@@ -180,6 +199,14 @@ async function handle(id: number, request: VaultRequest): Promise<unknown> {
     case "touch":
       used();
       return seal();
+    default: {
+      // The real Ring. Its SDK is large, so it is loaded only when a Ring request is first made, and it runs here,
+      // beside the key: the Ring keys made from the wallet key never leave this worker.
+      ringModule ??= await import("./ring-real");
+      const { ringRequest } = ringModule;
+      const who = unlocked();
+      return ringRequest(who.seed, who.address, self.location.origin, request, (stage) => post({ id, stage }));
+    }
   }
 }
 

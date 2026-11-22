@@ -1,7 +1,7 @@
 # Ring results: the real Privacy Rings program on devnet
 
 Run with `npm run ring:prove` (script: `scripts/ring-prove.ts`). Every line below is copied from a run, not
-written from memory. Last run: 21 November 2026, with the Helius key in `.env`, SDK `@heliuslabs/spr` 0.9.0-alpha.
+written from memory. Last run: 22 November 2026, with the Helius key in `.env`, SDK `@heliuslabs/spr` 0.9.0-alpha.
 
 ## Status
 
@@ -39,6 +39,29 @@ Found on the way: the separate indexer and prover hosts printed in the SDK's REA
 (`d34xe1hqb2ibg2.cloudfront.net`, `dd73hh473h6ha.cloudfront.net`) refuse this key (indexer: HTTP error;
 prover: attestation "unavailable"). Leaving both unset, so that the Helius RPC address serves all three,
 works. The app is built that way.
+
+## The app's own path, in a browser, evidence
+
+Run on 22 November 2026: this app's server in devnet mode (`RING_NETWORK=devnet`, the key in `.env`), a new
+wallet made on the wallet page in headless Chromium.
+
+```
+config: {"network":"devnet","ring":"real", ...}
+register card shown after 3825 ms
+requests from the page: /ring/v1/spr/getUserRecords 2, /ring/v1/spr/getEncryptedUtxosByTags 2,
+  /ring/v1/spr/getShieldedTransactionsByTags 2; no request to any other host; no console error
+page: "In your Ring balance: SOL 0" ... "Register with the Ring" ... "Your Ring history: Nothing yet."
+```
+
+What this proves: with the key present the app uses the real Ring and no stand-in; the Ring's SDK loads inside
+the wallet's worker under the site's content security policy; it reaches Helius only through this server's
+`/ring/*` door, so the key never reaches the browser; an unregistered, empty wallet is read correctly and is
+offered registration. What it does not prove: anything that needs SOL (the table above).
+
+Found on the way, and fixed: on devnet the indexer stopped at every block that held a version 1 transaction
+("Transaction version (1) is not supported by the requesting client"), which is every block the Ring program
+is used in. Blocks and receipts are now read as plain JSON with the newest transaction version allowed
+(`lib/server/solana.ts: rawCall`). The local test chain never produced such a block, which is why no test caught it.
 
 ## The three unknowns
 

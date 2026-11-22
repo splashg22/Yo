@@ -107,6 +107,14 @@ Calls made without asking, newest last. Each can be reversed; the note says how.
 | 101 | A fee is its own instruction in the same transaction, paid to one public wallet, and the amount is returned with every built transaction so the panel can show it before signing | It must be visible and exact, not folded into slippage | `feeInstruction` in `lib/server/transactions.ts` |
 | 102 | Two packages behind the high advisories are replaced by small stand-ins in `vendor/` | Neither has a fixed release; one was running faulty native code, the other is never used. See ADVISORIES.md | Remove the two `overrides` |
 | 103 | Graduation: anyone may make a sold-out coin's pool from the coin's page | pump.fun's program allows it; on its main network its own service does it within moments, on a test chain nobody does, and without a pool the coin cannot be traded at all | `graduate/build` |
+| 104 | With the real Ring, the browser talks to Helius only through this server's `/ring/*` door | The key stays on the server. The door passes on only the Ring's own indexer and prover paths and a short list of RPC methods, and refuses to send or simulate any transaction that calls a program outside the Ring's. It cannot read what the SDK sends the prover: that is encrypted to the prover's enclave. |
+| 105 | The Ring SDK runs inside the wallet's worker and is loaded only when the Ring is real and first used | The Ring keys are made from the wallet key, so they stay beside it. Loading on demand keeps the SDK (several MB) out of every page that does not use it. |
+| 106 | Blocks and receipts are read as plain JSON, allowing transaction version 1 | The library's readers refuse a whole block that holds one, and the Ring program sends them. Found on devnet; see RING-RESULTS.md. |
+| 107 | A split withdrawal is a plan kept in the browser and sent by the page, one part at a time | No server holds a key or a schedule, so nothing is in anyone's custody. The cost: the page must be open and unlocked when a part is due; a part that came due meanwhile goes when the page is next open. A part cut off mid-send is never re-sent without the person saying so. |
+| 108 | With a wallet extension, split parts wait for a button | Rule: no page asks an extension to sign on a timer. |
+| 109 | "Make a fresh address" makes a second wallet in the worker and hands back only its address and an encrypted backup file | The destination's key never reaches the page or the server. The person chooses its password; without the file and password the funds sent there are lost, and the page says so before making it. |
+| 110 | A long coin name is cut short in board rows, with the full name in the row's title and on the coin's page | Rows are a fixed height so the list can be virtualised; the facts (age, holders, trades) are never cut. |
+| 111 | The trade button is never disabled for a bad amount; pressing it says what is wrong | A dead button explains nothing. |
 
 ## Only you
 

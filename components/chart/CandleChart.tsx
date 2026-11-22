@@ -55,7 +55,8 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
     if (!context) return;
     const styles = getComputedStyle(document.documentElement);
     const ink = styles.getPropertyValue("--ink").trim() || "#fff";
-    const accent = styles.getPropertyValue("--accent").trim() || "#f5a524";
+    // The accent is written once, in the stylesheet. Without it (a stylesheet that failed to load) the marks are drawn in white.
+    const accent = styles.getPropertyValue("--accent").trim() || "#fff";
     const mono = `11px ${styles.getPropertyValue("--mono").trim() || "monospace"}`;
     const faint = "rgba(255,255,255,0.10)";
     const mute = "rgba(255,255,255,0.62)";
@@ -84,6 +85,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
     observer.observe(canvas);
     resize();
 
+    let firstCandlesMarked = false;
     const draw = () => {
       const { series: current, view: shown, marks: pins, onRead: read } = live.current;
       const rows = current.rows;
@@ -97,6 +99,11 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
       const prefix = shown.unit === "usd" && shown.solUsd !== null ? "$" : "";
 
       context.clearRect(0, 0, width, height);
+      // For the performance test: the moment candles are first on the screen, measured from when the page began.
+      if (rows.length > 0 && !firstCandlesMarked) {
+        firstCandlesMarked = true;
+        performance.mark("chart:first-candles");
+      }
       context.font = mono;
       context.textBaseline = "middle";
       if (rows.length === 0) return read?.("");
@@ -135,11 +142,14 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         const [, open, top, bottom, close, volume] = rows[index] as [number, number, number, number, number, number];
         const centre = Math.round(x(index));
         const rising = close >= open;
-        context.fillStyle = rising ? "rgba(255,255,255,0.30)" : "rgba(245,165,36,0.42)";
+        // Volume bars are the candle's own colour, faint. The accent is read from the stylesheet, never written here.
+        context.fillStyle = rising ? ink : accent;
+        context.globalAlpha = rising ? 0.3 : 0.42;
         if (busiest > 0 && volume > 0) {
           const tall = Math.max(1, Math.round((volume / busiest) * volumeHeight));
           context.fillRect(centre - Math.floor(body / 2), plotHeight - tall, body, tall);
         }
+        context.globalAlpha = 1;
         context.fillStyle = context.strokeStyle = rising ? ink : accent;
         context.beginPath();
         context.moveTo(centre + 0.5, Math.round(y(value(top))));

@@ -69,22 +69,24 @@ and `NEEDS.md` lists what the owner has to provide.
 
 ```bash
 npm run check           # typecheck, lint (zero warnings), format check, then every test
-npm run test:site       # 70 unit tests. No chain needed.
-npm run test:flows      # 57 flow tests. Starts the local validator if none is running.
+npm run test:site       # the unit tests. No chain needed.
+npm run test:flows      # the flow tests. Starts the local validator if none is running.
 ```
 
 The browser checks drive the built site. Start from a fresh validator and an empty
 `.data/` folder, so that the first launch also proves the local set-up:
 
 ```bash
-npm run build && npm run start -- -p 4711 &
-npm run e2e             # 17 steps as two people: every flow twice and once after a reload,
+npm run build && PORT=4711 npm start &
+npm run e2e             # as two people: every flow three times and once after a reload,
                         # each balance on screen compared with a direct read of the chain
 npm run crawl           # every page, two widths, with and without a wallet: every control clicked
 npm run break           # bad input, double clicks, declined signature, reload mid-action, dead chain
 npm run motion          # the scroll sequence and background on a slow phone and in odd windows
 npm run scan            # looks for secrets in what is served and in the git history
 npm run measure         # page weight, load time and layout shift
+npm run load            # 60 trades a second on one coin, 1,000 live connections; fails on a missed budget
+npm run perf            # the browser's speed budgets, under 50 trades a second; fails on a missed budget
 npm run example         # the SDK example: a launch and a Ring transfer from a script
 npm run window          # the sealed launch window in a browser, with its flag on
 npm run test:flows:pg   # every flow test again, with the state kept in a real local Postgres

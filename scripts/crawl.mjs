@@ -21,6 +21,7 @@ const PAGES = [
   "/",
   "/explore",
   "/terminal",
+  "/portfolio",
   "/launch",
   "/wallet",
   "/otc",
@@ -76,13 +77,32 @@ async function inspect(page, where) {
       const size = parseFloat(style.fontSize);
       if (size < 11 && !seen.has(`s${text}`)) (seen.add(`s${text}`), out.push(["small-text", `${size}px: "${text}"`]));
       // Text cut off inside a box that hides what does not fit.
-      if (style.overflow !== "visible" && el.scrollWidth > el.clientWidth + 1 && style.overflowX !== "auto" && style.overflowX !== "scroll")
+      // A name shortened in a list row carries its full text in its title, and the row leads to the page that shows it whole.
+      const shortenedOnPurpose = el.title && el.title.trim() === el.textContent.trim();
+      if (
+        !shortenedOnPurpose &&
+        style.overflow !== "visible" &&
+        el.scrollWidth > el.clientWidth + 1 &&
+        style.overflowX !== "auto" &&
+        style.overflowX !== "scroll"
+      )
         out.push(["clipped", `"${text}"`]);
-      if (box.right > innerWidth + 1 && !el.closest(".scroll-x"))
+      if (box.right > innerWidth + 1 && !el.closest(".scroll-x, .table-wrap"))
         out.push(["off-screen", `"${text}" ends ${Math.round(box.right - innerWidth)}px past the right edge`]);
       const [r, g, b] = style.color.match(/[\d.]+/g).map(Number);
       const opacity = parseFloat(style.opacity);
-      if ((0.2126 * r + 0.7152 * g + 0.0722 * b) * opacity < 110 && !seen.has(`c${text}`))
+      // Dark text is dim on this site's black, and right on a pressed button, which is white or the accent: what is behind it decides.
+      let behind = 0;
+      for (let above = el; above; above = above.parentElement) {
+        const [br, bg, bb, ba = 1] = getComputedStyle(above)
+          .backgroundColor.match(/[\d.]+/g)
+          .map(Number);
+        if (ba > 0.5) {
+          behind = 0.2126 * br + 0.7152 * bg + 0.0722 * bb;
+          break;
+        }
+      }
+      if (behind < 140 && (0.2126 * r + 0.7152 * g + 0.0722 * b) * opacity < 110 && !seen.has(`c${text}`))
         (seen.add(`c${text}`), out.push(["dim-text", `${style.color} at opacity ${opacity}: "${text}"`]));
     }
     // Controls a finger cannot hit.
@@ -90,8 +110,11 @@ async function inspect(page, where) {
       for (const el of document.querySelectorAll("a, button, input, select")) {
         const box = el.getBoundingClientRect();
         // A link inside a sentence is as tall as its line; everything else must be a comfortable target.
-        const inSentence = el.tagName === "A" && [...el.parentElement.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim().length > 1);
-        if (box.width > 0 && box.height > 0 && box.height < (inSentence ? 11 : 40) && !el.closest(".skip, label"))
+        // So is a button that reads as a link ("Try again" at the end of a notice). A file field is hidden behind its own button.
+        const inSentence =
+          (el.tagName === "A" || el.classList.contains("link")) &&
+          [...el.parentElement.childNodes].some((node) => node.nodeType === 3 && node.textContent.trim().length > 1);
+        if (el.type !== "file" && box.width > 0 && box.height > 0 && box.height < (inSentence ? 11 : 40) && !el.closest(".skip, label"))
           out.push([
             "small-target",
             `${Math.round(box.height)}px tall: "${(el.innerText || el.getAttribute("aria-label") || el.id || el.tagName).trim().slice(0, 30)}"`,
@@ -131,9 +154,9 @@ async function checkLinks(page, where) {
 }
 
 async function clickEverything(page, path, where) {
-  const count = await page.locator("button, [role=tab], input[type=checkbox], summary").count();
+  const count = await page.locator("button, [role=tab], label.tick, summary").count();
   for (let index = 0; index < count; index++) {
-    const control = page.locator("button, [role=tab], input[type=checkbox], summary").nth(index);
+    const control = page.locator("button, [role=tab], label.tick, summary").nth(index);
     if (!(await control.isVisible().catch(() => false))) continue;
     const label = ((await control.innerText().catch(() => "")) || (await control.getAttribute("aria-label")) || (await control.getAttribute("type")) || "")
       .trim()

@@ -4,7 +4,7 @@ import { Choice } from "../ui/controls";
 import QRCode from "qrcode";
 import { sealNoteFor } from "@/lib/client/notes";
 import { useEffect, useMemo, useState } from "react";
-import { signedApi } from "@/lib/client/api";
+import { ringBackend } from "@/lib/client/ring";
 import { NATIVE, decimalsOf } from "@/lib/constants";
 import { formatCoin, parseAmount } from "@/lib/format";
 import { parsePayLink, payLink, type PayRequest } from "@/lib/paylink";
@@ -83,17 +83,22 @@ export function PayPage() {
 }
 
 function PayRequestView({ request }: { request: PayRequest }) {
-  const { signer } = useWallet();
+  const { signer, config } = useWallet();
   const { symbol } = useCoins();
   const { run, busy, line } = useRun();
   const [paid, setPaid] = useState(false);
   const me = signer!;
+  const backend = ringBackend(config)!;
   const pay = () =>
-    run("Sending", async () => {
-      const note = await sealNoteFor(me, request.to, request.memo ?? "");
-      await signedApi("ring/transfer", me, { to: request.to, mint: request.mint, amount: request.amount, note });
+    run("Sending", async (onSent) => {
+      // A payment is a Ring transfer, through whichever Ring this deployment runs on.
+      const note = backend.notes ? await sealNoteFor(me, request.to, request.memo ?? "") : undefined;
+      const sent = await backend.transfer(me, request.to, request.mint, BigInt(request.amount), note, { sent: onSent });
       setPaid(true);
-      return { message: `Paid ${formatCoin(request.mint, request.amount)} ${symbol(request.mint)} from your Ring balance.` };
+      return {
+        message: `Paid ${formatCoin(request.mint, request.amount)} ${symbol(request.mint)} from your Ring balance.`,
+        ...(sent.signature ? { signature: sent.signature } : {}),
+      };
     });
   if (paid) return <>{line}</>;
   if (request.to === me.address) return <p className="notice">This link asks for a payment to your own wallet. Send it to the person who is paying you.</p>;

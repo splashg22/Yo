@@ -19,7 +19,9 @@ function BuildNotice() {
         ? "This site's server is not answering."
         : config.network === "local"
           ? LOCAL
-          : "Runs on Solana devnet. Ring balances are not connected yet. Coins have no value.";
+          : config.ring === "real"
+            ? "Runs on Solana devnet, with the real Privacy Rings program, which is alpha software. Coins have no value."
+            : "Runs on Solana devnet. Ring balances are not connected yet. Coins have no value.";
   const simulated = config !== null && config !== "offline" && config.ring === "mock";
   return (
     <p className="strip">

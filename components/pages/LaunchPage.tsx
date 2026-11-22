@@ -13,7 +13,7 @@ import { useRun } from "../ui/useRun";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
 import { SealedWindows } from "./SealedWindows";
-import { useRingOn } from "../ui/NeedsRing";
+import { useStandinOn } from "../ui/NeedsRing";
 import { AppPage } from "./shell";
 
 export function LaunchPage() {
@@ -68,20 +68,25 @@ function LaunchForm() {
   const [launched, setLaunched] = useState<Launched | null>(null);
   const me = signer!;
   const buying = form.firstBuy.trim() !== "";
-  const ringOn = useRingOn();
+  // Sending the first buy straight into a Ring balance is built on the stand-in only. On the real program: buy, then deposit from the wallet page.
+  const ringOn = useStandinOn();
   // Where there is no Ring, a first buy can only go to the wallet.
   const toRing = ringOn && form.toRing;
 
   const review = () => {
-    try {
-      if (!form.name.trim()) throw new Error("give the coin a name");
-      if (!/^[A-Za-z0-9]{1,10}$/.test(form.symbol.trim())) throw new Error("the ticker must be 1 to 10 letters or digits");
-      if (buying) parseAmount(form.firstBuy, SOL_DECIMALS);
-      setProblem("");
-      setReviewing(true);
-    } catch (error) {
-      setProblem(error instanceof Error ? error.message : String(error));
+    // Everything that is wrong is said at once, so the form is not corrected one refusal at a time.
+    const wrong: string[] = [];
+    if (!form.name.trim()) wrong.push("Give the coin a name.");
+    if (!/^[A-Za-z0-9]{1,10}$/.test(form.symbol.trim())) wrong.push("The ticker must be 1 to 10 letters or digits.");
+    if (buying) {
+      try {
+        parseAmount(form.firstBuy, SOL_DECIMALS);
+      } catch (error) {
+        wrong.push(`First buy: ${error instanceof Error ? error.message : String(error)}.`);
+      }
     }
+    setProblem(wrong.join("\n"));
+    if (wrong.length === 0) setReviewing(true);
   };
 
   const launch = () =>
@@ -179,26 +184,27 @@ function LaunchForm() {
       <div className="pair">
         <div className="field">
           <label className="label" htmlFor="l-name">
-            Coin name
+            Coin name <Count used={form.name.length} of={32} />
           </label>
           <input id="l-name" maxLength={32} value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} />
         </div>
         <div className="field">
           <label className="label" htmlFor="l-symbol">
-            Ticker
+            Ticker <Count used={form.symbol.length} of={10} />
           </label>
           <input
             id="l-symbol"
             maxLength={10}
             autoCapitalize="characters"
             value={form.symbol}
-            onChange={(event) => setForm({ ...form, symbol: event.target.value })}
+            // Tickers are upper case on the chain's own listings; typing shows it as it will be.
+            onChange={(event) => setForm({ ...form, symbol: event.target.value.toUpperCase() })}
           />
         </div>
       </div>
       <div className="field">
         <label className="label" htmlFor="l-description">
-          Description, optional
+          Description, optional <Count used={form.description.length} of={280} />
         </label>
         <input id="l-description" maxLength={280} value={form.description} onChange={(event) => setForm({ ...form, description: event.target.value })} />
       </div>
@@ -253,12 +259,22 @@ function LaunchForm() {
           Review
         </button>
       </div>
-      {problem && (
-        <p className="status-line bad" role="alert">
-          {problem}
-        </p>
-      )}
+      {problem &&
+        problem.split("\n").map((line) => (
+          <p key={line} className="status-line bad" role="alert">
+            {line}
+          </p>
+        ))}
       {line}
     </form>
+  );
+}
+
+/** How much of a field's room is used, beside its label. */
+function Count({ used, of }: { used: number; of: number }) {
+  return (
+    <span className="count num" aria-label={`${used} of ${of} characters used`}>
+      {used}/{of}
+    </span>
   );
 }

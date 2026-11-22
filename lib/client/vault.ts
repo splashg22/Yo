@@ -1,6 +1,7 @@
 /** The page's side of the vault worker: asks it to make, unlock and use the wallet key, and never sees the key. */
 import type { Backup } from "../backup";
 import type { NoteKeys } from "../notes";
+import type { RingRequest, RingState } from "./ring-real";
 import type { Kept, VaultEvent, VaultRequest } from "./vault.worker";
 
 export const AUTO_LOCK_CHOICES = [5, 15, 60, 0] as const; // minutes; 0 is never
@@ -20,6 +21,7 @@ interface Waiting {
   resolve: (value: unknown) => void;
   reject: (error: Error) => void;
   onProgress?: (share: number) => void;
+  onStage?: (stage: string) => void;
 }
 let worker: Worker | undefined;
 let nextId = 0;
@@ -43,6 +45,7 @@ function start(): Worker {
     const entry = waiting.get(message.id);
     if (!entry) return;
     if ("progress" in message) return entry.onProgress?.(message.progress);
+    if ("stage" in message) return entry.onStage?.(message.stage);
     waiting.delete(message.id);
     if (message.ok) entry.resolve(message.result);
     else entry.reject(new Error(message.error));
@@ -54,11 +57,11 @@ function start(): Worker {
   void ask({ op: "autoLock", minutes: autoLockMinutes() });
   return worker;
 }
-function ask<Result>(request: VaultRequest, onProgress?: (share: number) => void): Promise<Result> {
+function ask<Result>(request: VaultRequest, onProgress?: (share: number) => void, onStage?: (stage: string) => void): Promise<Result> {
   const target = start();
   const id = ++nextId;
   return new Promise<Result>((resolve, reject) => {
-    waiting.set(id, { resolve: resolve as (value: unknown) => void, reject, onProgress });
+    waiting.set(id, { resolve: resolve as (value: unknown) => void, reject, onProgress, onStage });
     target.postMessage({ id, request });
   });
 }
@@ -78,6 +81,8 @@ export const vault = {
     keep(opened.kept);
     return opened;
   },
+  /** Makes a second wallet for use as a destination. This wallet stays the open one; the new one exists only as the backup returned. */
+  fresh: (password: string, onProgress?: (share: number) => void) => ask<{ address: string; backup: Backup }>({ op: "fresh", password }, onProgress),
   /** After a reload: opens the wallet again from this tab's sealed copy, if there is one and it is still good. */
   async resume(): Promise<{ address: string } | null> {
     let kept: Kept;
@@ -98,6 +103,8 @@ export const vault = {
   signMessage: (message: Uint8Array) => ask<Uint8Array>({ op: "signMessage", message }),
   signTransaction: (transaction: string, extraSeeds: Uint8Array[] = []) => ask<string>({ op: "signTransaction", transaction, extraSeeds }),
   noteKeys: () => ask<NoteKeys>({ op: "noteKeys" }),
+  /** A request to the real Privacy Rings program, carried out in the worker with the wallet's keys. `onStage` hears what it is doing as it goes. */
+  ring: (request: RingRequest, onStage?: (stage: string) => void) => ask<RingState & { signature?: string }>(request, undefined, onStage),
   /** Tells the vault the person is still here, so it does not lock under their hands. */
   touch: () =>
     void ask<Kept | null>({ op: "touch" })

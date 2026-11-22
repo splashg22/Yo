@@ -13,7 +13,7 @@ export type LiveEvent = [string, ...unknown[]];
 export type ToWorker = { op: "sub"; ch: string; since?: number } | { op: "unsub"; ch: string } | { op: "send"; id: string; tx: string } | { op: "wake" };
 export type FromWorker =
   | { kind: "frames"; frames: Record<string, LiveEvent[]>; resets: string[]; seqs: Record<string, number> }
-  | { kind: "status"; status: LiveStatus; latencyMs: number | null }
+  | { kind: "status"; status: LiveStatus; latencyMs: number | null; staleMs: number }
   | { kind: "sent"; id: string; signature?: string; state?: string; error?: string };
 
 const HAND_OVER_MS = 16;
@@ -24,6 +24,8 @@ const post = (message: FromWorker): void => scope.postMessage(message);
 let socket: WebSocket | undefined;
 let status: LiveStatus = "connecting";
 let latencyMs: number | null = null;
+/** How far behind the chain the server said its figures are, at the last ping. */
+let staleMs = 0;
 let attempt = 0;
 let retry: ReturnType<typeof setTimeout> | undefined;
 let handOver: ReturnType<typeof setTimeout> | undefined;
@@ -37,7 +39,7 @@ const awaiting = new Set<string>();
 function say(next: LiveStatus): void {
   if (status === next && next !== "live") return;
   status = next;
-  post({ kind: "status", status, latencyMs });
+  post({ kind: "status", status, latencyMs, staleMs });
 }
 
 function connect(): void {
@@ -65,6 +67,7 @@ function connect(): void {
       reset?: boolean;
       t?: string;
       at?: number;
+      stale?: number;
       id?: string;
       signature?: string;
       state?: string;
@@ -77,7 +80,8 @@ function connect(): void {
     }
     if (frame.t === "pong" && typeof frame.at === "number") {
       latencyMs = Math.round(performance.now() - frame.at);
-      return post({ kind: "status", status, latencyMs });
+      staleMs = typeof frame.stale === "number" ? frame.stale : 0;
+      return post({ kind: "status", status, latencyMs, staleMs });
     }
     if (frame.t === "sent" && typeof frame.id === "string") {
       awaiting.delete(frame.id);

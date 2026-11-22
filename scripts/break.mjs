@@ -86,7 +86,8 @@ async function waitForComplaint(page, timeout = 30000) {
 async function fillWallet(page, tab, { mint = NATIVE, amount, to }) {
   if (await page.locator(".confirm").count()) await page.click("button:text-is('Back')");
   await page.click(`.tabs button:text-is("${tab}")`);
-  await page.selectOption("#w-coin", mint);
+  await page.click("#w-coin");
+  await page.click(`[role="listbox"] [data-value="${mint}"]`);
   await page.fill("#w-amount", amount);
   if (to !== undefined) await page.fill("#w-to", to);
   await page.click("button:text-is('Review')");
@@ -143,7 +144,7 @@ await check("bad amounts in every money form are refused in the form, with a rea
   await page.waitForSelector("#t-amount");
   for (const [amount, reason] of BAD_AMOUNTS) {
     await page.fill("#t-amount", amount);
-    await page.click("button:text-is('Review')");
+    await page.click(".ticket .go");
     const said = await complaint(page);
     if (!reason.test(said)) throw new Error(`buy "${amount}": said "${said}"`);
   }
@@ -329,6 +330,8 @@ await check("a coin with the longest name and ticker allowed, and names that can
     // Nothing a finger needs may sit past the edge, even where the page itself does not scroll sideways.
     const lost = await phone.evaluate(() =>
       [...document.querySelectorAll("main a, main button, main input, main select")]
+        // A table wider than a phone scrolls sideways inside its own frame; what is in it is reached by scrolling it.
+        .filter((el) => !el.closest(".table-wrap"))
         .filter((el) => el.getClientRects().length && (el.getBoundingClientRect().right > innerWidth + 1 || el.getBoundingClientRect().left < -1))
         .map((el) => el.innerText || el.id)
         .slice(0, 3),
@@ -504,17 +507,18 @@ await check("an empty account: every action explains what is missing", async () 
   await empty.goto(`${base}/coin/${coin.mint}`);
   await empty.waitForSelector("#t-amount");
   await empty.fill("#t-amount", "0.01");
-  await empty.click("button:text-is('Review')");
-  await empty.click("text=Sign and buy");
+  empty.sent.length = 0;
+  await empty.click(".ticket .go");
   const buy = await waitForComplaint(empty);
-  if (!/not enough in the wallet/i.test(buy)) throw new Error(`buy: ${buy}`);
-  await empty.click("button:text-is('Back')");
-  await empty.click(".tabs button:text-is('sell')");
+  if (!/too little SOL/i.test(buy)) throw new Error(`buy: ${buy}`);
+  await empty.click(".ticket .sides .sell");
   await empty.fill("#t-amount", "5");
-  await empty.click("button:text-is('Review')");
-  if (await empty.locator(".confirm").count()) await empty.click("text=Sign and sell");
-  const sell = await waitForComplaint(empty);
-  if (!/hold none|hold less|you hold/i.test(sell)) throw new Error(`sell: ${sell}`);
+  await empty.click(".ticket .go");
+  await empty.waitForFunction(() => /holds less/i.test(document.querySelector(".ticket [role=alert]")?.innerText ?? ""), null, { timeout: 10000 });
+  const sell = await complaint(empty);
+  if (!/holds less/i.test(sell)) throw new Error(`sell: ${sell}`);
+  // Refused in the form: no trade was built or sent for a wallet that cannot pay for it.
+  if (empty.sent.some((name) => name === "trade/build" || name === "tx/send")) throw new Error(`an empty wallet's trade reached the server: ${empty.sent}`);
   await empty.goto(`${base}/launch`);
   await empty.fill("#l-name", "Lantern");
   await empty.fill("#l-symbol", "LNT");
@@ -542,12 +546,12 @@ await check("the site's own server stops answering: pages say so and offer a ret
   }
   await page.unroute("**/api/**");
   await page.goto(`${base}/explore`);
-  await page.waitForSelector(".coins li");
+  await page.waitForSelector("table[data-coins] tbody tr");
   return said;
 });
 
 await check("the chain stops answering: a second server pointed at a dead address says so, still serves what it has stored, and refuses to send", async () => {
-  const port = 4712;
+  const port = 4719;
   cpSync(".data", ".data-dead", { recursive: true }); // the same coins and balances, so there is something the chain is needed for
   rmSync(".data-dead/writer.lock", { force: true }); // the copy is this second server's own; the lock named the first
   const server = spawn("node", ["dist/server.mjs"], {

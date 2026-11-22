@@ -110,7 +110,7 @@ served from memory.
 
 ## 3. What was fixed, and what is open
 
-Status on 21 November 2026. "Proven by" names the test that fails if it stops being true.
+Status on 22 November 2026. "Proven by" names the test that fails if it stops being true.
 
 | # | Finding | Now | Proven by |
 | --- | --- | --- | --- |
@@ -148,6 +148,8 @@ The indexer's guarantees, each with its test in `test/unit/indexer.test.ts`:
 | The block follower reads every confirmed block through the RPC | Right for a local chain and workable on devnet. On mainnet a block is megabytes and the follower would need a streaming source (Helius LaserStream or a Geyser feed). The source is an interface (`ChainSource`) so one can be added. **Not built, not measured** |
 | Reorganisations on a real network | Proven on a made-up chain that forks on demand. A confirmed block being dropped on a real network is too rare to wait for. **Unverified against a real one** |
 | A Jito tip, and several send routes | The tip instruction and the parallel routes are built and unit-tested. Tip accounts exist only on mainnet, and a second route needs a second provider. **Unverified** |
-| Pool (graduated coin) trades | The indexer decodes pool events; the made-up chain has no pool, and the local validator does not hold the pool program yet. **Unverified until item 7 of the priority list** |
+| Pool (graduated coin) trades | Built and tested on the local validator, which now holds the pool program: a coin is sold out, graduated, and bought and sold through its pool (`test/flows/graduation.test.ts`). **Unverified on devnet and mainnet** |
+| Blocks holding a version 1 transaction | Found on devnet on 22 November: the library refused the whole block, so the indexer stopped. Blocks and receipts are now read as plain JSON with the newest version allowed. Proven on recorded answers by `test/unit/rpc-source.test.ts`, and checked by hand against devnet. **Not yet run against a block of ours**: that needs the real Ring flow (RING-RESULTS.md) |
+| Load beyond the budget | At 60 trades a second with 1,000 connections every budget holds with room to spare. At 200 a second with 3,000 connections, live delivery still holds (p95 223 ms) but API reads slow to p95 148 ms, because one thread is writing every frame to every socket. The next step would be a second process for the hub. **Measured, not fixed**; numbers in PERFORMANCE.md |
 | One server process | By design: the single-writer lock, the hub and the sender live in one process. Scaling out needs a shared message bus for the hub; nothing here needs it yet |
 | The stand-in ledger is held in memory in full | It is the stand-in. The real Ring replaces it (RING-PLAN.md) |

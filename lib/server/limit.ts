@@ -3,11 +3,11 @@
  * the rest or drain the local faucet. Counts are kept in memory per minute: enough for one
  * server process, which is all this build runs as.
  */
-export type Bucket = "faucet" | "launch" | "write" | "read";
+export type Bucket = "faucet" | "launch" | "write" | "read" | "ring";
 
 /** Requests allowed per address per minute. Reads are cheap and pages poll, so their ceiling is high. */
 /** Launches are held lower still: each may carry a picture that the server has to decode and redraw. */
-export const PER_MINUTE: Record<Bucket, number> = { faucet: 30, launch: 30, write: 240, read: 1200 };
+export const PER_MINUTE: Record<Bucket, number> = { faucet: 30, launch: 30, write: 240, read: 1200, ring: 600 };
 const WINDOW_MS = 60_000;
 
 const counts = new Map<string, { windowStart: number; used: number }>();

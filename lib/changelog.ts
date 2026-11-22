@@ -1,6 +1,23 @@
 /** What changed, by day. Each entry is something in the repository's history; nothing is listed before it was built. */
 export const CHANGELOG: { date: string; changes: string[] }[] = [
   {
+    date: "2026-11-22",
+    changes: [
+      "A trading screen for every coin: candles from one second to one day with volume and your own trades marked, a live list of trades, holders, a buy and sell panel with amount buttons, slippage and priority fee, and your position.",
+      "A live board in three columns (new, sold over half, graduated) with search and filters, a portfolio page, and keyboard shortcuts on both.",
+      "Coins that have left the curve trade through pump.fun's pool. Any pump.fun coin can be opened by its address.",
+      "A trade is sent without waiting for the chain: the signature comes back at once, the server resends until the chain takes it or its time runs out, and the result is pushed to the page.",
+      "A site fee on trades, launches and OTC can be configured. It is off, and where one applies it is stated before you sign.",
+      "A withdrawal can go out as several uneven parts at uneven times, to an address made for it and never used before. The page warns when a destination already has a history.",
+      "The wallet's key lives in a worker of its own and is sealed between reloads with a key the page cannot read. It locks itself when idle.",
+      "One signature opens a session for reading your own balances; no page asks a wallet extension to sign on a timer.",
+      "New type: a pixel face for the logo, headings and small labels, a readable face for text, a fixed-width face for figures. Dollar figures beside SOL. The site's own dropdowns and checkboxes.",
+      "One list, bottom right, shows every transaction as it is signed, sent and confirmed or failed, with a link to its receipt.",
+      "The real Privacy Rings program is wired in behind the same wallet page for devnet. Reaching its services and reading an empty wallet are proven; registering, depositing, transferring and withdrawing have not been run, for want of test SOL.",
+      "Load and performance tests that fail the build when a budget is missed.",
+    ],
+  },
+  {
     date: "2026-11-21",
     changes: [
       "Research on what a Privacy Ring hides and what stays public; the plan.",

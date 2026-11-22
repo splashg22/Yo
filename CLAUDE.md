@@ -120,6 +120,8 @@ npm run window       # browser: the sealed launch window with its flag on
 npm run test:flows:pg  # the flow tests with the state in a real local Postgres
 npm run doctor       # what is ready, what is missing; prints no secret
 npm run measure      # page weight, load time, layout shift
+npm run load         # load test on the made-up chain; budgets in scripts/load.ts
+npm run perf         # browser speed budgets on the made-up chain; budgets in scripts/perf.mjs; needs a build
 npm run media        # after changing anything in brand/: frames, sized stills, link preview
 npm run standins     # redraws the stand-in media. Do NOT run once real media is in brand/
 ```
@@ -129,7 +131,7 @@ bug can pass the flow tests and fail in the built site, so the browser scripts a
 "done", and `e2e` must start from a fresh validator and an empty `.data/`.
 
 In this container: Node's `fetch` needs `NODE_USE_ENV_PROXY=1` to reach the internet
-(`npm run local:fetch`), and a running site is stopped with `pkill -f next-server`.
+(`npm run local:fetch`), and a running site is stopped with `pkill -f dist/server.mjs`.
 
 ## Where things are
 

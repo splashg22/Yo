@@ -17,6 +17,7 @@ import { failure, log } from "../lib/server/log";
 import { market } from "../lib/server/market";
 import { storedFile } from "../lib/server/pictures";
 import { previewAllows } from "../lib/server/preview";
+import { TEE_POLICY_HOST, passOn, ringGateOpen } from "../lib/server/ringgate";
 import { onOutcome, sending, submit } from "../lib/server/sender";
 import { reconcile } from "../lib/server/settle";
 import { explain, rpcCalls } from "../lib/server/solana";
@@ -184,6 +185,19 @@ async function admin(request: IncomingMessage, response: ServerResponse): Promis
   }
 }
 
+/** The narrow door to the real Ring's services: see lib/server/ringgate.ts. Counted per caller like any other write. */
+async function ringGate(request: IncomingMessage, response: ServerResponse, route: string): Promise<void> {
+  const wait = overLimit(callerFor(request), "ring");
+  if (wait > 0)
+    return json(response, 429, { error: `too many requests from this address. Wait ${wait} seconds and try again.` }, { "retry-after": String(wait) });
+  const raw = request.method === "POST" ? await readBody(request).catch(() => null) : "";
+  if (raw === null) return json(response, 413, { error: "the request is too large" });
+  const query = new URL(request.url ?? "/", "http://local").searchParams;
+  const passed = await passOn(route, request.method ?? "GET", query, raw === "" ? null : Buffer.from(raw, "utf8"));
+  response.writeHead(passed.status, { "content-type": passed.type, "content-length": passed.body.length, "cache-control": "no-store", ...fixed });
+  response.end(passed.body);
+}
+
 function served(response: ServerResponse, name: string): void {
   const file = storedFile(name);
   if (!file) {
@@ -209,6 +223,9 @@ export async function createApp(options: AppOptions): Promise<App> {
   const upgradePage = options.upgradePage ?? ((_request: IncomingMessage, socket: Duplex) => void socket.destroy());
   fixed = fixedHeaders(settings().siteUrl.startsWith("https://"));
   const imageHosts = settings().pinataJwt ? ["https://gateway.pinata.cloud"] : [];
+  // With the real Ring, the SDK in the browser fetches Helius's signed policy for the prover's enclave from Helius's own
+  // address, and checks its signatures itself. It is public, carries no key, and is the one thing the page fetches from elsewhere.
+  const connectHosts = ringGateOpen() ? [TEE_POLICY_HOST] : [];
 
   const server = createServer((request, response) => {
     void (async () => {
@@ -226,9 +243,11 @@ export async function createApp(options: AppOptions): Promise<App> {
       }
       if (path.startsWith("/api/")) return api(request, response, path.slice(5));
       if (path === "/admin/reconcile") return admin(request, response);
+      if (path === "/ring/rpc" || path.startsWith("/ring/v1/spr/"))
+        return ringGate(request, response, path === "/ring/rpc" ? "rpc" : path.slice("/ring/v1/spr/".length));
       if (path.startsWith("/u/")) return served(response, decodeURIComponent(path.slice(3)));
       // A page. The framework reads the nonce from the policy on the request and puts it on every script it writes.
-      const policy = contentSecurityPolicy(newNonce(), { dev, imageHosts, host: request.headers.host });
+      const policy = contentSecurityPolicy(newNonce(), { dev, imageHosts, host: request.headers.host, connectHosts });
       request.headers["content-security-policy"] = policy;
       response.setHeader("content-security-policy", policy);
       for (const [name, value] of Object.entries(fixed)) response.setHeader(name, value);
@@ -264,7 +283,12 @@ export async function createApp(options: AppOptions): Promise<App> {
 
   async function connect(ws: WebSocket, caller: string): Promise<void> {
     perCaller.set(caller, (perCaller.get(caller) ?? 0) + 1);
-    const { hub } = await market();
+    const { hub, indexer } = await market();
+    /** How stale the figures being pushed are, in milliseconds: 0 while the indexer keeps up with the chain. */
+    const staleMs = (): number => {
+      const keepingUp = indexer.failure === undefined && indexer.head - indexer.cursor <= 5;
+      return keepingUp || indexer.lastAppliedAt === 0 ? 0 : Date.now() - indexer.lastAppliedAt;
+    };
     const client: LiveClient = {
       send(text) {
         if (ws.readyState !== WebSocket.OPEN) return true; // closing: its "close" handler tidies up
@@ -301,7 +325,7 @@ export async function createApp(options: AppOptions): Promise<App> {
       } catch {
         return ws.close(4002, "not JSON");
       }
-      if (message.t === "ping") return hub.tell(client, { t: "pong", at: message.at, now: Date.now() });
+      if (message.t === "ping") return hub.tell(client, { t: "pong", at: message.at, now: Date.now(), stale: staleMs() });
       if (message.t === "sub" || message.t === "unsub") {
         if (typeof message.ch !== "string" || !CHANNEL.test(message.ch)) return hub.tell(client, { t: "err", error: "there is no such channel" });
         if (message.t === "unsub") return hub.unsubscribe(client, message.ch);

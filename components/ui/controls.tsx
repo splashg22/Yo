@@ -100,9 +100,11 @@ export function Choice<Value extends string | number>({
               key={String(option.value)}
               id={`${listId}-${index}`}
               role="option"
+              data-value={String(option.value)}
               aria-selected={index === chosen}
               className={index === active ? "active" : undefined}
-              onPointerEnter={() => setActive(index)}
+              // Movement, not presence: a pointer left resting where the list opens must not take over from the keyboard.
+              onPointerMove={() => index !== active && setActive(index)}
               onClick={() => choose(index)}
             >
               <span>{option.label}</span>

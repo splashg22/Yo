@@ -2,6 +2,7 @@
 #   check     everything that needs no chain, and the dependency audit
 #   postgres  the database layer against a real Postgres
 #   flows     every flow test on a local validator holding copies of the real programs
+#   speed     the load test and the browser performance test, on a made-up chain; a missed budget fails the build
 # The validator and the copied programs are cached, so a run normally touches no network for them.
 # The browser checks (npm run e2e, crawl, break) are still run by hand; see GO-LIVE.md.
 name: check
@@ -28,6 +29,23 @@ jobs:
       - run: npm run format:check
       - run: npm run test:site
       - run: npm run build
+  speed:
+    # Budgets are in scripts/load.ts and scripts/perf.mjs; what they measure and what they do not is in PERFORMANCE.md.
+    # A shared runner is slower and noisier than the machine the budgets were set on: a failure here that does not
+    # repeat on a second run is the runner, and one that repeats is the code.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build
+      - run: npm run load
+      - run: npm run perf
   postgres:
     # The Postgres store against a real Postgres. It needs no chain: only the store's own tests run here.
     runs-on: ubuntu-latest

@@ -11,7 +11,17 @@ export interface Visibility {
   note?: string;
   /** What carries this action out in this build, and the source file to read. Shown beside every claim. */
   proof: { today: string; source: string; real: boolean };
+  /** What this site's own server learns when you do this, beyond what the chain shows everyone. */
+  server: string;
+  /**
+   * Where the real Privacy Rings program is connected (devnet with a key): how the action is carried out there and
+   * what this server sees. Absent: the action is the same there, or is not connected to the real program yet.
+   */
+  realRing?: { today: string; source: string; server: string };
 }
+
+/** Said under every action: a server always sees who is asking. */
+const ASKER = "Your IP address and the time of each request, as any server does.";
 
 export const VISIBILITY: Visibility[] = [
   {
@@ -25,6 +35,7 @@ export const VISIBILITY: Visibility[] = [
       source: "lib/server/transactions.ts (buildLaunch)",
       real: true,
     },
+    server: `${ASKER} It builds the transaction and passes it on, so it sees the launch as you sign it: all of it is public on the chain a moment later. If you add a picture, it keeps the picture.`,
   },
   {
     id: "curve-trade",
@@ -33,6 +44,7 @@ export const VISIBILITY: Visibility[] = [
     encrypted: [],
     note: "A Ring cannot hide a trade on the curve. This includes the creator's first buy.",
     proof: { today: "One transaction: pump.fun buy or sell.", source: "lib/server/pump.ts (tradeInstructions)", real: true },
+    server: `${ASKER} It builds the trade and passes it on. Everything in it is public on the chain a moment later.`,
   },
   {
     id: "deposit",
@@ -43,6 +55,13 @@ export const VISIBILITY: Visibility[] = [
       today: "One transaction moving the coins to the stand-in escrow wallet. Under the real Ring: its deposit instruction.",
       source: "lib/server/escrow.ts (depositInstructions)",
       real: false,
+    },
+    server: `${ASKER} It builds the deposit and records the credit. The stand-in is a ledger on this server, so it knows your Ring balance.`,
+    realRing: {
+      today:
+        "One transaction built in your browser by the Ring's own SDK: the Privacy Rings deposit instruction. Written against the SDK's documented interface and not yet run by us end to end (RING-RESULTS.md).",
+      source: "lib/client/ring-real.ts",
+      server: `${ASKER} It passes the transaction on to Helius's RPC, so it sees the deposit as the chain will show it. It does not learn your Ring balance: that is worked out in your browser from records only your keys open.`,
     },
   },
   {
@@ -56,6 +75,13 @@ export const VISIBILITY: Visibility[] = [
       source: "lib/server/ring.ts (transfer), lib/notes.ts",
       real: false,
     },
+    server: `${ASKER} Everything: both wallets, the coin and the amount. The stand-in is a ledger on this server. The one thing it cannot read is the note, which is sealed in your browser.`,
+    realRing: {
+      today:
+        "A transaction built in your browser by the Ring's own SDK. The proof is made by Helius's prover; the SDK checks the prover's enclave attestation and sends it the request encrypted. Not yet run by us end to end (RING-RESULTS.md).",
+      source: "lib/client/ring-real.ts, lib/server/ringgate.ts",
+      server: `${ASKER} It passes your requests on to Helius's indexer and prover and adds this site's API key. By the SDK's design the request to the prover is encrypted to the prover's enclave, so this server cannot read the coin or the amount; we have not verified that independently. Helius's prover does see them.`,
+    },
   },
   {
     id: "withdraw",
@@ -66,6 +92,13 @@ export const VISIBILITY: Visibility[] = [
       today: "A signed request; the stand-in pays out with one public transaction. Under the real Ring: its withdraw instruction.",
       source: "lib/server/escrow.ts (payFromEscrow)",
       real: false,
+    },
+    server: `${ASKER} Everything about the withdrawal, and your balance before and after: the stand-in pays it out.`,
+    realRing: {
+      today:
+        "A transaction built in your browser by the Ring's own SDK, with a proof from Helius's prover: the Privacy Rings withdraw instruction. Not yet run by us end to end (RING-RESULTS.md).",
+      source: "lib/client/ring-real.ts, lib/server/ringgate.ts",
+      server: `${ASKER} It passes the transaction on, so it sees the withdrawal as the chain will show it. It does not learn your remaining balance. Helius's prover sees what the proof is about.`,
     },
   },
   {
@@ -78,6 +111,7 @@ export const VISIBILITY: Visibility[] = [
       source: "lib/server/operations/otc.ts",
       real: false,
     },
+    server: `${ASKER} Everything: both wallets, the coin, the size and the price. The stand-in holds the offer and settles it.`,
   },
   {
     id: "creator-fees",
@@ -89,6 +123,7 @@ export const VISIBILITY: Visibility[] = [
       source: "lib/server/transactions.ts (buildClaimFees)",
       real: false,
     },
+    server: `${ASKER} It builds the claim and records the credit, so it knows the amount (public) and your Ring balance.`,
   },
   {
     id: "pay-link",
@@ -101,6 +136,13 @@ export const VISIBILITY: Visibility[] = [
         "The request sits after the # of the link, which a browser never sends to a server. Paying it is a signed request to the stand-in; the note is sealed in your browser.",
       source: "lib/paylink.ts, lib/notes.ts",
       real: false,
+    },
+    server: `${ASKER} Not what the link asks for: that part of the link never reaches a server. When it is paid, the stand-in sees both wallets, the coin and the amount, and not the note.`,
+    realRing: {
+      today:
+        "The request sits after the # of the link, which a browser never sends to a server. Paying it is a Ring transfer built in your browser by the Ring's own SDK; it carries no note. Not yet run by us end to end (RING-RESULTS.md).",
+      source: "lib/paylink.ts, lib/client/ring-real.ts",
+      server: `${ASKER} Not what the link asks for. The payment is a Ring transfer: this server passes the requests on and, by the SDK's design, cannot read the coin or the amount. Helius's prover does see them.`,
     },
   },
   {
@@ -115,6 +157,7 @@ export const VISIBILITY: Visibility[] = [
       source: "lib/server/windows.ts",
       real: false,
     },
+    server: `${ASKER} Everything: who committed and how much. The stand-in holds the committed SOL.`,
   },
 ];
 

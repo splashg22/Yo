@@ -12,9 +12,9 @@ export interface Listener {
 let worker: Worker | undefined;
 const listeners = new Map<string, Set<Listener>>();
 const seqs = new Map<string, number>();
-const statusListeners = new Set<(status: LiveStatus, latencyMs: number | null) => void>();
+const statusListeners = new Set<(status: LiveStatus, latencyMs: number | null, staleMs: number) => void>();
 const sends = new Map<string, (answer: { signature?: string; state?: string; error?: string }) => void>();
-let current: { status: LiveStatus; latencyMs: number | null } = { status: "connecting", latencyMs: null };
+let current: { status: LiveStatus; latencyMs: number | null; staleMs: number } = { status: "connecting", latencyMs: null, staleMs: 0 };
 let nextSend = 0;
 
 function start(): Worker {
@@ -23,8 +23,8 @@ function start(): Worker {
   worker.addEventListener("message", (event: MessageEvent<FromWorker>) => {
     const message = event.data;
     if (message.kind === "status") {
-      current = { status: message.status, latencyMs: message.latencyMs };
-      for (const listener of statusListeners) listener(current.status, current.latencyMs);
+      current = { status: message.status, latencyMs: message.latencyMs, staleMs: message.staleMs };
+      for (const listener of statusListeners) listener(current.status, current.latencyMs, current.staleMs);
     } else if (message.kind === "sent") {
       sends.get(message.id)?.(message);
       sends.delete(message.id);
@@ -80,10 +80,10 @@ export function sendOverLive(transaction: string): Promise<{ signature: string; 
   });
 }
 
-export function onLiveStatus(listener: (status: LiveStatus, latencyMs: number | null) => void): () => void {
+export function onLiveStatus(listener: (status: LiveStatus, latencyMs: number | null, staleMs: number) => void): () => void {
   start();
   statusListeners.add(listener);
-  listener(current.status, current.latencyMs);
+  listener(current.status, current.latencyMs, current.staleMs);
   return () => statusListeners.delete(listener);
 }
-export const liveStatus = (): { status: LiveStatus; latencyMs: number | null } => current;
+export const liveStatus = (): { status: LiveStatus; latencyMs: number | null; staleMs: number } => current;

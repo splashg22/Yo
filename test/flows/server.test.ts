@@ -254,6 +254,14 @@ describe("live data", () => {
     again.socket.close();
   });
 
+  it("answers a ping with how stale its figures are: nothing, while the indexer keeps up with the chain", async () => {
+    const client = await live();
+    client.say({ t: "ping", at: 12.5 });
+    const pong = await client.until((frame) => frame.t === "pong");
+    expect(pong).toMatchObject({ at: 12.5, stale: 0 });
+    expect(Math.abs((pong.now as number) - Date.now())).toBeLessThan(5_000);
+    client.socket.close();
+  });
   it("refuses a channel that does not exist and a page from another site", async () => {
     const client = await live();
     client.say({ t: "sub", ch: "everything" });

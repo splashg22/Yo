@@ -105,6 +105,7 @@ export default function Docs() {
                 <th>Action</th>
                 <th>Public</th>
                 <th>Encrypted by a Ring</th>
+                <th>This site&apos;s server sees</th>
                 <th>In this build</th>
               </tr>
             </thead>
@@ -116,8 +117,15 @@ export default function Docs() {
                     {row.public.join(". ")}.{row.note ? ` ${row.note}` : ""}
                   </td>
                   <td data-label="Encrypted">{row.encrypted.length ? `${row.encrypted.join(". ")}.` : "Nothing."}</td>
+                  <td data-label="This site's server sees">{row.server}</td>
                   <td data-label="In this build">
                     {row.proof.today} <span className="address">{row.proof.source}</span>
+                    {row.realRing ? (
+                      <>
+                        {" "}
+                        Where the real Privacy Rings program is connected: {row.realRing.today} There, this site&apos;s server sees: {row.realRing.server}
+                      </>
+                    ) : null}
                   </td>
                 </tr>
               ))}

@@ -22,7 +22,12 @@ export function OtcPage() {
       title="Sell a block to a named buyer"
       intro="Sell a block to one named buyer: coin and payment change hands together, or nothing moves. Simulated in this build."
     >
-      <NeedsRing>
+      <NeedsRing
+        standinOnly={{
+          what: "the OTC desk",
+          why: "A block must change hands for its payment in one step or not at all, and whether the real program can do that is not yet proven (RING-RESULTS.md).",
+        }}
+      >
         <WalletGate>
           <Desk />
         </WalletGate>

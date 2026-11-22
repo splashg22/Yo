@@ -117,7 +117,13 @@ async function pastTrades(mint: string, curve: PublicKey, pool: PublicKey | null
   for (let start = 0; start < oldestFirst.length; start += 20) {
     const batch = oldestFirst.slice(start, start + 20);
     const found = await Promise.all(
-      batch.map((entry) => chain.getTransaction(entry.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 })),
+      // One transaction the library cannot read (a newer version than it knows) is left out; it does not stop the rest.
+      batch.map((entry) =>
+        chain.getTransaction(entry.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 }).catch((error: unknown) => {
+          if (/transaction version/i.test(String(error))) return null;
+          throw error;
+        }),
+      ),
     );
     found.forEach((transaction, index) => {
       const entry = batch[index]!;

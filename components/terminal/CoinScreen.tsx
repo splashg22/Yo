@@ -8,18 +8,19 @@
  */
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { api, signAndSend } from "@/lib/client/api";
 import { CoinStore } from "@/lib/client/coin-store";
 import type { CoinView } from "@/lib/contract";
-import { formatChange, formatCompact, formatShare } from "@/lib/format";
+import { formatChange, formatCompact, formatShare, formatSol } from "@/lib/format";
 import { site } from "@/site.config";
 import type { ChartView, Mark } from "../chart/CandleChart";
 import { useTx } from "../tx/Tx";
 import { Address } from "../ui/Address";
 import { CoinPicture } from "../ui/CoinPicture";
-import { Segments } from "../ui/controls";
+import { Segments, Tick } from "../ui/controls";
 import { CoinPrice, Sol, Time, useSolPrice } from "../ui/Money";
+import { useStandinOn } from "../ui/NeedsRing";
 import { WalletGate } from "../wallet/WalletGate";
 import { useWallet } from "../wallet/WalletProvider";
 import { Feed } from "./Feed";
@@ -209,6 +210,7 @@ export function CoinScreen({ mint }: { mint: string }) {
           ) : (
             <Graduate coin={coin} />
           )}
+          {signer?.address === coin.creator && <CreatorFees />}
           <section className="card" aria-label="In the Ring">
             <h2 className="px">In the Ring</h2>
             <dl className="facts">
@@ -363,6 +365,71 @@ function Graduate({ coin }: { coin: CoinView }) {
           {busy ? "Working" : "Make the pool"}
         </button>
       </WalletGate>
+    </section>
+  );
+}
+
+/** Shown to the coin's creator: the fees pump.fun has set aside for them across their coins, and a way to claim them. */
+function CreatorFees() {
+  const { signer } = useWallet();
+  // Claiming straight into a Ring balance is built on the stand-in only. On the real program: claim, then deposit from the wallet page.
+  const ringOn = useStandinOn();
+  const tx = useTx();
+  const [claimable, setClaimable] = useState<string | null>(null);
+  const [toRing, setToRing] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const wallet = signer?.address;
+  const read = useCallback(() => {
+    if (!wallet) return;
+    api("fees/claimable", { wallet }).then(
+      (result) => setClaimable(result.lamports),
+      () => setClaimable(null),
+    );
+  }, [wallet]);
+  useEffect(() => {
+    read();
+    const timer = setInterval(() => !document.hidden && read(), 15_000);
+    return () => clearInterval(timer);
+  }, [read]);
+  const intoRing = ringOn && toRing;
+  const claim = async () => {
+    if (!signer || busy) return;
+    setBusy(true);
+    const handle = tx.begin("Claiming creator fees");
+    try {
+      const built = await api("fees/build", { wallet: signer.address, toRing: intoRing });
+      const sent = await signAndSend(signer, built.transaction, undefined, handle.sent);
+      setClaimable("0");
+      handle.confirmed(`Claimed ${formatSol(built.claimable, 6)}${intoRing ? " into your Ring balance" : ""}`, sent.signature);
+    } catch (error) {
+      handle.failed(error instanceof Error ? error.message : String(error));
+    }
+    setBusy(false);
+  };
+  return (
+    <section className="card" aria-label="Creator fees" data-fees>
+      <h2 className="px">Creator fees</h2>
+      <p className="body" data-claimable>
+        {claimable === null ? (
+          "Reading what you can claim."
+        ) : claimable === "0" ? (
+          "Nothing to claim yet. Fees build up as people trade."
+        ) : (
+          <>{formatSol(claimable, 6)} to claim, across your coins.</>
+        )}
+      </p>
+      {ringOn && (
+        <Tick checked={toRing} onChange={setToRing}>
+          Send the claim straight to my Ring balance
+        </Tick>
+      )}
+      <p className="note-line">
+        Public either way: your wallet, that you claimed, and the amount.
+        {intoRing ? " Then a public deposit of the same amount into your Ring balance, in the same transaction." : ""}
+      </p>
+      <button className="btn" type="button" disabled={busy || claimable === null || claimable === "0"} onClick={() => void claim()}>
+        {busy ? "Working" : "Claim"}
+      </button>
     </section>
   );
 }

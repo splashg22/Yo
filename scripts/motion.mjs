@@ -229,7 +229,8 @@ await check("reduced motion: no pinned scroll, stills instead, one heading, and 
 
 await check("hidden tab: the background stops drawing, and starts again when the tab comes back", async () => {
   const page = await open({ width: 1440, height: 900 });
-  await page.goto(`${base}/docs`, { waitUntil: "load" });
+  // The moving background is on the homepage only; inner pages are plain black.
+  await page.goto(`${base}/`, { waitUntil: "load" });
   await page.waitForTimeout(2500);
   const rate = async () => {
     const before = await page.evaluate(() => window.__draws);

@@ -9,16 +9,24 @@ import { Time, useSolPrice } from "../ui/Money";
 const TEXT: Record<LiveStatus, string> = { live: "Live", connecting: "Connecting", offline: "Offline: figures are not updating" };
 
 export function LiveStrip({ onHelp }: { onHelp?: () => void }) {
-  const [state, setState] = useState<{ status: LiveStatus; latencyMs: number | null }>({ status: "connecting", latencyMs: null });
-  useEffect(() => onLiveStatus((status, latencyMs) => setState({ status, latencyMs })), []);
+  const [state, setState] = useState<{ status: LiveStatus; latencyMs: number | null; staleMs: number }>({ status: "connecting", latencyMs: null, staleMs: 0 });
+  useEffect(() => onLiveStatus((status, latencyMs, staleMs) => setState({ status, latencyMs, staleMs })), []);
+  // Connected, but the server itself is behind the chain: the figures on screen are old, and a trade would be priced on them.
+  const behind = state.status === "live" && state.staleMs > 3000;
   const price = useSolPrice();
   return (
-    <div className="statusbar" role="status" data-live={state.status}>
+    <div className="statusbar" role="status" data-live={behind ? "stale" : state.status}>
       <span>
-        <span className={`dot${state.status === "live" ? "" : " off"}`} aria-hidden="true" />
-        {TEXT[state.status]}
-        {state.status === "live" && state.latencyMs !== null && ` ${state.latencyMs} ms`}
+        <span className={`dot${state.status === "live" && !behind ? "" : " off"}`} aria-hidden="true" />
+        {behind ? "Live data paused" : TEXT[state.status]}
+        {state.status === "live" && !behind && state.latencyMs !== null && ` ${state.latencyMs} ms`}
       </span>
+      {behind && (
+        <span data-stale>
+          The server last read the chain {Math.round(state.staleMs / 1000)} seconds ago. Prices here are that old; a trade is still checked against the chain
+          when it is built.
+        </span>
+      )}
       {price ? (
         <span title={price.source}>
           SOL {formatUsd(price.usd)}, as of <Time at={price.at} /> ago

@@ -4,7 +4,7 @@
 // Needs the validator and `npm run start -- -p 4711`. Run: npm run e2e
 import { mkdirSync } from "node:fs";
 import { createRequire } from "node:module";
-import { formatCoin, formatPrice, formatShare, parseAmount } from "../lib/format.ts";
+import { formatCoin, formatShare, parseAmount } from "../lib/format.ts";
 import { NATIVE, decimalsOf } from "../lib/constants.ts";
 
 const { chromium } = createRequire(import.meta.url)("playwright");
@@ -72,11 +72,17 @@ const arm = (page) =>
     window.__answeredAt = null;
     addEventListener("click", () => (window.__clickedAt ??= performance.now()), { capture: true, once: true });
     window.__watch?.disconnect();
+    // What each status line said before the click. Only a line whose words have changed since counts as the page speaking:
+    // anything else on the page changing (the tray, a clock) must not make an old message look like a new one.
+    const last = new Map([...document.querySelectorAll(".status-line")].map((line) => [line, line.innerText]));
     window.__watch = new MutationObserver(() => {
       for (const line of document.querySelectorAll(".status-line")) {
-        if (!line.innerText.trim()) continue;
+        const text = line.innerText;
+        if (last.get(line) === text) continue;
+        last.set(line, text);
+        if (!text.trim()) continue;
         if (window.__clickedAt !== null) window.__answeredAt ??= performance.now();
-        window.__said.push(line.innerText);
+        window.__said.push(text);
       }
     });
     window.__watch.observe(document.body, { childList: true, characterData: true, subtree: true });
@@ -149,12 +155,30 @@ async function makeWallet(page) {
 async function walletAction(page, tab, { mint, amount, to, memo }) {
   await page.waitForSelector("#w-amount, .confirm");
   await page.click(`.tabs button:text-is("${tab}")`);
-  await page.selectOption("#w-coin", mint);
+  await choose(page, "w-coin", mint);
   await page.fill("#w-amount", amount);
   if (to !== undefined) await page.fill("#w-to", to);
   if (memo !== undefined) await page.fill("#w-memo", memo);
   await page.click("button:text-is('Review')");
   await page.waitForSelector(".confirm .panel");
+}
+/** Picks an option of one of the site's own dropdowns, by its value. */
+async function choose(page, id, value) {
+  await page.click(`#${id}`);
+  await page.click(`[role="listbox"] [data-value="${value}"]`);
+}
+/** Clears the transaction tray, so the next entry in it is the next action's. */
+const clearTray = (page) => page.evaluate(() => document.querySelectorAll(".tray button[aria-label='Dismiss']").forEach((button) => button.click()));
+/** Waits for the tray to say how the newest action ended. Returns what it said if it was confirmed; throws what it said if not. */
+async function landed(page, timeout = 60000) {
+  await page.waitForFunction(() => ["confirmed", "failed", "expired"].includes([...document.querySelectorAll(".tray > div")].at(-1)?.dataset.state), null, {
+    timeout,
+  });
+  const last = page.locator(".tray > div").last();
+  const [state, text] = [await last.getAttribute("data-state"), (await last.innerText()).replace(/\s+/g, " ")];
+  if (state !== "confirmed") throw new Error(`the tray says: ${text}`);
+  if (!(await last.locator("a:text-is('Receipt')").count())) throw new Error("a confirmed transaction has no receipt link in the tray");
+  return text;
 }
 /** Runs `once` for each item: the first two back to back, the third after a full reload of the page. */
 async function thrice(page, items, once) {
@@ -255,78 +279,148 @@ await step("launch, three times: create on the curve + register with the Ring + 
 });
 const [mint] = coins;
 
-await step("explore lists all three coins, newest first, each with a market cap and its Ring line", async () => {
+await step("explore lists all three coins in a table, newest first, each with its figures and its Ring line", async () => {
   await ana.goto(`${base}/explore`);
-  await ana.waitForSelector(".coins li");
-  const rows = await ana.locator(".coins li").allInnerTexts();
+  const ROWS = "table[data-coins] tbody tr";
+  await ana.waitForSelector(ROWS);
+  const rows = await ana.locator(ROWS).allInnerTexts();
   if (rows.length !== 3) throw new Error(`${rows.length} coins listed`);
-  for (const text of rows)
-    if (!/SOL/.test(text) || !/OF SUPPLY IN RING BALANCES/i.test(text) || !/1 WALLET HAS DEPOSITED IT/i.test(text)) throw new Error(text.replace(/\n/g, " | "));
+  for (const text of rows) if (!/SOL/.test(text) || !/\$/.test(text)) throw new Error(`a row has no SOL or no dollar figure: ${text.replace(/\s+/g, " ")}`);
+  // Each coin's first buy went into the Ring from one wallet: the Ring cell says a share above zero, and one wallet.
+  for (const text of await ana.locator(`${ROWS} [data-ring]`).allInnerTexts())
+    if (!/^\d+\.\d\d% · 1$/.test(text.trim()) || /^0\.00%/.test(text.trim())) throw new Error(`Ring cell reads "${text}"`);
   // The coin launched with a picture shows it, drawn; the two without show their first letter in the same square.
   await ana.waitForFunction(
-    () => [...document.querySelectorAll(".coins img.coin-picture")].some((image) => image.complete && image.naturalWidth === 512),
+    () => [...document.querySelectorAll("table[data-coins] img.coin-picture")].some((image) => image.complete && image.naturalWidth === 512),
     null,
     { timeout: 15000 },
   );
   const pictures = await ana.evaluate(() => ({
-    drawn: document.querySelectorAll(".coins img.coin-picture").length,
-    letters: [...document.querySelectorAll(".coins span.coin-picture")].map((box) => box.innerText),
+    drawn: document.querySelectorAll("table[data-coins] img.coin-picture").length,
+    letters: [...document.querySelectorAll("table[data-coins] span.coin-picture")].map((box) => box.innerText),
   }));
   if (pictures.drawn !== 1 || pictures.letters.sort().join("") !== "EQ") throw new Error(`pictures: ${JSON.stringify(pictures)}`);
   await ana.fill("#e-search", "ember");
-  await settles(async () => String(await ana.locator(".coins li").count()), "1", "coins matching a search for ember");
+  await settles(async () => String(await ana.locator(ROWS).count()), "1", "coins matching a search for ember");
   await ana.fill("#e-search", "no such coin");
   await ana.waitForSelector("text=No coin here matches");
   await ana.click("button:text-is('Show all')");
-  await settles(async () => String(await ana.locator(".coins li").count()), "3", "coins after clearing the search");
-  await ana.selectOption("#e-order", "cap");
+  await settles(async () => String(await ana.locator(ROWS).count()), "3", "coins after clearing the search");
+  // The dropdown is the site's own, and works from the keyboard as well as the pointer.
+  await choose(ana, "e-order", "cap");
+  await ana.focus("#e-order");
+  await ana.keyboard.press("ArrowDown");
+  await ana.keyboard.press("ArrowDown");
+  await ana.keyboard.press("Enter");
+  if ((await ana.locator("#e-order").innerText()).trim() !== "Most traded in 24 hours") throw new Error("the order dropdown did not follow the keyboard");
+  if (await ana.locator("select").count()) throw new Error("a browser dropdown is on the page");
   await shot(ana, "04-explore");
 });
 
-await step("curve trade, three buys and a sell: the wallet figure matches the chain after each", async () => {
+await step("trading screen: three typed buys and a sell, each shown as sent then confirmed with a receipt, and matching the chain", async () => {
   await ben.goto(`${base}/coin/${mint}`);
   await thrice(ben, ["0.03", "0.03", "0.03"], async (amount, index) => {
     await ben.waitForSelector("#t-amount");
+    // What a trade makes public is on the screen before the button, always.
+    if (!/public: your wallet, the coin, the amount and the price/i.test(await ben.locator(".ticket [data-public]").innerText()))
+      throw new Error("the ticket does not say what a trade makes public");
     const before = await onChain(addresses.buyer, mint);
+    await clearTray(ben);
     await ben.fill("#t-amount", amount);
-    await ben.click("button:text-is('Review')");
-    await ben.waitForSelector(".confirm .panel");
     if (index === 0) await shot(ben, "05-buy-review");
-    await press(ben, "text=Sign and buy", /bought/);
+    await ben.click(".ticket .go");
+    if (!/bought/i.test(await landed(ben))) throw new Error("the tray did not say what was bought");
     if ((await onChain(addresses.buyer, mint)) <= before) throw new Error("the chain shows no more coins after the buy");
   });
-  await ben.click(".tabs button:text-is('sell')");
+  await ben.click(".ticket .sides .sell");
   const before = await onChain(addresses.buyer, mint);
+  await clearTray(ben);
   await ben.fill("#t-amount", "1000");
-  await ben.click("button:text-is('Review')");
-  await press(ben, "text=Sign and sell", /sold/);
+  await ben.click(".ticket .go");
+  if (!/sold/i.test(await landed(ben))) throw new Error("the tray did not say what was sold");
   if (before - (await onChain(addresses.buyer, mint)) !== units(mint, "1000")) throw new Error("the chain did not lose exactly 1,000 coins");
+  // The feed shows the buyer's own trades, marked, newest first, and the position is worked out from them.
+  const newest = (await app("coin/trades", { mint, limit: 1 })).trades[0];
+  await settles(async () => (await ben.locator("[data-trade]").first().getAttribute("data-trade")) ?? "", newest.s, "the newest trade in the feed");
+  if ((await ben.locator(".vrow.mine").count()) < 4) throw new Error("the buyer's own trades are not marked in the feed");
+  const position = (await app("position", { wallet: addresses.buyer, mint })).position;
+  if (BigInt(position.held) !== (await onChain(addresses.buyer, mint)) || position.buys !== 3 || position.sells !== 1)
+    throw new Error(`position: ${JSON.stringify(position)}`);
+  await ben.waitForSelector("[data-position]");
   await ben.goto(`${base}/wallet`);
   await walletMatches(ben, "buyer", mint);
   await walletMatches(ben, "buyer", NATIVE);
 });
 
-await step("terminal: the board lists the coins, a one-click buy and a typed sell match the chain, and the choice survives a reload", async () => {
-  await ben.goto(`${base}/terminal#${mint}`);
-  await settles(async () => String(await ben.locator(".board li").count()), "3", "coins on the board");
-  await ben.waitForSelector(".quick button");
-  if (!(await ben.locator(".terminal .panel").isVisible())) throw new Error("the panel saying what a curve trade makes public is not shown before the buttons");
-  const before = await onChain(addresses.buyer, mint);
-  await press(ben, "button:text-is('Buy 0.01 SOL')", /bought/);
-  const bought = await onChain(addresses.buyer, mint);
-  if (bought <= before) throw new Error("the chain shows no more coins after the one-click buy");
-  await shot(ben, "05b-terminal");
-  await ben.click(".tabs button:text-is('sell')");
-  await ben.fill("#tm-amount", "500");
-  await press(ben, "button:text-is('Sell now')", /sold/);
-  if (bought - (await onChain(addresses.buyer, mint)) !== units(mint, "500")) throw new Error("the chain did not lose exactly 500 coins");
-  const other = await ben.locator(".board button[aria-pressed='false']").first();
-  await other.click();
-  const chosen = new URL(ben.url()).hash.slice(1);
-  if (!chosen || chosen === mint) throw new Error("choosing another coin did not change the address");
-  await ben.reload();
-  await ben.waitForSelector(".board button[aria-pressed='true']");
-  if (!(await ben.locator(".terminal a[href='/coin/" + chosen + "']").count())) throw new Error("the reload did not keep the chosen coin");
+await step("terminal: one-click from the keyboard and the board, under 100 ms to sent; search, pause on hover, portfolio", async () => {
+  await ben.goto(`${base}/coin/${mint}`);
+  await ben.waitForSelector("#t-amount");
+  // One-click is off until it is turned on, and turning it on says what it means first.
+  await ben.click(".ticket .tick");
+  await ben.waitForSelector("[role='dialog'] >> text=no second step");
+  await ben.click("button:text-is('Turn on one-click')");
+  const ready = () => ben.waitForFunction(() => /built and ready/.test(document.querySelector("[data-oneclick]")?.textContent ?? ""), null, { timeout: 20000 });
+  const times = [];
+  for (const way of ["button", "key"]) {
+    await ready();
+    const before = await onChain(addresses.buyer, mint);
+    await clearTray(ben);
+    await ben.evaluate(() => (window.__clickToSentMs = undefined));
+    if (way === "button") await ben.click(".presets button[data-preset='0']");
+    else await ben.keyboard.press("1");
+    if (!/bought/i.test(await landed(ben))) throw new Error(`one-click by ${way}: nothing bought`);
+    times.push(await ben.evaluate(() => window.__clickToSentMs));
+    if ((await onChain(addresses.buyer, mint)) <= before) throw new Error(`one-click by ${way}: the chain shows no more coins`);
+  }
+  if (times.some((ms) => !(ms < 100))) throw new Error(`press to sent took ${times.map((ms) => Math.round(ms)).join(" and ")} ms`);
+  console.log(`     press to sent: ${times.map((ms) => ms.toFixed(1)).join(" ms, ")} ms`);
+  // Keys: S and B change sides, ? lists the keys.
+  await ben.keyboard.press("s");
+  if ((await ben.locator(".ticket .sides .sell").getAttribute("aria-pressed")) !== "true") throw new Error("S did not choose the sell side");
+  await ben.keyboard.press("b");
+  await ben.keyboard.press("?");
+  await ben.waitForSelector("[role='dialog'] >> text=Keys on this screen");
+  await ben.keyboard.press("Escape");
+  await shot(ben, "05b-trading-screen");
+
+  // The board: three columns, live; this coin and its two siblings are new.
+  await ben.goto(`${base}/terminal`);
+  const NEW = ".board-col[data-column='New'] .coin-row";
+  await settles(async () => String(await ben.locator(NEW).count()), "3", "coins in the New column");
+  // A trade made elsewhere reaches the board without a reload: the seller buys through the API, the row's trade count moves.
+  const row = ben.locator(`.coin-row[data-coin='${mint}']`);
+  const countBefore = (await app("coin", { mint })).trades;
+  const beforeQuick = await onChain(addresses.buyer, mint);
+  await clearTray(ben);
+  await row.locator("button.quick").click();
+  if (!/bought/i.test(await landed(ben))) throw new Error("quick buy from the board: nothing bought");
+  if ((await onChain(addresses.buyer, mint)) <= beforeQuick) throw new Error("quick buy from the board: the chain shows no more coins");
+  await settles(async () => (/(\d+) trades?/.exec(await row.innerText()) ?? [])[1] ?? "", String(countBefore + 1), "the row's trade count, pushed live");
+  // Pause on hover, search by the slash key, and an address that is not on the board.
+  await ben.hover(NEW);
+  await ben.waitForSelector(".board-col[data-column='New'] >> text=Paused");
+  await ben.mouse.move(2, 2);
+  await ben.keyboard.press("/");
+  if ((await ben.evaluate(() => document.activeElement?.id)) !== "board-search") throw new Error("the slash key did not go to the search field");
+  await ben.keyboard.type("ember");
+  await settles(async () => String(await ben.locator(".board-col .coin-row").count()), "1", "coins matching a search for ember");
+  await ben.fill("#board-search", addresses.seller);
+  await ben.waitForSelector("text=That address is not on the board");
+  await ben.fill("#board-search", "");
+  await shot(ben, "05c-board");
+
+  // The portfolio: the position, worked out from the trades, holding what the chain says.
+  await ben.goto(`${base}/portfolio`);
+  await ben.waitForSelector(`[data-position='${mint}']`);
+  const position = (await app("position", { wallet: addresses.buyer, mint })).position;
+  if (BigInt(position.held) !== (await onChain(addresses.buyer, mint))) throw new Error("the portfolio's holding is not the chain's");
+  if (position.buys !== 6 || position.sells !== 1) throw new Error(`the portfolio counts ${position.buys} buys and ${position.sells} sells`);
+  if (!/\$/.test(await ben.locator("[data-totals]").innerText())) throw new Error("the portfolio shows no dollar figures");
+  await shot(ben, "05d-portfolio");
+  // One-click is switched off again, so nothing later in this run trades by accident.
+  await ben.goto(`${base}/coin/${mint}`);
+  await ben.waitForSelector("#t-amount");
+  await ben.click(".ticket .tick");
   await ben.goto(`${base}/wallet`);
   await walletMatches(ben, "buyer", mint);
 });
@@ -425,7 +519,7 @@ await step("OTC, three times: the seller offers a block, the buyer accepts, both
   await ben.goto(`${base}/otc`);
   await thrice(ana, ["100000", "100000", "100000"], async (amount, index) => {
     await ana.waitForSelector("#o-amount");
-    await ana.selectOption("#o-coin", mint);
+    await choose(ana, "o-coin", mint);
     await ana.fill("#o-amount", amount);
     await ana.fill("#o-price", "0.1");
     await ana.fill("#o-buyer", addresses.buyer);
@@ -464,7 +558,7 @@ await step("pay link, three times: the seller asks by link and QR, the buyer pay
   await ana.goto(`${base}/pay`);
   await thrice(ana, ["1234.5", "0.000001", "77"], async (amount, index) => {
     await ana.waitForSelector("#p-amount");
-    await ana.selectOption("#p-coin", mint);
+    await choose(ana, "p-coin", mint);
     await ana.fill("#p-amount", amount);
     await ana.fill("#p-memo", "two prints");
     await ana.waitForSelector(".qr svg");
@@ -490,32 +584,82 @@ await step("pay link, three times: the seller asks by link and QR, the buyer pay
   }
 });
 
-await step("privacy score, three times: the coin page's two figures are the chain's own", async () => {
+await step("privacy score and chart, three times: the coin's two Ring figures are the chain's own, and the chart reads out its candles", async () => {
   await ana.goto(`${base}/coin/${mint}`);
   await thrice(ana, [1, 2, 3], async () => {
     const [supply, inRing] = [await supplyOf(mint), await onChain(escrow, mint)];
-    const want = `${formatShare(Number((inRing * 1_000_000n) / supply))} OF SUPPLY IN RING BALANCES 2 WALLETS HAVE DEPOSITED IT`;
-    await settles(async () => (await ana.locator(".kv .badge").innerText()).replace(/\s+/g, " ").trim().toUpperCase(), want, "the Ring line");
-    const served = (await app("coin", { mint })).coin?.privacy ?? (await app("coin", { mint })).privacy;
+    const facts = ana.locator("section[aria-label='In the Ring'] .facts dd");
+    await settles(async () => (await facts.nth(0).innerText()).trim(), formatShare(Number((inRing * 1_000_000n) / supply)), "share of supply in Ring balances");
+    await settles(async () => (await facts.nth(1).innerText()).trim(), "2", "wallets that have deposited it");
+    const served = (await app("coin", { mint })).privacy;
     if (BigInt(served.supply) !== supply || BigInt(served.inRing) !== inRing) throw new Error("the server's supply or Ring total is not the chain's");
     await ana.goto(`${base}/coin/${mint}`);
   });
-  // The price record: a drawn line, and a low and a high that are the lowest and highest readings the server holds.
-  await ana.waitForSelector(".chart svg path");
-  const minutes = (await app("coin/candles", { mint, tf: 60 })).candles;
-  const readings = [minutes[0][1], ...minutes.map((candle) => candle[4])].map((price) => BigInt(price));
-  const caption = (await ana.locator(".chart figcaption").innerText()).replace(/\s+/g, " ");
-  const [lowest, highest] = [readings.reduce((a, b) => (b < a ? b : a)), readings.reduce((a, b) => (b > a ? b : a))];
-  if (!caption.includes(`LOW ${formatPrice(lowest)}`) || !caption.includes(`HIGH ${formatPrice(highest)}`) || !caption.includes(`READINGS ${readings.length}`))
-    throw new Error(`chart caption reads "${caption}"`);
-  if (highest <= lowest) throw new Error("three buys did not raise the recorded price");
-  // The coin's history on the curve: its launch, three buys and a sell, then a buy and a sell from the terminal, each with a receipt.
-  await settles(
-    async () => String(await ana.locator("h2:text-is('Recent activity on the curve') ~ ul.events li a:text-is('Receipt')").count()),
-    "7",
-    "curve transactions listed",
-  );
+  // The chart is drawn, reads out the newest candle, and its timeframes change it.
+  await ana.waitForSelector(".chart-area canvas");
+  await ana.waitForFunction(() => /O .+ H .+ L .+ C .+ V .+ trades?/.test(document.querySelector("[data-readout]")?.textContent ?? ""), null, {
+    timeout: 20000,
+  });
+  const day = (await app("coin/candles", { mint, tf: 86400 })).candles;
+  if (day.length !== 1 || !(day[0][2] > day[0][3])) throw new Error("the day candle did not record the price moving");
+  const trades = (await app("coin", { mint })).trades;
+  if (day[0][6] !== trades) throw new Error(`the day candle counts ${day[0][6]} trades, the coin ${trades}`);
+  await ana.click(".chart-bar button:text-is('1d')");
+  await ana.waitForFunction((count) => new RegExp(` ${count} trades`).test(document.querySelector("[data-readout]")?.textContent ?? ""), trades, {
+    timeout: 20000,
+  });
+  // The creator's own trades can be picked out of the feed.
+  await ana.click(".feed-tabs button:text-is('Creator')");
+  await ana.waitForSelector(".feed-body >> text=You");
+  await ana.click(".feed-tabs [role='tab']:has-text('Holders')");
+  await ana.waitForSelector("[data-holder-summary]");
+  if (!/bonding curve/i.test(await ana.locator(".feed-body").innerText())) throw new Error("the curve is not labelled among the holders");
   await shot(ana, "14-coin");
+});
+
+await step("split withdrawal to a fresh address: uneven parts that add up, the first sent at once, the rest waiting and cancellable", async () => {
+  await ben.goto(`${base}/wallet`);
+  await ben.waitForSelector("#w-amount");
+  await ben.click('.tabs button:text-is("withdraw")');
+  await choose(ben, "w-coin", NATIVE);
+  // A destination made here and never used: only its address and an encrypted backup file leave the wallet's worker.
+  await ben.click("button:text-is('Make a fresh address for this')");
+  await ben.fill("#w-fresh-password", "another long password");
+  const [download] = await Promise.all([ben.waitForEvent("download"), ben.click("button:text-is('Make it and save the backup')")]);
+  if (!/^ring-wallet-.+\.json$/.test(download.suggestedFilename())) throw new Error(`the backup was saved as ${download.suggestedFilename()}`);
+  await ben.waitForFunction(() => document.querySelector("#w-to").value.length >= 32);
+  const fresh = await ben.inputValue("#w-to");
+  if (fresh === addresses.buyer) throw new Error("the fresh address is the wallet's own");
+  if ((await onChain(fresh, NATIVE)) !== 0n) throw new Error("the fresh address already holds something");
+  await ben.fill("#w-amount", "0.3");
+  await choose(ben, "w-parts", "3");
+  await choose(ben, "w-over", "600000");
+  await ben.click("button:text-is('Review')");
+  await ben.waitForSelector("table[data-planned] tbody tr");
+  const planned = await ben.locator("table[data-planned] tbody tr td:nth-child(2)").allInnerTexts();
+  const parts = planned.map((text) => units(NATIVE, text.replace(/[^0-9.]/g, "")));
+  if (parts.length !== 3) throw new Error(`${parts.length} parts planned`);
+  if (parts.reduce((sum, part) => sum + part, 0n) !== units(NATIVE, "0.3"))
+    throw new Error(`the parts add up to ${parts.reduce((sum, part) => sum + part, 0n)}`);
+  if (new Set(parts.map(String)).size === 1) throw new Error("the parts are all the same size");
+  if (/already has a history/i.test(await ben.locator(".confirm").innerText())) throw new Error("a never-used address was called used");
+  await clearTray(ben);
+  await ben.click("button:text-is('Start the split withdrawal')");
+  await ben.waitForSelector("[data-plans] tr[data-part='sent']", { timeout: 60000 });
+  await landed(ben);
+  const states = await ben.locator("[data-plans] tbody tr").evaluateAll((rows) => rows.map((row) => row.dataset.part));
+  if (states.join() !== "sent,waiting,waiting") throw new Error(`the parts are ${states}`);
+  // On the chain: the fresh address holds exactly the first part, and nothing else of the plan has moved.
+  if ((await onChain(fresh, NATIVE)) !== parts[0]) throw new Error(`the fresh address holds ${await onChain(fresh, NATIVE)}, not the first part ${parts[0]}`);
+  move("buyer", NATIVE, -parts[0]);
+  move("buyer", NATIVE, -PAYOUT_FEE);
+  // A reload keeps the plan; cancelling it stops the parts not yet sent.
+  await ben.reload();
+  await ben.waitForSelector("[data-plans] tr[data-part='waiting']");
+  await ben.click("button:text-is('Cancel the parts not yet sent')");
+  await ben.waitForSelector("[data-plans]", { state: "detached" });
+  await walletMatches(ben, "buyer", NATIVE);
+  if ((await onChain(fresh, NATIVE)) !== parts[0]) throw new Error("a cancelled part was sent");
 });
 
 await step("books balance: the escrow on the chain holds exactly what the Ring balances add up to, and the status page says so", async () => {
@@ -544,21 +688,23 @@ await step("books balance: the escrow on the chain holds exactly what the Ring b
 
 await step("creator fees: the seller claims them into the Ring, and the escrow gains what the page said", async () => {
   await ana.goto(`${base}/coin/${mint}`);
-  await ana.waitForFunction(() => /SOL TO CLAIM/i.test(document.body.innerText), null, { timeout: 20000 });
+  await ana.waitForFunction(() => /SOL to claim/i.test(document.querySelector("[data-claimable]")?.textContent ?? ""), null, { timeout: 20000 });
+  // What the claim makes public is said beside the button.
+  if (!/public either way/i.test(await ana.locator("[data-fees]").innerText())) throw new Error("the fee claim does not say what it makes public");
   const held = await onChain(escrow, NATIVE);
-  await ana.locator(".form:has(h2) >> button:text-is('Review')").click();
-  await ana.waitForSelector(".confirm .panel");
   await shot(ana, "16-fees-review");
-  await press(ana, "text=Sign and claim", /claimed .* into your Ring balance/);
-  const claimed = /CLAIMED ([\d.,<]+) SOL/i.exec(await ana.locator(".status-line").innerText())[1];
+  await clearTray(ana);
+  await ana.click("[data-fees] button:text-is('Claim')");
+  const said = await landed(ana);
+  const claimed = /claimed ([\d.,<]+) SOL into your Ring balance/i.exec(said)?.[1];
   const gained = (await onChain(escrow, NATIVE)) - held;
-  if (formatCoin(NATIVE, gained, 6) !== claimed) throw new Error(`the page says ${claimed} SOL, escrow gained ${formatCoin(NATIVE, gained)}`);
+  if (formatCoin(NATIVE, gained, 6) !== claimed) throw new Error(`the tray says "${said}", escrow gained ${formatCoin(NATIVE, gained)}`);
   move("seller", NATIVE, gained);
   await ana.goto(`${base}/wallet`);
   await walletMatches(ana, "seller", NATIVE);
 });
 
-await step("a reload keeps your place: the wallet's tab and the coin page's side are in the address", async () => {
+await step("a reload keeps your place: the wallet's tab and the portfolio's wallet are in the address", async () => {
   await ben.goto(`${base}/wallet`);
   await ben.waitForSelector("#w-amount");
   await ben.click(".tabs button:text-is('transfer')");
@@ -566,9 +712,12 @@ await step("a reload keeps your place: the wallet's tab and the coin page's side
   await ben.reload();
   await ben.waitForSelector("#w-to");
   if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "transfer") throw new Error("the tab was lost on reload");
-  await ben.goto(`${base}/coin/${mint}#sell`);
-  await ben.waitForSelector("#t-amount");
-  if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "sell") throw new Error("a link to #sell opened on buy");
+  // A looked-up wallet stays in the portfolio's address, so the page can be reloaded or shared.
+  await ben.goto(`${base}/portfolio#${addresses.seller}`);
+  await ben.waitForSelector("[data-totals] .address");
+  await ben.reload();
+  await ben.waitForSelector("[data-totals] .address");
+  if ((await ben.locator("[data-totals] .address").getAttribute("title")) !== addresses.seller) throw new Error("the looked-up wallet was lost on reload");
   await ben.goto(`${base}/wallet#nonsense`);
   await ben.waitForSelector("#w-amount");
   if ((await ben.locator(".tabs button[aria-pressed='true']").innerText()).trim().toLowerCase() !== "deposit")
@@ -594,7 +743,7 @@ await step("the wallet locks and unlocks with the password; addresses keep their
 
 await step("phone width: every app page fits without sideways scroll", async () => {
   await ben.setViewportSize({ width: 390, height: 844 });
-  for (const path of ["/wallet", "/explore", "/terminal", `/coin/${mint}`, "/otc", "/pay", "/launch", "/status"]) {
+  for (const path of ["/wallet", "/explore", "/terminal", "/portfolio", `/coin/${mint}`, "/otc", "/pay", "/launch", "/status"]) {
     await ben.goto(base + path);
     await ben.waitForTimeout(1200);
     const overflow = await ben.evaluate(() => document.documentElement.scrollWidth - innerWidth);

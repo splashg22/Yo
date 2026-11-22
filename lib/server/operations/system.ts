@@ -9,11 +9,15 @@ import { escrow, escrowBalance } from "../escrow";
 import { ring } from "../ring";
 import { settled, submit, type TxOutcome } from "../sender";
 import { closeSession, openSession } from "../sessions";
-import { connection, explain } from "../solana";
+import { NEWEST_TRANSACTION_VERSION, connection, explain, rawCall } from "../solana";
 import { state } from "../store";
 import { solPrice } from "../usd";
 import { addressOf, signatureOf, text } from "../validate";
+import { ringGateOpen } from "../ringgate";
 import { verifiedBody } from "./ring";
+
+/** Which Ring this deployment has: the local stand-in, the real program through the gate, or none. */
+const ringMode = (): "mock" | "real" | "unavailable" => (ringAvailable() ? "mock" : ringGateOpen() ? "real" : "unavailable");
 import type { Handlers } from "./types";
 
 const PROGRAMS = [
@@ -28,7 +32,7 @@ async function status(): Promise<Status> {
   const store = state();
   const base: Status = {
     network,
-    ring: ringAvailable() ? "mock" : "unavailable",
+    ring: ringMode(),
     checkedAt: Date.now(),
     chain: { reachable: false },
     programs: [],
@@ -79,13 +83,18 @@ function payerChanges(meta: ConfirmedTransactionMeta, payer: string | undefined)
 }
 
 async function transactionView(signature: string): Promise<TransactionView> {
-  const found = await connection().getTransaction(signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+  // Read as plain JSON, so a version 1 transaction (the Privacy Rings program sends those) has a receipt like any other.
+  const found = await rawCall<{
+    slot: number;
+    blockTime: number | null;
+    meta: ConfirmedTransactionMeta | null;
+    transaction: { message: { accountKeys: string[] } };
+  }>(connection(), "getTransaction", [signature, { commitment: "confirmed", encoding: "json", maxSupportedTransactionVersion: NEWEST_TRANSACTION_VERSION }]);
   if (!found?.meta) return { signature, status: "not-found", programs: [], changes: [], deposits: [] };
-  const keys = found.transaction.message.getAccountKeys({ accountKeysFromLookups: found.meta.loadedAddresses });
   const invoked = new Set(
     (found.meta.logMessages ?? []).map((line) => /^Program (\S+) invoke \[1\]$/.exec(line)?.[1]).filter((id): id is string => id !== undefined),
   );
-  const payer = keys.get(0)?.toBase58();
+  const payer = found.transaction.message.accountKeys[0];
   return {
     signature,
     status: found.meta.err ? "failed" : "confirmed",
@@ -115,7 +124,7 @@ export const system: Handlers<"config" | "status" | "faucet" | "price/sol" | "tx
     const { network, features, fees } = settings();
     return {
       network,
-      ring: ringAvailable() ? ("mock" as const) : ("unavailable" as const),
+      ring: ringMode(),
       features,
       fees: { wallet: fees.wallet, tradeBps: fees.tradeBps, launchLamports: fees.launchLamports.toString(), otcBps: fees.otcBps },
     };

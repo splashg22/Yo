@@ -442,9 +442,14 @@ function Row({
       <Link href={`/coin/${coin.mint}`} aria-label={`${coin.symbol}, ${coin.name}`} style={{ display: "contents" }}>
         <CoinPicture image={coin.image} symbol={coin.symbol} size={40} />
         <span className="name">
-          <b>{coin.symbol}</b>
+          <span className="top">
+            <b>{coin.symbol}</b>
+            <span className="full" title={coin.name}>
+              {coin.name}
+            </span>
+          </span>
           <span className="sub">
-            {coin.name} · <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"} · {formatCompact(coin.trades)} trade
+            <Age at={coin.createdAt} /> · {formatCompact(coin.holders)} holder{coin.holders === 1 ? "" : "s"} · {formatCompact(coin.trades)} trade
             {coin.trades === 1 ? "" : "s"}
           </span>
           {!coin.complete && (

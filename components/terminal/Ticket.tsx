@@ -298,7 +298,7 @@ export function Ticket({ coin, store, signer, bind }: { coin: CoinView; store: C
           <dt>This site&apos;s fee</dt>
           <dd>{fees && fees.tradeBps > 0 ? `${formatChange(fees.tradeBps).replace("+", "")}, to ${shortAddress(fees.wallet)}` : "None"}</dd>
         </dl>
-        <button className={`go ${side === "sell" ? "sell" : ""}`} type="submit" disabled={typed <= 0n}>
+        <button className={`go ${side === "sell" ? "sell" : ""}`} type="submit">
           {side === "buy" ? `Buy ${coin.symbol}` : `Sell ${coin.symbol}`}
         </button>
       </form>

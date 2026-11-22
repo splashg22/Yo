@@ -30,7 +30,8 @@ describe("one place for the name and the colour", () => {
     expect(offenders).toEqual([]);
   });
   it("writes the accent colour only as the CSS variable", () => {
-    const offenders = site_files.filter((f) => /#f5a524/i.test(f.text)).map((f) => f.path);
+    // As a hex value or as its three numbers.
+    const offenders = site_files.filter((f) => /#f5a524|245,\s*165,\s*36/i.test(f.text)).map((f) => f.path);
     expect(offenders).toEqual(["app/globals.css"]);
     expect(readFileSync(join(root, "app/globals.css"), "utf8").match(/#f5a524/gi)).toHaveLength(1);
   });
@@ -39,7 +40,9 @@ describe("one place for the name and the colour", () => {
 describe("what the site may say", () => {
   it("makes no claim the Default Ring does not deliver", () => {
     for (const file of site_files.filter((f) => f.path !== "lib/visibility.ts")) {
-      for (const claim of FORBIDDEN_CLAIMS) expect(file.text.toLowerCase(), `${file.path} says "${claim}"`).not.toContain(claim);
+      // The Ring SDK's own names for its types are code this site calls, not words this site says.
+      const text = file.text.replace(/\bShieldedKeypair\b|\bshieldedAddress\b/g, "").toLowerCase();
+      for (const claim of FORBIDDEN_CLAIMS) expect(text, `${file.path} says "${claim}"`).not.toContain(claim);
     }
   });
   it("matches the research: transfers hide the coin and the amount, never the wallets", () => {
@@ -154,5 +157,25 @@ describe("page structure", () => {
     expect(footer).toMatch(/not affiliated with[\s\S]*Helius, pump\.fun/);
     expect(footer).toMatch(/alpha software/);
     expect(footer).toMatch(/pre-release build and is unaudited/);
+  });
+});
+
+describe("what this site's own server sees", () => {
+  it("is stated for every action, and again for each action that is done differently on the real program", () => {
+    for (const row of VISIBILITY) {
+      expect(row.server.length, row.id).toBeGreaterThan(40);
+      // A server always sees who is asking; no row may leave that out.
+      expect(row.server, row.id).toMatch(/IP address/);
+      if (row.realRing) {
+        expect(row.realRing.server, row.id).toMatch(/IP address/);
+        // Nothing done through the real program has been run end to end by us yet, and each such row must say so.
+        expect(row.realRing.today, row.id).toMatch(/[Nn]ot yet run by us/);
+      }
+    }
+    // The stand-in is a ledger on the server: the rows for it must not suggest the server is blind.
+    expect(visibilityOf("transfer").server).toMatch(/Everything/);
+    expect(visibilityOf("otc").server).toMatch(/Everything/);
+    // The actions the wallet page does through the real program, and a pay link, each have their own account of it.
+    for (const id of ["deposit", "transfer", "withdraw", "pay-link"]) expect(visibilityOf(id).realRing, id).toBeDefined();
   });
 });

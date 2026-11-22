@@ -29,6 +29,20 @@ export function connection(): Connection {
   return cached.connection;
 }
 
+/** The newest transaction version there is. Asking for it means no read is refused because of what a block or transaction holds. */
+export const NEWEST_TRANSACTION_VERSION = 1;
+/**
+ * One call to the chain with the answer left as plain JSON. For blocks and single transactions: the library's own
+ * readers refuse a version 1 transaction, and the Privacy Rings program sends those. The call still goes through the
+ * connection, so it is timed and counted like every other.
+ */
+export async function rawCall<Result>(chain: Connection, method: string, params: unknown[]): Promise<Result | null> {
+  type Ask = (method: string, params: unknown[]) => Promise<{ result?: Result | null; error?: { code: number; message: string } }>;
+  const answer = await (chain as unknown as { _rpcRequest: Ask })._rpcRequest(method, params);
+  if (answer.error) throw new Error(`${method} failed: ${answer.error.code} ${answer.error.message}`);
+  return answer.result ?? null;
+}
+
 const logsOf = (error: unknown): string[] => {
   const logs = (error as { logs?: unknown; transactionLogs?: unknown }).logs ?? (error as { transactionLogs?: unknown }).transactionLogs;
   return Array.isArray(logs) ? logs.filter((line): line is string => typeof line === "string") : [];

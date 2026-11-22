@@ -14,7 +14,7 @@ npm ci
 npm run local:fetch          # once: copies the programs from devnet
 npm run local                # terminal 1: the local test chain
 npm run check                # terminal 2: typecheck, lint, format, every test
-npm run build && npm run start -- -p 4711 &
+npm run build && PORT=4711 npm start &
 npm run e2e && npm run crawl && npm run break && npm run motion && npm run scan
 npm run doctor               # what is ready, what is missing
 ```
@@ -85,7 +85,7 @@ SITE_URL=https://<your domain>
 PREVIEW_PASSWORD=<a long password>
 ```
 
-Build with `npm run build`, start with `npm run start -- -p $PORT`, or use the
+Build with `npm run build`, start with `npm start` (it listens on `PORT`), or use the
 `Dockerfile`. Health check address: `/health`.
 
 ```bash

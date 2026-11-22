@@ -31,6 +31,8 @@
     "break": "tsx scripts/break.mjs",
     "motion": "node scripts/motion.mjs",
     "window": "node scripts/window.mjs",
+    "load": "tsx scripts/load.ts",
+    "perf": "node scripts/perf.mjs",
     "scan": "node scripts/scan-secrets.mjs",
     "doctor": "tsx scripts/doctor.ts",
     "devnet:setup": "tsx scripts/devnet-setup.ts",
