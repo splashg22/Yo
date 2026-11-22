@@ -64,7 +64,7 @@ try {
     await page.waitForFunction(
       () =>
         [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].length > 0 &&
-        [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)),
+        [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !cell.querySelector("[data-pending]")),
     );
     return (
       await page

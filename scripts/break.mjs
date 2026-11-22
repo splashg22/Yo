@@ -100,7 +100,7 @@ async function settlesNoteKey(wallet) {
   }
   throw new Error("the wallet extension never published a note key");
 }
-/** The Ring balance the wallet page shows for a coin, once it has been read: never the "Reading" that stands in before then. */
+/** The Ring balance the wallet page shows for a coin, once it has been read: never the dots that stand in before then. */
 const ringCell = async (page, symbol) => {
   const cell = page
     .locator("table.plain tbody tr")
@@ -108,8 +108,8 @@ const ringCell = async (page, symbol) => {
     .locator("td")
     .nth(2);
   for (let attempt = 0; attempt < 100; attempt++) {
-    const text = (await cell.innerText()).trim();
-    if (!/reading/i.test(text)) return text;
+    // A figure not read yet is three dots marked as pending, with no words in it.
+    if ((await cell.locator("[data-pending]").count()) === 0) return (await cell.innerText()).trim();
     await page.waitForTimeout(100);
   }
   throw new Error(`the wallet page never showed a Ring balance for ${symbol}`);
@@ -248,7 +248,7 @@ await check("a double click on Sign sends one transaction and moves the money on
   await other.waitForFunction(
     () =>
       document.querySelectorAll("table.plain tbody td:nth-child(3)").length > 0 &&
-      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)),
+      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !cell.querySelector("[data-pending]")),
   );
   if ((await ringCell(other, "SOL")) !== "0.1") throw new Error(`the recipient holds ${await ringCell(other, "SOL")}`);
   await other.context().close();
@@ -268,7 +268,7 @@ await check("two tabs on one wallet: a deposit made in one shows in the other wh
   await second.waitForFunction(
     () =>
       document.querySelectorAll("table.plain tbody td:nth-child(3)").length > 0 &&
-      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !/reading/i.test(cell.innerText)),
+      [...document.querySelectorAll("table.plain tbody td:nth-child(3)")].every((cell) => !cell.querySelector("[data-pending]")),
   );
   const before = await ringCell(second, "SOL");
   await page.bringToFront();
@@ -513,15 +513,18 @@ await check("an empty account: every action explains what is missing", async () 
   await empty.waitForSelector("#t-amount");
   await empty.fill("#t-amount", "0.01");
   empty.sent.length = 0;
-  await empty.click(".ticket .go");
-  const buy = await waitForComplaint(empty);
-  if (!/too little SOL/i.test(buy)) throw new Error(`buy: ${buy}`);
+  // Said as it is typed, and the button waits: nothing has to be pressed, or sent, to find out.
+  const refusal = async (what) => {
+    await empty.waitForSelector(".ticket [data-too-much]", { timeout: 10000 });
+    if (!(await empty.locator(".ticket .go").isDisabled())) throw new Error(`${what}: the button can still be pressed`);
+    return (await empty.locator(".ticket [data-too-much]").innerText()).trim();
+  };
+  const buy = await refusal("buy");
+  if (!/wallet holds/i.test(buy)) throw new Error(`buy: ${buy}`);
   await empty.click(".ticket .sides .sell");
   await empty.fill("#t-amount", "5");
-  await empty.click(".ticket .go");
-  await empty.waitForFunction(() => /holds less/i.test(document.querySelector(".ticket [role=alert]")?.innerText ?? ""), null, { timeout: 10000 });
-  const sell = await complaint(empty);
-  if (!/holds less/i.test(sell)) throw new Error(`sell: ${sell}`);
+  const sell = await refusal("sell");
+  if (!/you hold/i.test(sell)) throw new Error(`sell: ${sell}`);
   // Refused in the form: no trade was built or sent for a wallet that cannot pay for it.
   if (empty.sent.some((name) => name === "trade/build" || name === "tx/send")) throw new Error(`an empty wallet's trade reached the server: ${empty.sent}`);
   await empty.goto(`${base}/launch`);

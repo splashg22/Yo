@@ -1109,3 +1109,116 @@ html[data-surface="work"] :is(h1, h2, h3) {
 html[data-surface="work"] :is(p, li, dd) {
   text-wrap: pretty;
 }
+
+/* ---- tables: the same rows, type and lines as the board, on every screen ---- */
+html[data-surface="work"] table.plain {
+  border: 1px solid var(--edge);
+  border-radius: var(--r-panel, 4px);
+  border-collapse: separate;
+  border-spacing: 0;
+  width: 100%;
+  background: var(--panel);
+}
+html[data-surface="work"] table.plain th {
+  font-family: var(--text);
+  font-size: var(--ui-small);
+  font-weight: 500;
+  color: var(--quiet);
+  text-align: left;
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--edge);
+  white-space: nowrap;
+}
+html[data-surface="work"] table.plain td {
+  font-size: var(--ui);
+  padding: var(--s3) var(--s4);
+  border-bottom: 1px solid var(--faint);
+  color: var(--mute);
+}
+html[data-surface="work"] table.plain tr:last-child td {
+  border-bottom: 0;
+}
+html[data-surface="work"] table.plain td:first-child {
+  color: var(--ink);
+  font-weight: 600;
+}
+html[data-surface="work"] table.plain td.num,
+html[data-surface="work"] table.plain th.num {
+  text-align: right;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+html[data-surface="work"] table.plain tbody tr:hover td {
+  background: var(--hover);
+}
+/* a label and its value: the same quiet label and inked value as everywhere else */
+html[data-surface="work"] .kv {
+  gap: var(--s2) var(--s5);
+}
+html[data-surface="work"] .kv dd {
+  color: var(--ink);
+}
+/* what you can do here, in order of how much it matters: one button, then quiet links */
+html[data-surface="work"] .actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s3) var(--s5);
+}
+html[data-surface="work"] .actions .link {
+  color: var(--mute);
+  border-color: var(--edge);
+}
+html[data-surface="work"] .actions .link:hover:not(:disabled) {
+  color: var(--accent-text);
+  border-color: currentColor;
+}
+html[data-surface="work"] :is(.block, .cols) h2.h3 {
+  font-size: 15px;
+  margin-top: var(--s5);
+}
+/* a phone: the header is one line and the build's notice one more, so the screen's own content starts in the first fifth */
+@media (max-width: 760px) {
+  html[data-surface="work"] .top {
+    padding: var(--s3) var(--s4);
+  }
+  html[data-surface="work"] .mobile-nav {
+    padding: 0 var(--s4) var(--s3);
+    gap: var(--s5);
+    font-size: 13px;
+  }
+  html[data-surface="work"] .strip {
+    padding: 0 var(--s4) var(--s3);
+    font-size: 11px;
+  }
+  html[data-surface="work"] .strip > span {
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  html[data-surface="work"] .app-head {
+    margin-bottom: var(--s4);
+    padding-top: var(--s3);
+  }
+  html[data-surface="work"] .app-head h1 {
+    font-size: 18px;
+  }
+  html[data-surface="work"] .recording-bar {
+    font-size: 11px;
+    padding: var(--s2) var(--s4);
+  }
+}
+
+/* a phone's table rows carry their column's name beside each value: in the same quiet label as everywhere, not spaced out */
+html[data-surface="work"][data-surface] table.plain td::before {
+  font-family: var(--text);
+  letter-spacing: 0;
+  text-transform: none;
+  font-size: var(--ui-small);
+  color: var(--quiet);
+}
+html[data-surface="work"] [data-too-much] {
+  color: var(--sell);
+}

@@ -10,7 +10,7 @@
  * Drag to scroll back (older candles load as the left edge is reached), wheel or pinch to zoom, double
  * click to return to the present.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Series } from "@/lib/client/coin-store";
 import { niceTicks, priceRange, timeLabel, visibleRange } from "@/lib/chart/scale";
 import { formatCompact } from "@/lib/format";
@@ -44,6 +44,16 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
   const live = useRef({ series, view, marks, onRead });
   live.current = { series, view, marks, onRead };
   const dirty = useRef(true);
+  // The chart is drawn again in the new colours when the page's theme changes under it.
+  const [look, setLook] = useState("");
+  useEffect(() => {
+    const root = document.documentElement;
+    const read = () => setLook(`${root.dataset.surface ?? ""}|${root.dataset.theme ?? ""}|${root.dataset.style ?? ""}`);
+    read();
+    const watcher = new MutationObserver(read);
+    watcher.observe(root, { attributes: true, attributeFilter: ["data-surface", "data-theme", "data-style"] });
+    return () => watcher.disconnect();
+  }, []);
   useEffect(() => {
     dirty.current = true;
   }, [series, view, marks]);
@@ -54,12 +64,20 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
     const context = canvas.getContext("2d");
     if (!context) return;
     const styles = getComputedStyle(document.documentElement);
-    const ink = styles.getPropertyValue("--ink").trim() || "#fff";
+    // Every colour the chart draws with is the page's own, read from its variables: the chart follows the theme, dark or light.
+    const read = (name: string, otherwise: string): string => styles.getPropertyValue(name).trim() || otherwise;
+    const ink = read("--ink", "#fff");
     // The accent is written once, in the stylesheet. Without it (a stylesheet that failed to load) the marks are drawn in white.
-    const accent = styles.getPropertyValue("--accent").trim() || "#fff";
-    const mono = `11px ${styles.getPropertyValue("--mono").trim() || "monospace"}`;
-    const faint = "rgba(255,255,255,0.10)";
-    const mute = "rgba(255,255,255,0.62)";
+    const accent = read("--accent", "#fff");
+    const rise = read("--buy", ink);
+    const fall = read("--sell", accent);
+    const page = read("--page", "#000");
+    const mono = `11px ${read("--mono", "monospace")}`;
+    // On the brand's own pages these two are white at a tenth and at six tenths; a theme gives its own.
+    const themed = document.documentElement.dataset.surface === "work";
+    const faint = themed ? read("--edge", "rgba(255,255,255,0.10)") : "rgba(255,255,255,0.10)";
+    const mute = themed ? read("--quiet", "rgba(255,255,255,0.62)") : "rgba(255,255,255,0.62)";
+    const cross = themed ? read("--rule", "rgba(255,255,255,0.4)") : "rgba(255,255,255,0.4)";
 
     let width = 0;
     let height = 0;
@@ -143,14 +161,14 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         const centre = Math.round(x(index));
         const rising = close >= open;
         // Volume bars are the candle's own colour, faint. The accent is read from the stylesheet, never written here.
-        context.fillStyle = rising ? ink : accent;
+        context.fillStyle = rising ? rise : fall;
         context.globalAlpha = rising ? 0.3 : 0.42;
         if (busiest > 0 && volume > 0) {
           const tall = Math.max(1, Math.round((volume / busiest) * volumeHeight));
           context.fillRect(centre - Math.floor(body / 2), plotHeight - tall, body, tall);
         }
         context.globalAlpha = 1;
-        context.fillStyle = context.strokeStyle = rising ? ink : accent;
+        context.fillStyle = context.strokeStyle = rising ? rise : fall;
         context.beginPath();
         context.moveTo(centre + 0.5, Math.round(y(value(top))));
         context.lineTo(centre + 0.5, Math.round(y(value(bottom))));
@@ -169,7 +187,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         const centre = Math.round(x(index));
         const at = y(value(pin.price));
         const up = pin.side === "buy";
-        context.fillStyle = up ? ink : accent;
+        context.fillStyle = up ? rise : fall;
         context.beginPath();
         context.moveTo(centre, at + (up ? 6 : -6));
         context.lineTo(centre - 5, at + (up ? 15 : -15));
@@ -178,7 +196,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         context.fill();
         if (pin.who === "creator") {
           // The creator's trades carry a square outline as well, so they are told apart without relying on colour.
-          context.strokeStyle = up ? ink : accent;
+          context.strokeStyle = up ? rise : fall;
           context.strokeRect(centre - 7.5, at + (up ? 4.5 : -17.5), 15, 13);
         }
       }
@@ -196,7 +214,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         context.setLineDash([]);
         context.fillStyle = ink;
         context.fillRect(plotWidth, at - 8, AXIS, 16);
-        context.fillStyle = "#000";
+        context.fillStyle = page;
         context.textAlign = "left";
         context.fillText(`${prefix}${formatCompact(lastClose)}`, plotWidth + 6, at);
       }
@@ -207,7 +225,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         const index = Math.max(first, Math.min(last, last - Math.round((plotWidth - barWidth - barWidth / 2 - pointer.x) / barWidth)));
         reading = rows[index]!;
         const centre = Math.round(x(index)) + 0.5;
-        context.strokeStyle = "rgba(255,255,255,0.4)";
+        context.strokeStyle = cross;
         context.beginPath();
         context.moveTo(centre, 0);
         context.lineTo(centre, plotHeight);
@@ -216,7 +234,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
         context.stroke();
         if (pointer.y < priceHeight) {
           const amount = low + (1 - (pointer.y - 4) / (priceHeight - 8)) * (high - low);
-          context.fillStyle = "#000";
+          context.fillStyle = page;
           context.fillRect(plotWidth, pointer.y - 8, AXIS, 16);
           context.strokeRect(plotWidth + 0.5, Math.round(pointer.y) - 7.5, AXIS - 1, 15);
           context.fillStyle = ink;
@@ -315,7 +333,7 @@ export function CandleChart({ series, view, marks, onRead }: { series: Series; v
       canvas.removeEventListener("wheel", wheel);
       canvas.removeEventListener("dblclick", home);
     };
-  }, []);
+  }, [look]);
 
   return (
     <canvas

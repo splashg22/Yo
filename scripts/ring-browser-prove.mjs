@@ -60,8 +60,8 @@ const ringSol = async () => {
     .locator("td")
     .nth(2);
   for (let attempt = 0; attempt < 200; attempt++) {
-    const text = (await cell.innerText()).trim();
-    if (!/reading/i.test(text)) return text;
+    // A figure not read yet is three dots marked as pending, with no words in it.
+    if ((await cell.locator("[data-pending]").count()) === 0) return (await cell.innerText()).trim();
     await page.waitForTimeout(150);
   }
   throw new Error("the page never showed a Ring balance");

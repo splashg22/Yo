@@ -105,6 +105,8 @@ function LaunchForm() {
         toRing,
       });
       const sent = await signAndSend(me, built.transaction, [mint.seed], onSent);
+      // The form and its long review are gone and a short result is in their place: the page goes back to its top to show it.
+      window.scrollTo({ top: 0 });
       setLaunched({
         mint: mint.address,
         symbol: form.symbol.trim().toUpperCase(),

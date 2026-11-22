@@ -1397,3 +1397,37 @@ kbd {
     font-size: 10px;
   }
 }
+
+/* A figure on its way: three dots where it will be. They breathe, slowly, unless the device asks for stillness. */
+.pending {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 3ch;
+  height: 1em;
+  vertical-align: middle;
+}
+.pending i {
+  width: 3px;
+  height: 3px;
+  background: currentColor;
+  opacity: 0.35;
+  animation: pending 1.2s ease-in-out infinite;
+}
+.pending i:nth-child(2) {
+  animation-delay: 0.15s;
+}
+.pending i:nth-child(3) {
+  animation-delay: 0.3s;
+}
+@keyframes pending {
+  50% {
+    opacity: 0.9;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pending i {
+    animation: none;
+    opacity: 0.6;
+  }
+}

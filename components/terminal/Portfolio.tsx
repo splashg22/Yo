@@ -5,6 +5,7 @@
  * All of it is worked out from trades the indexer has stored, so any wallet can be looked up, not only one's own:
  * everything here is public on the chain.
  */
+import { Pending } from "../ui/Pending";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { api } from "@/lib/client/api";
@@ -136,12 +137,12 @@ export function Portfolio() {
                 </span>
                 {wallet === signer?.address && <span className="tag">You</span>}
               </Total>
-              <Total label="SOL, public">{sol === null ? "Reading" : <Sol lamports={sol} />}</Total>
-              <Total label="Coins, worth now">{positions === null ? "Reading" : <Sol lamports={value} />}</Total>
-              <Total label="Spent buying">{positions === null ? "Reading" : <Sol lamports={bought} />}</Total>
+              <Total label="SOL, public">{sol === null ? <Pending /> : <Sol lamports={sol} />}</Total>
+              <Total label="Coins, worth now">{positions === null ? <Pending /> : <Sol lamports={value} />}</Total>
+              <Total label="Spent buying">{positions === null ? <Pending /> : <Sol lamports={bought} />}</Total>
               <Total label="Profit so far">
                 {positions === null ? (
-                  "Reading"
+                  <Pending />
                 ) : (
                   <span className={profit < 0n ? "down" : "up"}>
                     {profit > 0n ? "+" : ""}

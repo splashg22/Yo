@@ -1,5 +1,6 @@
 "use client";
 
+import { Pending } from "../ui/Pending";
 import { useSolPrice } from "../ui/Money";
 import { vault } from "@/lib/client/vault";
 import { loadPlans, newPlan, savePlans } from "@/lib/client/withdraw-queue";
@@ -304,7 +305,8 @@ function OpenWallet() {
           </dl>
           <div className="actions">
             {me.kind === "browser" && (
-              <button className="link" type="button" onClick={saveBackup}>
+              // The one thing here that cannot be put right later: without the backup, a lost browser is a lost wallet.
+              <button className="btn" type="button" onClick={saveBackup} data-backup>
                 Save encrypted backup
               </button>
             )}
@@ -376,10 +378,10 @@ function OpenWallet() {
                   <tr key={mint}>
                     <td data-label="Coin">{symbol(mint)}</td>
                     <td data-label="Wallet" className="num">
-                      {inWallet ? formatCoin(mint, inWallet[mint] ?? "0") : "Reading"}
+                      {inWallet ? formatCoin(mint, inWallet[mint] ?? "0") : <Pending />}
                     </td>
                     <td data-label="Ring" className="num">
-                      {mine ? formatCoin(mint, mine.balances[mint] ?? "0") : "Reading"}
+                      {mine ? formatCoin(mint, mine.balances[mint] ?? "0") : <Pending />}
                     </td>
                   </tr>
                 ))}

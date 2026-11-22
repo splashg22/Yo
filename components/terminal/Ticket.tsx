@@ -10,6 +10,7 @@
  * the moment the network has it, then "confirmed" or "failed" when the chain has spoken. The trade also
  * appears in the feed straight away, marked as not yet confirmed, and is taken back if it does not land.
  */
+import { Pending } from "../ui/Pending";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { api, type Signer } from "@/lib/client/api";
@@ -193,6 +194,19 @@ export function Ticket({ coin, store, signer, bind }: { coin: CoinView; store: C
     [settings, coin.symbol, coin.mint, coin.microLamportsPerCoin, coin.hasPool, tx, key, signer, fast, store, refresh],
   );
 
+  // What was typed, against what the wallet holds. Empty until the balances have been read, and for anything that is not an amount.
+  const tooMuch = useMemo(() => {
+    if (!balances || amount.trim() === "") return "";
+    try {
+      const typed = parseAmount(amount, side === "buy" ? SOL_DECIMALS : COIN_DECIMALS);
+      if (side === "sell" && typed > held) return `You hold ${formatTokens(held)} ${coin.symbol}. That is the most you can sell.`;
+      if (side === "buy" && typed > sol) return `Your wallet holds ${formatSol(sol)}. A buy and its fees have to fit in that.`;
+    } catch {
+      return "";
+    }
+    return "";
+  }, [amount, balances, coin.symbol, held, side, sol]);
+
   /** A press of an amount button: with one-click it trades; without, it fills in the amount to be confirmed. */
   const press = useCallback(
     (index: number) => {
@@ -248,9 +262,9 @@ export function Ticket({ coin, store, signer, bind }: { coin: CoinView; store: C
 
       <dl>
         <dt>Your SOL</dt>
-        <dd>{balances ? <Sol lamports={sol} /> : "Reading"}</dd>
+        <dd>{balances ? <Sol lamports={sol} /> : <Pending />}</dd>
         <dt>Your {coin.symbol}</dt>
-        <dd title={formatAmount(held, COIN_DECIMALS)}>{balances ? formatTokens(held) : "Reading"}</dd>
+        <dd title={formatAmount(held, COIN_DECIMALS)}>{balances ? formatTokens(held) : <Pending />}</dd>
       </dl>
 
       <div className="presets" role="group" aria-label={side === "buy" ? "Buy a set amount of SOL" : "Sell a share of what you hold"}>
@@ -298,9 +312,15 @@ export function Ticket({ coin, store, signer, bind }: { coin: CoinView; store: C
           <dt>This site&apos;s fee</dt>
           <dd>{fees && fees.tradeBps > 0 ? `${formatChange(fees.tradeBps).replace("+", "")}, to ${shortAddress(fees.wallet)}` : "None"}</dd>
         </dl>
-        <button className={`go ${side === "sell" ? "sell" : ""}`} type="submit">
+        {/* More than the wallet holds: said here, as it is typed, and the button waits. Nothing is sent to find it out. */}
+        <button className={`go ${side === "sell" ? "sell" : ""}`} type="submit" disabled={tooMuch !== ""} aria-describedby={tooMuch ? "t-too-much" : undefined}>
           {side === "buy" ? `Buy ${coin.symbol}` : `Sell ${coin.symbol}`}
         </button>
+        {tooMuch && (
+          <p className="note-line" id="t-too-much" role="status" data-too-much>
+            {tooMuch}
+          </p>
+        )}
       </form>
 
       <p className="note-line" data-public>

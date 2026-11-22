@@ -237,3 +237,30 @@ for the wallet made in this browser.
   so that the Helius RPC address serves all three, works. The app is built that way.
 - On devnet the indexer stopped at every block that held a version 1 transaction. Blocks and receipts are
   now read as plain JSON with the newest transaction version allowed (`test/unit/rpc-source.test.ts`).
+
+
+## Rerun before launch: 22 November 2026, later the same day
+
+Run again from scratch with three new wallets (`npm run ring:prove -- --fresh`), paid for by the funded devnet
+wallet `5bay9nphMrjypM3UQumPEhPdSQFxxLQ8FhfPxwXXehT5`. **Every step passed.** Each result below was read back
+from the chain or from the Ring's own indexer by the script, not taken from the SDK's return value.
+
+| Step | Result | Signature (devnet) | Cost to the paying wallet |
+| --- | --- | --- | --- |
+| Reach devnet: RPC, the Ring's indexer, the prover's attested enclave | Passed. solana-core 4.4.1; attestation verified by the SDK; proving keys match | | |
+| Register wallet A | Passed, version 1 transaction, 316 bytes | `5rk4ZFdTZRkKDud7hbpGh4gGAHgBz2LaAUvFh544DxKxFo5cU1cppySk1cGnBCw5U6EJ4TB3yiKKEtHRjr6BkNiF` | 0.00116324 SOL (rent for the registry record, and the fee) |
+| Register wallet B | Passed | `3HBwGNxsMYcujaA4PJGQja9fFu5rW2ppouLWU3uTDzG3rbMUaRvqbri9UhSpoBKxecm6p4GmXqFhcNEVrGVKyV2w` | 0.00116324 SOL |
+| Deposit 0.1 SOL into A's Ring balance | Passed. A's Ring balance, read with A's keys: 0 to 100,000,000 lamports | `53tu7rTMPq2uX4SUVb5oPnALX97z7AeUTK7tAosm71yL5Mee5VMcis81uabhQCg2AnbRgGNHvaTwVCrqDuxTKqx1` | 0.1 SOL deposited, 0.000005 SOL fee |
+| Transfer 0.03 SOL from A to B | Passed. A: 100,000,000 to 70,000,000; B: 0 to 30,000,000. The amount is not among the public SOL movements of the transaction. Proof made in 1.5 s | `5uLhRheaxiG5tiEQgfGpjYbd3dqAbcCRq1RS6txow9vK3MWHoH3P5TenYjCiTxbS4ZkSVdKVFEtXNSZi5Turu4eG` | 0.00001 SOL |
+| Withdraw 0.01 SOL from B to a fresh address | Passed. The fresh address on the chain: 0 to 10,000,000 lamports. B's Ring balance after: 20,000,000 | `2pSzWSu6B6QZ5pprXfWisU49JWtKPVZTBHCKpcH6FUFGW4gnz7bWs76oP9zqyoZu9pQ9bpbkBR8gM2K6N3eJWknP` | 0.00001 SOL |
+
+The funded wallet held 0.6455 SOL before this run and about 0.245 after (0.4 went to the new test wallets).
+
+What this settles for launch: **register, deposit, transfer and withdraw of SOL work on the real program on
+devnet, by script and (proven earlier today) through this site's wallet page in a browser.** That is what
+launch B can honestly offer.
+
+Still not run on the real program, and so not offered at launch: a pump.fun coin in a Ring balance, pay links,
+split withdrawals, and OTC (the two-transfers-in-one-transaction proof exists; the product flow on it does not).
+Still unknown: whether wallet extensions (Phantom, Solflare, Backpack) will sign a version 1 transaction. A wallet
+made in the browser does, and is the only kind the launch relies on.
