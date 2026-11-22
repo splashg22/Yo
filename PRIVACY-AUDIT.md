@@ -162,6 +162,64 @@ Both wallet addresses stay **public**: each output carries its owner's public ke
 indexer would see who transacts with whom and when. A remote prover, if used, receives the
 secret inputs.
 
+## 1b. The main journey: what an observer can actually link
+
+Added 22 November 2026. "An observer" is anyone reading the public chain, with no access to this site's
+server. The journey is: buy a coin on the curve, deposit it to a Ring balance, transfer it to another Ring
+balance, withdraw it. This is written for the **Default Ring** as its SDK describes it. Until the devnet
+run in `RING-RESULTS.md` is complete, every statement about the real Ring is from its documentation, not
+from our own evidence, and is marked so.
+
+### Step by step
+
+| Step | What the chain shows | What that lets an observer link |
+| --- | --- | --- |
+| **Buy** on the curve or in a pool | Buyer's wallet, coin, amount, price, time | Everything. The wallet now publicly holds a known amount of a known coin |
+| **Deposit** to a Ring balance | Depositing wallet, coin, exact amount, time | The buy to the deposit, trivially: same wallet, same coin, usually the same amount minutes later. An observer knows this wallet's Ring balance of this coin is at least what it deposited |
+| **Transfer** between Ring balances | Sender's wallet, recipient's wallet, time. Not the coin, not the amount | **That these two wallets dealt with each other, and when.** If the sender has deposited only one coin, the coin is as good as known. If the sender deposited X and makes one transfer, the amount is at most X |
+| **Withdraw** | Destination, coin, exact amount, time. The withdrawing wallet too, unless a sponsor pays the fee and the owner signs inside the proof (from the SDK's documentation; not yet run by us) | See below: this is where most of the linking happens |
+
+So on the Default Ring **a wallet is never hidden**. What is hidden is the coin and the amount of what moves
+between Ring balances. Whether that hiding holds up depends almost entirely on how coins leave.
+
+### How a withdrawal gives the rest away
+
+1. **Same amount in and out.** Wallet A deposits 1,000,000 of a coin. Wallet B, which A transferred to,
+   withdraws 1,000,000 of that coin. The transfer's hidden amount and coin are now known: it was all of it.
+2. **Timing.** A deposit, a transfer and a withdrawal within minutes of each other are one payment, to
+   anyone looking, whatever the amounts.
+3. **Emptying the balance.** A wallet that withdraws everything shows the sum of everything it was sent.
+   With few senders, each payment can be worked out.
+4. **A destination with a past.** Withdrawing to an address that has ever been used ties everything known
+   about that address to the withdrawal. Withdrawing to the wallet that deposited shows the round trip.
+5. **A coin almost nobody holds in the Ring.** If two wallets have ever deposited a coin, "someone
+   withdrew that coin" narrows it to two. The privacy score on each coin page (share of supply in Ring
+   balances, wallets that have deposited) is the size of the crowd, stated as the two public facts it is.
+6. **This site's server and its RPC provider** see more than the chain: IP addresses, and which wallet asked
+   for what. That is in section "Across all actions" above.
+
+### What reduces it, and what is built
+
+| Measure | What it does | What it does not do | Built |
+| --- | --- | --- | --- |
+| **Warnings before a withdrawal** | Says, at the moment, when the amount equals a deposit, when the deposit was under an hour ago, when the destination is the depositing wallet, when the destination already has a history on the chain, and when the withdrawal empties the balance | Stop anyone. It is their choice | `lib/linkability.ts`, `test/unit/linkability.test.ts`; the destination check is `address/seen` |
+| **A fresh destination** | The wallet page offers to make a new address for the withdrawal, with its own backup file, and warns when a typed destination has been seen before | Hide the destination, the coin or the amount. A fresh address is still public; it just carries no history | The check and the warning are built; the "make one for me" button comes with the wallet page rebuild |
+| **Split withdrawals** | One withdrawal becomes up to 8 uneven amounts that add up exactly | Hide the total from someone who adds the parts to the same destination. It helps most with **different** destinations, or when other people are withdrawing the same coin in between | `lib/withdraw-plan.ts`, `test/unit/withdraw-plan.test.ts`; the wallet page runs the plan |
+| **Delays** | The parts are spread at random over up to 72 hours, the first one at once | Work while the tab is closed. On the real Ring each part needs a proof made with the wallet's keys, so nobody else can send it later; the tab has to stay open. A wallet extension is asked to approve each part by hand, never on a timer | Same module |
+| **Withdraw less than was deposited, later** | The simple version of the above | | Advice in the panel |
+| **A bigger crowd** | More wallets depositing a coin makes any one withdrawal less telling | | Not something code can make. The privacy score shows it |
+
+### What none of this can do
+
+- Hide either wallet of a transfer. Only Helius's anonymous rings would, and they are not released.
+- Hide a deposit or a withdrawal. Coin and amount are public on the way in and the way out.
+- Make a buy on the curve private. The trail starts in public.
+- Protect against this site's own server in this build: the Ring balances here are a stand-in that the
+  server keeps and can read (sections above). That ends only when the real Ring replaces it.
+
+The honest summary for the main journey: **an observer can always see which wallets dealt with which. With
+care on the way out, they cannot see how much of which coin.** Without care, they usually can.
+
 ## 2. The options
 
 Status of this section: Helius's repository was read directly (commit 42de575, 20

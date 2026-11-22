@@ -80,6 +80,7 @@ export const marketOperations: Handlers<
   | "position"
   | "portfolio"
   | "wallet/activity"
+  | "address/seen"
   | "stats"
   | "wallet/public"
   | "launch/build"
@@ -154,6 +155,8 @@ export const marketOperations: Handlers<
     const wallet = addressOf(input.wallet, "wallet address");
     return { positions: await positionsOf(wallet) };
   },
+
+  "address/seen": async (input) => ({ seen: (await activityOf(addressOf(input.address, "address"))).length > 0 }),
 
   "wallet/activity": async (input) => ({ activity: await activityOf(addressOf(input.wallet, "wallet address")) }),
 

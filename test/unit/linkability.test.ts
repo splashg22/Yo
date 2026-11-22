@@ -43,4 +43,18 @@ describe("warnings before a withdrawal that is easy to link to a deposit", () =>
   it("gives all three together for the most linkable withdrawal there is", () => {
     expect(withdrawalWarnings([deposit("10", 2)], { wallet: ME, mint: COIN, amount: 10n }, NOW)).toHaveLength(3);
   });
+
+  it("warns when the destination already has a history, and not when it is new or is the same wallet", () => {
+    const base = { wallet: ME, mint: COIN, amount: 3n, destination: "Elsewhere" };
+    expect(withdrawalWarnings([], { ...base, destinationSeen: true }, NOW)).toEqual([expect.stringMatching(/already has a history/)]);
+    expect(withdrawalWarnings([], { ...base, destinationSeen: false }, NOW)).toEqual([]);
+    expect(withdrawalWarnings([], base, NOW)).toEqual([]); // not checked yet: nothing is claimed
+    expect(withdrawalWarnings([], { ...base, destination: ME, destinationSeen: true }, NOW)).toEqual([]);
+  });
+
+  it("warns when a withdrawal empties the balance", () => {
+    const base = { wallet: ME, mint: COIN, destination: "Elsewhere" };
+    expect(withdrawalWarnings([], { ...base, amount: 9n, balance: 9n }, NOW)).toEqual([expect.stringMatching(/empties your Ring balance/)]);
+    expect(withdrawalWarnings([], { ...base, amount: 8n, balance: 9n }, NOW)).toEqual([]);
+  });
 });

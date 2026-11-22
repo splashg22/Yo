@@ -202,6 +202,8 @@ export interface Api {
   status: Op<Nothing, Status>;
   stats: Op<Nothing, Stats>;
   faucet: Op<{ wallet: string }, { ok: true }>;
+  /** The price of SOL in US dollars, with when it was published and where it came from. Null: there is none worth showing, and the site shows SOL alone. */
+  "price/sol": Op<Nothing, { price: { usd: number; at: number; source: string } | null }>;
   /** One wallet signature opens a session for reading that wallet's own records and uploading a picture. It cannot move anything. */
   "session/open": Op<Nothing, { token: string; expiresAt: number }, true>;
   "session/close": Op<{ session: string }, { ok: true }>;
@@ -218,6 +220,8 @@ export interface Api {
   /** The latest public transactions a wallet signed or received in, newest first. */
   "wallet/activity": Op<{ wallet: string }, { activity: Activity[] }>;
   "wallet/public": Op<{ wallet: string }, { balances: Record<string, string> }>;
+  /** Whether the chain already has any transaction for an address. A destination that has never been seen gives away nothing but itself. */
+  "address/seen": Op<{ address: string }, { seen: boolean }>;
   "launch/build": Op<
     {
       wallet: string;

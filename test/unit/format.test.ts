@@ -40,14 +40,14 @@ describe("amounts in and out", () => {
 
 describe("prices, changes, shares, addresses", () => {
   it("formats a price far below one lamport", () => {
-    expect(formatPrice(279_589n)).toBe("0.000000000279 SOL");
+    expect(formatPrice(279_589n, true)).toBe("0.000000000279589 SOL"); // every digit, on request
     expect(formatPrice("1000000000000000")).toBe("1 SOL");
   });
   it("formats a change from whole basis points", () => {
     expect(formatChange(125)).toBe("+1.25%");
     expect(formatChange(-5)).toBe("-0.05%");
     expect(formatChange(0)).toBe("0.00%");
-    expect(formatChange(1_234_500)).toBe("+12,345.00%");
+    expect(formatChange(1_234_500)).toBe("+12,345%"); // past a thousand percent the hundredths are noise
   });
   it("formats a share from whole parts per million", () => {
     expect(formatShare(151_700)).toBe("15.17%");

@@ -9,7 +9,8 @@ const SOON_MS = 60 * 60 * 1000;
 
 export function withdrawalWarnings(
   history: RingEvent[],
-  withdrawal: { wallet: string; mint: string; amount: bigint; destination?: string },
+  /** `destinationSeen`: the chain already has transactions for the destination. Undefined: not checked. */
+  withdrawal: { wallet: string; mint: string; amount: bigint; destination?: string; destinationSeen?: boolean; balance?: bigint },
   now = Date.now(),
 ): string[] {
   const warnings: string[] = [];
@@ -26,6 +27,17 @@ export function withdrawalWarnings(
   }
   if (deposits.length > 0 && (withdrawal.destination === undefined || withdrawal.destination === "" || withdrawal.destination === withdrawal.wallet)) {
     warnings.push("It goes back to the wallet that deposited, so the chain shows the round trip.");
+  }
+  const elsewhere = withdrawal.destination !== undefined && withdrawal.destination !== "" && withdrawal.destination !== withdrawal.wallet;
+  if (elsewhere && withdrawal.destinationSeen === true) {
+    warnings.push(
+      "The destination already has a history on the chain. Whatever is known about that address will now be tied to this withdrawal. An address made for this and never used before gives away nothing but itself.",
+    );
+  }
+  if (withdrawal.balance !== undefined && withdrawal.balance > 0n && withdrawal.amount === withdrawal.balance) {
+    warnings.push(
+      "This empties your Ring balance of this coin. Withdrawing everything at once shows the total you held, and with it the sum of what you were sent.",
+    );
   }
   return warnings;
 }

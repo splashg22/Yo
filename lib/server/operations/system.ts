@@ -11,6 +11,7 @@ import { settled, submit, type TxOutcome } from "../sender";
 import { closeSession, openSession } from "../sessions";
 import { connection, explain } from "../solana";
 import { state } from "../store";
+import { solPrice } from "../usd";
 import { addressOf, signatureOf, text } from "../validate";
 import { verifiedBody } from "./ring";
 import type { Handlers } from "./types";
@@ -109,7 +110,7 @@ const outcomeView = (outcome: TxOutcome): TxOutcomeView => ({
   ...(outcome.landedInMs === undefined ? {} : { landedInMs: outcome.landedInMs }),
 });
 
-export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/wait" | "tx/status" | "session/open" | "session/close"> = {
+export const system: Handlers<"config" | "status" | "faucet" | "price/sol" | "tx/send" | "tx/wait" | "tx/status" | "session/open" | "session/close"> = {
   config: () => {
     const { network, features, fees } = settings();
     return {
@@ -144,6 +145,8 @@ export const system: Handlers<"config" | "status" | "faucet" | "tx/send" | "tx/w
     if (!outcome) throw new Error("this server has no record of sending that transaction");
     return outcomeView(outcome);
   },
+
+  "price/sol": async () => ({ price: await solPrice() }),
 
   "tx/status": async (input) => transactionView(signatureOf(input.signature)),
 
