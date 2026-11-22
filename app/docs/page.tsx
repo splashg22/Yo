@@ -1,3 +1,4 @@
+import { BUNDLE_WALLETS, SNIPE_SLOTS } from "@/lib/risk-rules";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { VISIBILITY } from "@/lib/visibility";
@@ -48,6 +49,11 @@ export default function Docs() {
             <li>
               <a className="link" href="#the-privacy-score">
                 The privacy score
+              </a>
+            </li>
+            <li>
+              <a className="link" href="#risk-figures">
+                The risk figures on the board
               </a>
             </li>
             <li>
@@ -171,6 +177,41 @@ export default function Docs() {
             <li>Wallets that have deposited it: wallets that made at least one public deposit of the coin.</li>
           </ul>
           <p>Neither is a count of holders inside the Ring. That number is what the encryption hides.</p>
+
+          <h2 id="risk-figures">The risk figures on the board</h2>
+          <p>
+            Every figure is worked out from this site&apos;s own record of the chain, by the rule given here. Shares are of the coin&apos;s whole supply and
+            count what a wallet holds now. The bonding curve and the pool hold coins but are not holders, and are left out of every figure.
+          </p>
+          <ul>
+            <li>Top ten: the ten largest holders, together.</li>
+            <li>Dev: the wallet that created the coin. What it holds, and how many times it has sold.</li>
+            <li>
+              Snipers: wallets other than the creator that bought within {SNIPE_SLOTS} slots of the coin&apos;s creation, the creation slot included. That is a
+              little over a second.
+            </li>
+            <li>
+              Bundles: among those early buyers, the ones who bought in a slot in which {BUNDLE_WALLETS} or more different wallets bought. Several wallets
+              buying in one slot at a launch are usually one person&apos;s wallets sent together.
+            </li>
+            <li>Insiders: wallets, other than the creator, that hold the coin and have never bought it on the curve or in its pool. They were sent it.</li>
+          </ul>
+          <p>What these rules cannot see:</p>
+          <ul>
+            <li>
+              They need the coin&apos;s record from its first block. For a coin that was already trading when this site first saw it, snipers, bundles and
+              insiders are shown as not known. Not known is not the same as none, and such a coin fails any filter set on those figures.
+            </li>
+            <li>
+              &quot;Never bought&quot; means no buy recorded in that wallet&apos;s name. Coins bought through another program that trades for the wallet, or
+              moved between one person&apos;s own wallets, look the same as coins handed to an insider.
+            </li>
+            <li>
+              Two wallets are not known to be one person. A bundle is a guess from timing, and a launcher who spreads buys over several slots is not caught by
+              it.
+            </li>
+            <li>None of these figures makes a coin safe. They describe who holds it and how they came to.</li>
+          </ul>
 
           <h2 id="costs">Costs</h2>
           <p>These are Solana&apos;s and the Ring&apos;s own costs, as their documentation states them. {site.name} adds no fee.</p>

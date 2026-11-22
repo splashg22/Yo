@@ -24,6 +24,14 @@ export interface Config {
    */
   fees: { wallet: string; tradeBps: number; launchLamports: string; otcBps: number };
 }
+export interface RiskView {
+  top10Bps: number;
+  devBps: number;
+  devSells: number;
+  snipers: { wallets: number; heldBps: number } | null;
+  bundles: { wallets: number; heldBps: number } | null;
+  insiders: { wallets: number; heldBps: number } | null;
+}
 export interface CoinView {
   mint: string;
   name: string;
@@ -38,6 +46,17 @@ export interface CoinView {
    * Nothing earlier is held, and its name and creator are empty until they have been read from the chain.
    */
   followedSince?: number;
+  /** SOL standing behind the price: what buyers have put into the curve, or the SOL side of the pool. Lamports. */
+  liquidityLamports: string;
+  /** Trades in the last 24 hours, by side. */
+  buys24h: number;
+  sells24h: number;
+  /**
+   * The risk figures, each by a rule given in full in lib/server/risk.ts and on the docs page. Shares are hundredths
+   * of a percent of supply held now. A figure that is null is not known (the coin was not followed from its creation),
+   * which is not the same as none. Absent altogether for a coin this site cannot read.
+   */
+  risk?: RiskView;
   /**
    * Set when this server is not receiving this coin's trades as they happen (the data plan carries live trades only for
    * coins somebody has open and for the newest coins): the moment its figures were last true, in milliseconds.

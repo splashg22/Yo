@@ -1011,17 +1011,20 @@ kbd {
 }
 .filters {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 10px 16px;
+  gap: 12px;
   padding: 12px 16px;
   border: 1px solid var(--rule);
   margin: 0 16px;
 }
-.filters label {
-  display: grid;
-  gap: 4px;
-  font-size: 12px;
-  color: var(--mute);
+/* The tick's own label lays itself out: only its words are sized here. */
+.filters .tick {
+  font-size: 13px;
+  color: var(--ink);
+  min-height: 32px;
+}
+.filters .note-line {
+  margin: 0;
+  max-width: 90ch;
 }
 .sheet {
   position: fixed;
@@ -1206,5 +1209,65 @@ kbd {
   /* A board row on a phone has room for the age and the holders; the trade count is on the coin's own screen. */
   .coin-row .roomy {
     display: none;
+  }
+}
+
+/* ---- the board's filters: one small pair of fields per figure, and the row's risk line ---- */
+.presets-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+.ranges {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px 12px;
+}
+.range {
+  display: grid;
+  gap: 4px;
+}
+.range .field-row input {
+  min-width: 0;
+  width: 50%;
+  min-height: 32px;
+  height: 32px;
+  padding: 0 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+.presets-row .field-row input,
+.presets-row .btn {
+  min-height: 36px;
+  height: 36px;
+}
+.range .field-row input + input {
+  border-left: 1px solid var(--rule);
+}
+/* A row is two lines: the coin with its figures, and under them, across the row, who holds it. */
+.coin-row {
+  grid-template-rows: auto auto;
+  align-content: center;
+  row-gap: 3px;
+}
+.coin-row > a > .coin-picture,
+.coin-row > .quick {
+  grid-row: 1 / span 2;
+  align-self: center;
+}
+.coin-row .risk {
+  grid-column: 2 / 4;
+  grid-row: 2;
+  display: flex;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--mute);
+  white-space: nowrap;
+}
+@media (max-width: 600px) {
+  .coin-row .risk {
+    gap: 7px;
   }
 }

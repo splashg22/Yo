@@ -267,10 +267,19 @@ transactions, and a subscription. Behind it today:
 | `RpcSource` | Whole blocks through an RPC | Built. Right for the local chain and devnet; too heavy for mainnet |
 | `RecordedSource` | A recorded stretch of mainnet, played back | **Built this round**, with its tests (`test/unit/recorded.test.ts`) |
 | `SimChain` | A made-up chain, for load tests and reorganisations | Built |
-| A websocket source (Helius, plan A) | New coins and migrations, plus per-coin subscriptions | Not built: waits for your go-ahead on the plan |
-| A gRPC source (Chainstack or Shyft, plan B) | Every pump.fun and pool transaction | Not built |
+| `StreamSource` | Any stream of single transactions, gathered into what the indexer reads | **Built**, and tested on recorded mainnet against whole-block reading, repeats, late arrivals, a drop and reconnect, and a drop too long to read back (`test/unit/stream-source.test.ts`) |
+| `HeliusTxStream` (plan A) | Helius's `transactionSubscribe`: new coins always, plus the coins chosen to be followed trade by trade | **Written from Helius's documentation, never run.** It needs the Developer plan's key, and this machine cannot open outbound websockets. Only its message handling is tested. Switched on with `FEED_PROVIDER=helius-ws` |
+| A gRPC stream (Chainstack or Shyft, plan B) | Every pump.fun and pool transaction | Not built. It would be a second small adapter beside `HeliusTxStream`; nothing above it changes. With Helius alone, plan B is already a setting: `FEED_SCOPE=all` |
 
-Nothing in any source can send a transaction: the interface has no method for it.
+Nothing in any source can send a transaction: the interface has no method for it. And on mainnet the server
+itself refuses: `RING_NETWORK=mainnet` answers a fixed list of reads and nothing else (`test/unit/read-only.test.ts`).
+
+**What "switch the key on" will mean, exactly:** subscribe to Helius Developer, put the key in `.env`, set
+`RING_NETWORK=mainnet`, `FEED_PROVIDER=helius-ws`, `FEED_SCOPE=coins`. The first run is a test, not a launch: I
+compare what the stream stores against a recording of the same slots and fix what differs, because that adapter
+has only ever met Helius's documentation. Two things I already know are missing on plan A: migrations of coins
+that are not being followed (a coin that graduates while nobody has it open is noticed only when it is next
+opened), and names for coins first seen through a trade.
 
 ## 7. Launch plan in three tiers
 

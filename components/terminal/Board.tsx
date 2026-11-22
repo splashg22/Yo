@@ -9,6 +9,20 @@
  *
  * Keys: / search, arrows or H J K L to move, Enter to open, Q to quick-buy the marked coin, ? for this list.
  */
+import {
+  BUILT_IN_PRESETS,
+  FIGURES,
+  NO_FILTERS,
+  countSet,
+  decodeFilters,
+  encodeFilters,
+  limitsOf,
+  matches,
+  parsePresets,
+  serialisePresets,
+  type BoardFilters,
+  type Preset,
+} from "@/lib/board-filters";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,7 +34,7 @@ import type { CoinView } from "@/lib/contract";
 import { formatAmount, formatChange, formatCompact, formatSol, parseAmount, shortAddress } from "@/lib/format";
 import { useTx } from "../tx/Tx";
 import { CoinPicture } from "../ui/CoinPicture";
-import { Segments, Tick } from "../ui/controls";
+import { Choice, Segments, Tick } from "../ui/controls";
 import { Age, UsdOfSol } from "../ui/Money";
 import { useVirtual } from "../ui/useVirtual";
 import { useWallet } from "../wallet/WalletProvider";
@@ -28,7 +42,7 @@ import { LiveStrip } from "./LiveStrip";
 
 /** A coin is "about to graduate" once its curve has sold this share, in hundredths of a percent. */
 const NEARLY_BPS = 6_000;
-const ROW = 68;
+const ROW = 84;
 const COLUMNS = [
   { key: "new", title: "New", empty: "No new coins match." },
   { key: "nearly", title: "About to graduate", empty: "No coin is close to selling out its curve." },
@@ -36,24 +50,10 @@ const COLUMNS = [
 ] as const;
 type ColumnKey = (typeof COLUMNS)[number]["key"];
 
-interface Filters {
-  text: string;
-  minCap: string;
-  maxCap: string;
-  minVolume: string;
-  minHolders: string;
-  maxAgeMinutes: string;
-  hereOnly: boolean;
-}
-const NO_FILTERS: Filters = { text: "", minCap: "", maxCap: "", minVolume: "", minHolders: "", maxAgeMinutes: "", hereOnly: false };
 const ADDRESS = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
-const lamportsOf = (text: string): bigint | null => {
-  try {
-    return text.trim() === "" ? null : parseAmount(text, SOL_DECIMALS);
-  } catch {
-    return null;
-  }
-};
+const PRESETS_KEY = "ring.board.presets";
+/** A share of supply for a row: "12%", or a dash where it is not known. */
+const share = (bps: number | undefined): string => (bps === undefined ? "?" : `${(bps / 100).toFixed(bps < 1000 ? 1 : 0)}%`);
 
 function columnOf(coin: CoinView): ColumnKey {
   if (coin.complete) return "graduated";
@@ -74,8 +74,39 @@ export function Board() {
   const [coins, setCoins] = useState<ReadonlyMap<string, CoinView>>(new Map());
   const [loaded, setLoaded] = useState(false);
   const [problem, setProblem] = useState("");
-  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [text, setText] = useState("");
+  const [filters, setFilters] = useState<BoardFilters>(NO_FILTERS);
   const [showFilters, setShowFilters] = useState(false);
+  const [saved, setSaved] = useState<Preset[]>([]);
+  const [presetName, setPresetName] = useState("");
+  const presets = useMemo(() => [...BUILT_IN_PRESETS, ...saved], [saved]);
+  const applied = useMemo(() => presets.find((preset) => encodeFilters(preset.filters) === encodeFilters(filters))?.name ?? "", [presets, filters]);
+
+  // The filters live in the address, so a filtered board can be linked to, and a reload or a new tab opens on the same one.
+  useEffect(() => {
+    setFilters(decodeFilters(new URLSearchParams(window.location.search).get("f")));
+    try {
+      setSaved(parsePresets(localStorage.getItem(PRESETS_KEY)));
+    } catch {
+      /* no storage: the built-in presets are still there */
+    }
+  }, []);
+  const changeFilters = useCallback((next: BoardFilters) => {
+    setFilters(next);
+    const url = new URL(window.location.href);
+    const code = encodeFilters(next);
+    if (code) url.searchParams.set("f", code);
+    else url.searchParams.delete("f");
+    window.history.replaceState(null, "", url);
+  }, []);
+  const keepPresets = useCallback((next: Preset[]) => {
+    setSaved(next);
+    try {
+      localStorage.setItem(PRESETS_KEY, serialisePresets(next));
+    } catch {
+      /* kept for this visit only */
+    }
+  }, []);
   const [quick, setQuick] = useState("0.05");
   const [oneClick, setOneClick] = useState(false);
   const [tab, setTab] = useState<ColumnKey>("new");
@@ -131,25 +162,18 @@ export function Board() {
   }, [load]);
 
   const columns = useMemo(() => {
-    const text = filters.text.trim().toLowerCase();
-    const [minCap, maxCap, minVolume] = [lamportsOf(filters.minCap), lamportsOf(filters.maxCap), lamportsOf(filters.minVolume)];
-    const minHolders = Number(filters.minHolders) || 0;
-    const maxAge = Number(filters.maxAgeMinutes) > 0 ? Number(filters.maxAgeMinutes) * 60_000 : null;
+    const wanted = text.trim().toLowerCase();
+    const limits = limitsOf(filters);
     const now = Date.now();
     const lists: Record<ColumnKey, CoinView[]> = { new: [], nearly: [], graduated: [] };
     for (const coin of coins.values()) {
-      if (text && !coin.symbol.toLowerCase().includes(text) && !coin.name.toLowerCase().includes(text) && coin.mint.toLowerCase() !== text) continue;
-      if (minCap !== null && BigInt(coin.marketCapLamports) < minCap) continue;
-      if (maxCap !== null && BigInt(coin.marketCapLamports) > maxCap) continue;
-      if (minVolume !== null && BigInt(coin.volume24hLamports) < minVolume) continue;
-      if (coin.holders < minHolders) continue;
-      if (maxAge !== null && now - coin.createdAt > maxAge) continue;
-      if (filters.hereOnly && !coin.launchedHere) continue;
+      if (wanted && !coin.symbol.toLowerCase().includes(wanted) && !coin.name.toLowerCase().includes(wanted) && coin.mint.toLowerCase() !== wanted) continue;
+      if (!matches(coin, filters, now, limits)) continue;
       lists[columnOf(coin)].push(coin);
     }
     for (const key of Object.keys(lists) as ColumnKey[]) lists[key].sort(ORDER[key]);
     return lists;
-  }, [filters, coins]);
+  }, [filters, text, coins]);
 
   const quickBuy = useCallback(
     async (coin: CoinView, who: Signer) => {
@@ -215,9 +239,9 @@ export function Board() {
     return () => window.removeEventListener("keydown", onKey);
   }, [columns, cursor, router, signer, oneClick, quickBuy]);
 
-  const typed = filters.text.trim();
+  const typed = text.trim();
   const unknownAddress = ADDRESS.test(typed) && !coins.has(typed);
-  const active = Object.entries(filters).filter(([key, value]) => key !== "text" && value !== "" && value !== false).length;
+  const active = countSet(filters);
 
   return (
     <>
@@ -234,8 +258,8 @@ export function Board() {
               type="search"
               aria-label="Search by name, ticker or address"
               placeholder="Name, ticker, or paste any pump.fun coin's address"
-              value={filters.text}
-              onChange={(event) => setFilters({ ...filters, text: event.target.value })}
+              value={text}
+              onChange={(event) => setText(event.target.value)}
             />
             <span className="unit">
               <kbd>/</kbd>
@@ -265,28 +289,86 @@ export function Board() {
         </div>
         {showFilters && (
           <div className="filters" role="group" aria-label="Filters">
-            {(
-              [
-                ["minCap", "Market cap at least, SOL"],
-                ["maxCap", "Market cap at most, SOL"],
-                ["minVolume", "Volume in 24h at least, SOL"],
-                ["minHolders", "Holders at least"],
-                ["maxAgeMinutes", "Age at most, minutes"],
-              ] as const
-            ).map(([key, label]) => (
-              <label key={key}>
-                {label}
-                <span className="field-row">
-                  <input inputMode="decimal" value={filters[key]} onChange={(event) => setFilters({ ...filters, [key]: event.target.value })} />
-                </span>
-              </label>
-            ))}
-            <Tick checked={filters.hereOnly} onChange={(hereOnly) => setFilters({ ...filters, hereOnly })}>
+            <div className="presets-row">
+              <Choice
+                id="board-preset"
+                label="Preset"
+                value={applied}
+                onChange={(name) => changeFilters(presets.find((preset) => preset.name === name)?.filters ?? NO_FILTERS)}
+                options={[
+                  { value: "", label: applied === "" && active > 0 ? "Your own filters" : "No preset" },
+                  ...presets.map((preset) => ({ value: preset.name, label: preset.name })),
+                ]}
+              />
+              <span className="field-row" style={{ width: 220 }}>
+                <input
+                  aria-label="Name for these filters"
+                  placeholder="Name these filters"
+                  maxLength={40}
+                  value={presetName}
+                  onChange={(event) => setPresetName(event.target.value)}
+                />
+              </span>
+              <button
+                className="btn"
+                type="button"
+                disabled={active === 0 || presetName.trim() === "" || BUILT_IN_PRESETS.some((preset) => preset.name === presetName.trim())}
+                onClick={() => {
+                  keepPresets([...saved.filter((preset) => preset.name !== presetName.trim()), { name: presetName.trim(), filters }]);
+                  setPresetName("");
+                }}
+              >
+                Save
+              </button>
+              {saved.some((preset) => preset.name === applied) && (
+                <button className="link" type="button" onClick={() => keepPresets(saved.filter((preset) => preset.name !== applied))}>
+                  Remove &quot;{applied}&quot;
+                </button>
+              )}
+              <button className="link" type="button" onClick={() => changeFilters(NO_FILTERS)}>
+                Clear the filters
+              </button>
+            </div>
+            <div className="ranges">
+              {FIGURES.map((figure) => (
+                <div key={figure.key} className="range" data-figure={figure.key}>
+                  <span className="label">
+                    {figure.label}
+                    {figure.unit ? `, ${figure.unit}` : ""}
+                  </span>
+                  <span className="field-row">
+                    <input
+                      aria-label={`${figure.label} at least`}
+                      placeholder="from"
+                      inputMode="decimal"
+                      value={filters.ranges[figure.key]?.min ?? ""}
+                      onChange={(event) =>
+                        changeFilters({ ...filters, ranges: { ...filters.ranges, [figure.key]: { ...filters.ranges[figure.key], min: event.target.value } } })
+                      }
+                    />
+                    <input
+                      aria-label={`${figure.label} at most`}
+                      placeholder="to"
+                      inputMode="decimal"
+                      value={filters.ranges[figure.key]?.max ?? ""}
+                      onChange={(event) =>
+                        changeFilters({ ...filters, ranges: { ...filters.ranges, [figure.key]: { ...filters.ranges[figure.key], max: event.target.value } } })
+                      }
+                    />
+                  </span>
+                </div>
+              ))}
+            </div>
+            <Tick checked={filters.hereOnly} onChange={(hereOnly) => changeFilters({ ...filters, hereOnly })}>
               Launched here only
             </Tick>
-            <button className="link" type="button" onClick={() => setFilters({ ...NO_FILTERS, text: filters.text })}>
-              Clear the filters
-            </button>
+            <p className="note-line">
+              A coin fails a filter on a figure that is not known for it. Snipers, bundles and insiders are known only for coins followed from their first
+              block.{" "}
+              <Link className="link" href="/docs#risk-figures">
+                How each figure is worked out
+              </Link>
+            </p>
           </div>
         )}
         {problem && (
@@ -500,6 +582,15 @@ function Row({
             <span className={change !== null && change < 0 ? "down" : "up"}>{change === null ? "" : formatChange(change)}</span>
           )}
         </span>
+        {coin.risk && (
+          <span className="risk" data-risk>
+            <span title="Share of supply held by the ten largest holders">T10 {share(coin.risk.top10Bps)}</span>
+            <span title="Share held by the wallet that created the coin">Dev {coin.followedSince === undefined ? share(coin.risk.devBps) : "?"}</span>
+            <span title="Share still held by wallets that bought in the coin's first three slots">Snp {share(coin.risk.snipers?.heldBps)}</span>
+            <span title="Share still held by early buyers who bought three or more to a slot">Bnd {share(coin.risk.bundles?.heldBps)}</span>
+            <span title="Share held by wallets that hold the coin and never bought it">Ins {share(coin.risk.insiders?.heldBps)}</span>
+          </span>
+        )}
       </Link>
       {canQuick && tradeable ? (
         <button className="quick" type="button" onClick={() => onQuick(coin)} aria-label={`Buy ${coin.symbol} for ${quick} SOL now`}>

@@ -15,6 +15,10 @@ export const CHANGELOG: { date: string; changes: string[] }[] = [
       "One list, bottom right, shows every transaction as it is signed, sent and confirmed or failed, with a link to its receipt.",
       "The real Privacy Rings program is wired in behind the same wallet page for devnet. Reaching its services and reading an empty wallet are proven; registering, depositing, transferring and withdrawing have not been run, for want of test SOL.",
       "Load and performance tests that fail the build when a budget is missed.",
+      "The real Privacy Rings program proven on devnet: registering, depositing, transferring and withdrawing SOL, by script and through this site's wallet page. Two transfers in one transaction settle together or not at all.",
+      "The terminal's data layer: the chain read as a stream of transactions as well as whole blocks, tested on a recorded stretch of mainnet. A mainnet mode that reads and can send nothing.",
+      "Risk figures on every board row (top ten, dev, snipers, bundles, insiders), each by a rule printed in the docs. A lowest and highest allowed value for every figure, saved presets, and filters kept in the link.",
+      "Coins that were already trading when first seen are followed from there and say so. Coins nobody trades stop being followed. Coins priced in something other than SOL are listed as not supported yet.",
     ],
   },
   {
